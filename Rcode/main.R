@@ -24,9 +24,11 @@ X_miss = MCAR(X, prop_added_missing)
 
 # Perform multiple imputation
 X_imputed = mice_imp(X_miss, m=n_imputations)
+X_imputed_nomiss = mice_imp(X, m=1)
 
 # Fit and predict on each filled dataset using a train/test split
 predictions = multiple_prediction(X_imputed, y, pred_method = prediction_method, train_size = train_size, seed=seed)
+predictions_nomiss = multiple_prediction(X_imputed_nomiss, y, pred_method = prediction_method, train_size = train_size, seed=seed)
 
 # Aggregate results
 y_pred = matrix(NA, nrow=length(predictions$y_true), ncol=n_imputations)
@@ -39,10 +41,11 @@ dev = apply(y_pred, 1, sd)
 results$upper = results$estimator + dev*qnorm(0.95)
 results$lower = results$estimator - dev*qnorm(0.95)
 results$true = as.numeric(predictions$y_true == 'X1')
+results$nomiss = predictions_nomiss$y_pred[[1]][,2]
+results = results %>% arrange(nomiss)
 
-results = results %>% arrange(estimator)
-
-ggplot(results) + aes(x=1:nrow(results)) + geom_point(aes(y=estimator), color='red') +
+ggplot(results) + aes(x=1:nrow(results)) + geom_point(aes(y=estimator, color='Estimation with added missing data')) +
   geom_line(aes(y=upper)) + geom_line(aes(y=lower)) +
-  geom_point(aes(y=true))
+  geom_point(aes(y=true)) + geom_point(aes(y=nomiss, color='Estimation with no added missing data')) +
+  scale_color_manual(values=c('red','blue'))
 
