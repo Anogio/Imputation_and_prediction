@@ -8,15 +8,23 @@ source('imputation_methods.R')
 source('prediction_methods.R')
 
 seed = 42
+dataset = 'titanic'
+prop_added_missing = 0.05
+n_imputations = 5
+prediction_method = 'rf'
+train_size = 0.5
 
-dataset = 'iris'
-
+# Load and format the dataset
 dat = loader(dataset)
 X = cbind(dat$X_numeric, dat$X_category)
 y=dat$y
 
-X_miss = MCAR(X, 0.05)
+# Add some missing values
+X_miss = MCAR(X, prop_added_missing)
 
-X_imputed = mice_imp(X_miss, m=5)
+# Perform multiple imputation
+X_imputed = mice_imp(X_miss, m=n_imputations)
 
-predictions = multiple_prediction(X_imputed, y, pred_method = 'rf', train_size = 0.5, seed=seed)
+# Fit and predict on each filled dataset using a train/test split
+predictions = multiple_prediction(X_imputed, y, pred_method = prediction_method, train_size = train_size, seed=seed)
+
