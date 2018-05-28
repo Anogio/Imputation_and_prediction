@@ -1,5 +1,6 @@
 ## Imports
 library(tidyverse)
+library(verification)
 
 # Custom imports
 source('dataloaders.R')
@@ -9,7 +10,7 @@ source('prediction_methods.R')
 
 seed = 42
 dataset = 'titanic'
-prop_added_missing = 0.05
+prop_added_missing = 0.1
 n_imputations = 5
 prediction_method = 'rf'
 train_size = 0.5
@@ -49,3 +50,4 @@ ggplot(results) + aes(x=1:nrow(results)) + geom_point(aes(y=estimator, color='Es
   geom_point(aes(y=true)) + geom_point(aes(y=nomiss, color='Estimation with no added missing data')) +
   scale_color_manual(values=c('red','blue'))
 
+roc.plot(results$true, results[,c(5,1)], legend=T)
