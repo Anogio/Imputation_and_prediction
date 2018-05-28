@@ -66,5 +66,6 @@ loader <- function(dataset){
 
 ###############
 # Example
-tit = loader('titanic')
-ir = loader('iris')
+
+#tit = loader('titanic')
+#ir = loader('iris')
