@@ -2,6 +2,8 @@ library(tidyverse)
 
 #############################
 # Information on each dataset, used for automatic loading
+#\\TODO Put all of this in a separate configuration file
+
 data_folder = '../Data/'
 
 files = list(
