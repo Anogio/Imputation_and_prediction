@@ -8,7 +8,7 @@ mice_imp <- function(X, m=5){
   for(i in 1:m){
     res[[i]] = complete(imp,i)
   }
-  print('Done')
+  print('Done.')
   return(res)
 }
 

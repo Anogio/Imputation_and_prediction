@@ -10,5 +10,6 @@ MCAR <- function(X, miss_prop=0.05){
   missing = sum(colSums(is.na(X)))
   prop_missing = missing/(n*m)
   print(paste('New proportion of missing data: ', prop_missing*100, '%.', sep=''))
+  print('Done.')
   return(X)
 }
