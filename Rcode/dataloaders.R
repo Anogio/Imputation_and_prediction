@@ -58,6 +58,7 @@ loader <- function(dataset){
       X_cat[,i] = as.factor(X_cat[,i])
     }
   }
+  levels(y) = make.names(levels(y))
   
   summarise_x(X_num, X_cat)
   return(list(X_numeric=X_num, X_category=X_cat, y=y))
