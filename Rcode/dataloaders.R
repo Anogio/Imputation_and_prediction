@@ -1,16 +1,53 @@
 library(tidyverse)
 
-trauma_loader <- function(){
-  # Load data into memory
-  trauma <- read.csv('../Data/data_trauma.csv',na.strings = c("","NR","IMP","NA","NF"),encoding = "UTF-8")
-  # Select relevant columns and compute BMI
-  trauma <- trauma[ ,c(10:14,225:228,234,33:35,15,18,229:233,244,19:30,41:42,49:54,48,58,61,44,46:47,55:57,60,62, 38)] 
-  trauma$BMI[3302] <- trauma$Poids[3302]/(trauma$Taille[3302]^2)
-  
-  trauma <- trauma[-which(trauma$ACR.1==1),]
-  Choc.hemorragique <-  traumdata$Choc.hemorragique
-  Choc.hemorragique <-  Choc.hemorragique[-which(traumdata$ACR.1==1)]
-  
-  Choc.hemorragique <-  Choc.hemorragique[-which(trauma$Mecanisme=="Arme blanche" | trauma$Mecanisme=="Arme ύ feu")]
-  trauma <- trauma[-which(trauma$Mecanisme=="Arme blanche" | trauma$Mecanisme=="Arme ύ feu"),]
+summarise_xy <-  function(X,y){
+  missing = sum(colSums(is.na(X)))
+  missing_prop = missing/(nrow(X)*ncol(X))
+  print(paste(missing, ' (', missing_prop*100, '%) missing observations.', sep=''))
+  print(paste('Done (', nrow(X), ' rows, ', ncol(X), ' columns).', sep=''))
 }
+
+iris_loader <- function(datatypes='numeric'){
+  print(paste('Loading iris data (selected data type: ', datatypes, ') ...', sep=''))
+  data(iris)
+  if(datatypes=='numeric' | datatypes=='all'){
+    X=iris[,1:4]
+    y=iris[,5]
+  }
+  else{
+    stop('Iris only has numeric values.')
+  }
+  
+  summarise_xy(X,y)
+  return(list(X=X, y=y))
+}
+
+titanic_loader <- function(datatypes='all'){
+  print(paste('Loading titanic data (selected data type: ', datatypes, ') ...', sep=''))
+  
+  tit = read.csv('../Data/titanic.csv')
+  tit$Pclass = as.factor(tit$Pclass)
+  if(datatypes=='all'){
+    X=tit[,c(3, 5:8,10,12)]
+    y=tit[,2]
+  }
+  else if(datatypes=='category'){
+    X=tit[,c(3, 5, 12)]
+    y=tit[,2]
+  }
+  else if(datatypes=='numeric'){
+    X=tit[,c(6:8, 11)]
+    y=tit[,2]
+  }
+  else{
+    stop('Wrong data type specified: must be "all", "numeric" or "category".')
+  }
+  
+  summarise_xy(X,y)
+  return(list(X=X, y=y))
+}
+
+trauma_loader <- function(){
+  # TODO : load trauma data using Wei's code
+}
+
