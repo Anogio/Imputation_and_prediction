@@ -11,16 +11,17 @@ source(paste(aux.folder,'prediction_methods.R',sep=''), chdir = T)
 
 seed = 42
 dataset = 'trauma'
-prop_added_missing = 0
+prop_added_missing = 0.1
 n_imputations = 5
 prediction_method = 'rf'
 train_size = 0.5
+max_rows = 1000
 
 #######################
 # Preparation
 
 # Load and format the dataset
-dat = loader(dataset, max_rows)
+dat = loader(dataset, max_rows, seed)
 ###X = cbind(dat$X_numeric, dat$X_category)
 X = dat$X_numeric
 X = X %>% dplyr::select(Age, Glasgow.moteur.initial, FC.max, Hemocue.init, Remplissage.total.cristalloides, Remplissage.total.colloides,
@@ -35,7 +36,7 @@ X_miss = MCAR(X, prop_added_missing)
 
 ############################
 # SAEM prediction
-prediction_SAEM = saem_prediction(X_miss, y, train_size=train_size, seed=seed)
+prediction_SAEM = saem_prediction(X_miss, y, train_size=train_size, seed=seed, printevery=50)
 
 ####################
 # Multiple imputation
@@ -47,8 +48,10 @@ for(i in 1:ncol(X_fillmean)){
 }
 
 # Fit and predict on each filled dataset using the same train/test split as with the SAEM (ie same seed)
-predictions = multiple_prediction(X_imputed, y, pred_method = prediction_method, train_size = train_size, seed=seed)
-prediction_meanfill = multiple_prediction(list(X_fillmean), y, pred_method = prediction_method, train_size = train_size, seed=seed)
+predictions = multiple_prediction(X_imputed, y, pred_method = prediction_method, 
+                                  train_size = train_size, seed=seed, spl=prediction_SAEM$spl)
+prediction_meanfill = multiple_prediction(list(X_fillmean), y, pred_method = prediction_method, 
+                                          train_size = train_size, seed=seed,spl=prediction_SAEM$spl)
 
 
 ##################
@@ -60,7 +63,7 @@ for(i in 1:n_imputations){
 results = data.frame(row.names=1:nrow(y_pred))
 results$MI_estimate = apply(y_pred, 1, mean)
 results$SAEM_estimate = prediction_SAEM$y_pred
-result$meanImp_estimate = prediction_meanfill$y_pred[[1]][,2]
+results$meanImp_estimate = prediction_meanfill$y_pred[[1]][,2]
 results$true = as.numeric(predictions$y_true == 'X1')
 
-roc.plot(results$true, results[,c(1,2,3)], legend=T)
+roc.plot(results$true, results[,c(1,2,3)], legend=T, leg.text=c("MI + randomforest predition", 'SAEM prediction', "Mean imputation + randomforest prediction"))
