@@ -11,7 +11,7 @@ source(paste(aux.folder,'prediction_methods.R',sep=''), chdir = T)
 
 seed = 42
 dataset = 'trauma'
-prop_added_missing = 0.1
+prop_added_missing = 0
 n_imputations = 5
 prediction_method = 'rf'
 train_size = 0.5
