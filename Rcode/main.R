@@ -12,15 +12,16 @@ source('imputation_methods.R')
 source('prediction_methods.R')
 
 seed = 42
-dataset = 'iris'
-prop_added_missing = 0.1
+dataset = 'trauma'
+prop_added_missing = 0
 n_imputations = 5
 prediction_method = 'rf'
 train_size = 0.5
 
 # Load and format the dataset
 dat = loader(dataset)
-X = cbind(dat$X_numeric, dat$X_category)
+###X = cbind(dat$X_numeric, dat$X_category)
+X = dat$X_numeric
 y=dat$y
 
 # Add some missing values
@@ -33,6 +34,7 @@ X_imputed_nomiss = mice_imp(X, m=1)
 # Fit and predict on each filled dataset using a train/test split
 predictions = multiple_prediction(X_imputed, y, pred_method = prediction_method, train_size = train_size, seed=seed)
 predictions_nomiss = multiple_prediction(X_imputed_nomiss, y, pred_method = prediction_method, train_size = train_size, seed=seed)
+predictions_simple_imp = multiple_prediction(list(X_imputed[[1]]), y, pred_method = prediction_method, train_size = train_size, seed=seed)
 
 # Aggregate results
 y_pred = matrix(NA, nrow=length(predictions$y_true), ncol=n_imputations)
@@ -46,6 +48,7 @@ results$upper = results$estimator + dev*qnorm(0.95)
 results$lower = results$estimator - dev*qnorm(0.95)
 results$true = as.numeric(predictions$y_true == 'X1')
 results$nomiss = predictions_nomiss$y_pred[[1]][,2]
+results$simpleimp = predictions_simple_imp$y_pred[[1]][,2]
 results = results %>% arrange(nomiss)
 
 ggplot(results) + aes(x=1:nrow(results)) + geom_point(aes(y=estimator, color='Estimation with added missing data')) +
@@ -53,4 +56,4 @@ ggplot(results) + aes(x=1:nrow(results)) + geom_point(aes(y=estimator, color='Es
   geom_point(aes(y=true)) + geom_point(aes(y=nomiss, color='Estimation with no added missing data')) +
   scale_color_manual(values=c('red','blue'))
 
-roc.plot(results$true, results[,c(5,1)], legend=T)
+roc.plot(results$true, results[,c(5,1,6)], legend=T)
