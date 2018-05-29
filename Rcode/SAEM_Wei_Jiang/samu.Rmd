@@ -1,0 +1,175 @@
+---
+title: "Trauma data"
+author: "Wei"
+date: "3/14/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+During the first stage of management of a polytraumatized patient, we collect on-site trauma data on the ambulance. The trauma database has 7495 patients and 244 both quantitative and categorical variables, including administrative data (date, id); initial data on patients (age, sex);  context of the accident (mechanism, time spent by the patient in the car, etc. ); initial clinical examination data recorded by the ambulance (Glasgow initial, PAS min, PAD min, FC max, PAS/PAD, etc.); therapeutic measure recorded by the ambulance (Mannitol, IOT incubation, etc.). 
+
+In order to help the emergency doctor to make decision whether or not the patient suffers hemorrhagic shock when the patient arrives at the Trauma-center, according to the clinical experience, we first select 17 quantitative measurements at the ambulance. 
+
+```{r pressure, echo=FALSE}
+library(ggplot2)
+library(tidyr)
+library(knitr)
+library(MASS)
+library(mvtnorm)
+
+#-------------------Load dataset---------------------- 
+traumdata <- read.csv(file="trauma.csv",sep=';',dec=',',header = TRUE,na.strings = c("","NR","IMP","NA","NF"),encoding = "UTF-8")
+#traumdata <- read.csv(file="Ftry.csv",sep=',',dec=',',header = TRUE,na.strings = c("","NR","IMP","NA","NF"),encoding = "UTF-8",fileEncoding="CP1252")
+#trauma <- read.csv(file="trauma.csv",sep=';',header = TRUE,na.strings = c("","NR","IMP","NA","NF"),encoding = "UTF-8",fileEncoding="CP1252")
+#summary(traumdata)
+SAMU <- traumdata[ ,c(10:14,225:228,234,33:35,15,18,229:233,244,19:30,41:42,49:54,48,58,61,44,46:47,55:57,60,62, 38)]
+write.csv(SAMU, "SAMU.csv")
+#summary(SAMU)
+#names(SAMU)
+# [34] "Glasgow.initial" @@@@    Glasgow initial (Score entre 3 et 15 relié à la gravité du traumatisme crânien contenant la réponse motrice, verbale et l’ouverture des yeux)                  
+# [35] "Glasgow.moteur.initial" @@@@@@               
+# [36] "PAS.min" **********Def: Pression Artherielle systolique (Systolic blood pressure): The systolic value corresponds to the minimum pressure encountered during contraction of the chambers of the heart (or systole), in centimeters of mercury (mmHg).                              
+# [37] "PAD.min" **********Def: PAD is  diastolic blood pressure. diastolic blood pressure number or the bottom number indicates the pressure in the arteries when the heart rests between beats. 
+# [38] "FC.max" *********Fréquence cardiaque pré hospitalière    The heart rate is the number of heartbeat (or pulse) per unit time (usually a minute).                           
+# [39] "PAS.SMUR"                              "PAD.SMUR"                             
+# [41] "FC.SMUR"                               
+# [42]  "ACR.1" ******categ-> donnee****Def: ACR (cardio-respiratory arrest) is the stopping of blood flow and breathing in an individual. If the cardiovasccular arrest is detected, immediate rescue should be given to save the person immediately.                                
+# [43] "Hemocue.init"  ******** Hémoglobine capillaire pré hospitalière Hemocue.init:Initial Hemoglobine measured by blood sample on finger top.
+#### [44] "SpO2.min"    @@@@@@@@Def: SpO2 min (pulsed oxygen saturation, reflection of blood oxygenation, low it can have two explanations: pulmonary involvement or too low cardiac output) so bascially it is an estimate of the amount of oxygen in the blood. Specifically, it represents the percentage of oxygenated hemoglobin (containing oxygen) relative to the total amount of hemoglobin in the blood. Missing values in Sp02 are basically both MAR and MNAR values.                         
+# [45] "Mydriase"                              
+# [46] "Mannitol.SSH" @@@@categ@@@ Hypertonic saline serum (this is the therapy when mydriasis, the aim being to reduce the pressure in the brain by transferring the fluid from the cells to the bloodstream).                         
+# [47] "Regression.mydriase.sous.osmotherapie" 
+# [48] "Lactates.prehosp" ********Def: (passage en métabolisme anaérobie, constitue un facteur de gravité. Mesurée comme l’hémocue mais tous les SAMU n’en sont pas équipés)                     
+# [49] "Remplissage.total.cristalloides"  ******    
+# [50] "Remplissage.total.colloides"****** Remplissage vasculaire préhospitalier colloides/cristalloides? Volume?       
+# [51] "Catecholamines"                        "IOT.SMUR"                             
+# [53] "Origine"     
+
+#-------------------Select continues variables---------------------- 
+SAMU_CONT = SAMU[,c(1,3:5,34:41,43:44,48:50)]
+# p <- ggplot(data=SAMU_CONT)
+# for (n in names(SAMU_CONT)){
+#   p + geom_density(aes_string(x=n),alpha=.2, fill="#FF6666")
+# }
+# dat <- stack(SAMU_CONT)
+# ggplot(dat, aes(x=values, fill=ind)) + geom_density(alpha=0.5)
+
+#SAMU_CONT = SAMU_CONT[,c(1:5,8:14,16:17)]
+indx <- sapply(SAMU_CONT, is.factor)
+SAMU_CONT[indx] <- lapply(SAMU_CONT[indx], function(x) as.numeric(as.character(x)))
+```
+
+Meaning of variables:
+
+Age: Age.
+
+Poids: Weight.
+
+Taille: Height.
+
+BMI: Body Mass index.
+
+Glasgow.initial: A neurological scale which aims to give a reliable and objective way of recording the conscious state of a person for initial.
+
+Glasgow.moteur.initial: Initial Glasgow for motor response.
+
+PAS.min: Systolic blood pressure. The systolic value corresponds to the minimum pressure encountered during contraction of the chambers of the heart (or systole), in centimeters of mercury (mmHg).
+
+PAD.min: Diastolic blood pressure. Diastolic blood pressure number or the bottom number indicates the pressure in the arteries when the heart rests between beats.
+
+FC.max: The heart rate is the number of heartbeat (or pulse) per unit time (usually a minute).
+
+PAS.SMUR: PAS.min at another time point.
+
+PAD.SMUR: PAD.min at another time point.
+
+FC.SMUR: FC.max at another time point.
+
+Hemocue.init: Initial Hemoglobin measured by blood sample on finger top.
+
+SpO2.min: An estimate of the amount of oxygen in the blood. It represents the percentage of oxygenated hemoglobin relative to the total amount of hemoglobin in the blood.
+
+Lactates.prehosp: Prehospital Lactate Measurement.
+
+Remplissage.total.cristalloides and Remplissage.total.colloides: Prehospital Volume expander. There are two main types: crystalloids and colloids.
+
+As follows we show the summary and the distribution plot of these 17 variables.
+
+Summary of variables
+```{r}
+summary(SAMU_CONT)
+```
+
+
+
+Percentage of missingness
+```{r}
+na1<- sapply(SAMU_CONT,function(x) sum(is.na(x))); 
+dims<-dim(SAMU_CONT)
+num<-dims[1]
+NApercen<- (na1/num)*100
+#print(NApercen)
+percent<-round(NApercen,1)
+don = cbind.data.frame(names(percent),percent)
+colnames(don) = c("Var", "Percent")
+ggplot(don, aes(reorder(Var,percent),percent)) + theme_bw()+ geom_bar(stat="identity") + theme(axis.text.x= element_text(angle=65,hjust=1)) + guides(fill=guide_legend(title=NULL))
+```
+
+
+Distribution plot for each variables
+```{r}
+p <- ggplot(data=SAMU_CONT)
+for (n in names(SAMU_CONT)){
+  print(p + geom_density(aes_string(x=n),alpha=.2, fill="#FF6666"))
+}
+```
+
+mean imp => PCA,  sup: trauma.cranien
+```{r}
+trauma.cranien=as.factor(traumdata$Trauma.cranien)
+mecanisme = traumdata$Mecanisme
+
+DATA1=cbind.data.frame(trauma.cranien,SAMU_CONT)
+res.pca = PCA(DATA1,quali.sup = 1,graph = FALSE)
+plot(res.pca,choix='ind',hab=1, lab ='quali',cex=0.5)
+plot(res.pca,choix='var',cex=0.5)
+```
+mean imp => PCA, sup: mechanism
+```{r}
+DATA2=cbind.data.frame(mecanisme,SAMU_CONT)
+res.pca = PCA(DATA2,quali.sup = 1,graph = FALSE)
+plot(res.pca,choix='ind',hab=1, lab ='quali',cex=0.5)
+plot(res.pca,choix='var',cex=0.5)
+```
+imputePCA => PCA, sup:trauma.cranien
+```{r}
+#estim_ncpPCA(SAMU_CONT)
+res.comp = imputePCA(SAMU_CONT) #iterative PCA
+#res.comp$completeObs : donnee complete
+
+imp = cbind.data.frame(trauma.cranien,res.comp$completeObs)
+#perform the PCA on the completed data set using the PCA function of the FactoMineR package
+res.pca = PCA(imp,quali.sup = 1,graph = FALSE)
+plot(res.pca,choix='ind',hab=1, lab ='quali',cex=0.5)
+plot(res.pca,choix='var',cex=0.5)
+```
+
+
+
+imputePCA => PCA, sup:mecanisme
+```{r}
+#estim_ncpPCA(SAMU_CONT)
+res.comp = imputePCA(SAMU_CONT) #iterative PCA
+#res.comp$completeObs : donnee complete
+
+imp = cbind.data.frame(mecanisme,res.comp$completeObs)
+#perform the PCA on the completed data set using the PCA function of the FactoMineR package
+res.pca = PCA(imp,quali.sup = 1,graph = FALSE)
+plot(res.pca,choix='ind',hab=1, lab ='quali',cex=0.5)
+plot(res.pca,choix='var',cex=0.5)
+```
