@@ -2,7 +2,7 @@
 # ---------- SAEM
 #X.obs:x1,x2
 #X.all:x1,x2,x3,x4,x5
-miss.saem <- function(X.obs,pos_var,y,maxruns=500,tol_em=1e-7,nmcmc=2,ag=1,k1=50,print_iter=TRUE, var_obs_cal=FALSE, ll_obs_cal=FALSE) {
+miss.saem <- function(X.obs,pos_var,y,maxruns=500,tol_em=1e-7,nmcmc=2,ag=1,k1=50,print_iter=TRUE, var_obs_cal=FALSE, ll_obs_cal=FALSE, printevery=1) {
 #delete rows completely missing
   p=ncol(X.obs)#x1,x2
   if(any(apply(is.na(X.obs),1,sum)==p)){
@@ -104,10 +104,10 @@ miss.saem <- function(X.obs,pos_var,y,maxruns=500,tol_em=1e-7,nmcmc=2,ag=1,k1=50
         seqbeta_avg[,k]= 1/k*rowSums(seqbeta[,1:k])
         }
       
-      if(print_iter==TRUE){
+      if(print_iter==TRUE & (k%%printevery==0)){
         cat(sprintf('iteration = %i ', k))
         cat(sprintf('beta ='),beta,'\n')
-        cat(sprintf('Distance from estimateur from last iter ='),cstop,'\n')
+        cat(sprintf('Distance from estimator from last iter ='),cstop,'\n')
       }
     }
     var_obs = ll = ll1= ll2=std_obs =NULL

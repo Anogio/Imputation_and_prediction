@@ -1,11 +1,16 @@
 library(caret)
 
-multiple_prediction <- function(X_MI, y, pred_method, train_size=0.5, seed=42){
+multiple_prediction <- function(X_MI, y, pred_method, train_size=0.5, seed=42, spl=NULL){
   print(paste('Predicting response using method ', pred_method, ' on ', train_size*100, '% of the data as training set...', sep=''))
-  set.seed(seed)
-  
   y_pred = list()
-  inTraining = createDataPartition(y, p=train_size, list=FALSE)
+  set.seed(seed)
+  if(is.null(spl)){
+    inTraining = createDataPartition(y, p=train_size, list=FALSE)
+  }
+  else{
+    print('Existing train/test split provided. Ignoring train_size parameter.')
+    inTraining = spl
+  }
 
   y_train = y[inTraining]
   y_test = y[-inTraining]
@@ -22,23 +27,29 @@ multiple_prediction <- function(X_MI, y, pred_method, train_size=0.5, seed=42){
     y_pred[[i]] = predict(fittedM, dat_test, type='prob') 
   }
   print('Done.')
-  return(list(y_pred=y_pred, y_true=y_test))
+  return(list(y_pred=y_pred, y_true=y_test, spl=inTraining))
 }
 
-saem_prediction <- function(X, y, train_size=0.5, seed=42){
+saem_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, printevery=50){
   print(paste('Predicting response using SAEM logistic regression on ', train_size*100, '% of the data as training set...', sep=''))
   source("../SAEM_Wei_Jiang/saem_model_selection_fct2.R", chdir = T)
   set.seed(seed)
+  if(is.null(spl)){
+    inTraining = createDataPartition(y, p=train_size, list=FALSE)
+  }
+  else{
+    print('Existing train/test split provided. Ignoring train_size parameter.')
+    inTraining = spl
+  }
   
   y = as.numeric(y) - 1 # Convert back to vector of 0 and 1s for saem
-  
-  inTraining = createDataPartition(y, p=train_size, list=FALSE)
   y_train = y[inTraining]
   y_test = y[-inTraining]
   X_train = X[inTraining,]
   X_test = X[-inTraining,]
   
-  list.saem.subset=miss.saem(data.matrix(X_train),1:ncol(X_train),y_train,maxruns=100,tol_em=1e-7,print_iter=TRUE,var_obs_cal=TRUE)
+  list.saem.subset=miss.saem(data.matrix(X_train),1:ncol(X_train),y_train,maxruns=1000,tol_em=1e-7,
+                             print_iter=TRUE,var_obs_cal=TRUE, printevery=printevery)
   beta.saem.train = list.saem.subset$beta
   se.saem.train = list.saem.subset$std_obs
   mu.saem = list.saem.subset$mu
@@ -63,5 +74,5 @@ saem_prediction <- function(X, y, train_size=0.5, seed=42){
   tmp <- as.matrix(cbind.data.frame(rep(1,dim(X_test1)[1]),X_test1)) %*% as.matrix(beta.saem.train) 
   pr <- 1/(1+(1/exp(tmp)))
   
-  return(list(y_pred=pr, y_true=y_test))
+  return(list(y_pred=pr, y_true=y_test, spl=inTraining))
 }
