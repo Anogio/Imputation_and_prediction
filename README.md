@@ -5,7 +5,7 @@ In particular, we want to assess the impact of the choice of the impuation metho
 
 ## Repository structure
 ### References
-This folder contains some references articles. They describe the imputation methods used in this work.
+This folder contains some references articles. Some of them describe the imputation methods used in this work, while others provide information on the subject of our main dataset: head trauma and haemorrhagic shock.
 
 ### Data
 This folder contains the datasets used for the comparison. Our main subject of study if a medical dataset collected by the Traumabase organisation (http://www.traumabase.eu/en_US). It is not publicly available, and thus is not included in the repository.
