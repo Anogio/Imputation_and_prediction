@@ -1,4 +1,5 @@
 library(tidyverse)
+library(caret)
 
 #############################
 # Information on each dataset, used for automatic loading
@@ -51,10 +52,11 @@ summarise_x <-  function(X_num, X_cat){
 
 ###############################
 # Main loader
-loader <- function(dataset){
+loader <- function(dataset, max_rows=NULL, seed=42){
   print(paste('Loading ',  dataset, ' data...', sep=''))
   
   dat = read.csv(paste(data_folder,files[dataset], sep=''))
+  
   ycol = y_columns[[dataset]]
   numcols = num_columns[[dataset]]
   catcols = cat_columns[[dataset]]
@@ -66,6 +68,14 @@ loader <- function(dataset){
   else{
     y = as.numeric(dat[,ycol])
   }
+  
+  if(!is.null(max_rows) & nrow(dat)>max_rows){
+    set.seed(seed)
+    keeprows = createDataPartition(y, p=max_rows/nrow(dat), list=F)
+    dat = dat[keeprows,]
+    y = y[keeprows]
+  }
+  
   X_num = dat[, numcols]
   X_cat = dat[, catcols]
   
