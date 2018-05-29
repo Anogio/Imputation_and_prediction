@@ -12,7 +12,7 @@ source('imputation_methods.R')
 source('prediction_methods.R')
 
 seed = 42
-dataset = 'trauma'
+dataset = 'titanic'
 prop_added_missing = 0
 n_imputations = 5
 prediction_method = 'rf'
@@ -20,8 +20,7 @@ train_size = 0.5
 
 # Load and format the dataset
 dat = loader(dataset)
-###X = cbind(dat$X_numeric, dat$X_category)
-X = dat$X_numeric
+X = cbind(dat$X_numeric, dat$X_category)
 y=dat$y
 
 # Add some missing values
@@ -50,10 +49,5 @@ results$true = as.numeric(predictions$y_true == 'X1')
 results$nomiss = predictions_nomiss$y_pred[[1]][,2]
 results$simpleimp = predictions_simple_imp$y_pred[[1]][,2]
 results = results %>% arrange(nomiss)
-
-ggplot(results) + aes(x=1:nrow(results)) + geom_point(aes(y=estimator, color='Estimation with added missing data')) +
-  geom_line(aes(y=upper)) + geom_line(aes(y=lower)) +
-  geom_point(aes(y=true)) + geom_point(aes(y=nomiss, color='Estimation with no added missing data')) +
-  scale_color_manual(values=c('red','blue'))
 
 roc.plot(results$true, results[,c(5,1,6)], legend=T)
