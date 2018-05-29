@@ -11,5 +11,5 @@ This folder contains some references articles. They describe the imputation meth
 This folder contains the datasets used for the comparison. Our main subject of study if a medical dataset collected by the Traumabase organisation (http://www.traumabase.eu/en_US). It is not publicly available, and thus is not included in the repository.
 
 ### Rcode
-This folder contains all of the code writtend for this project
+This folder contains all of the code written for this project
 
