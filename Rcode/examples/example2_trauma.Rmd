@@ -23,7 +23,7 @@ Parameters for this run
 ```{r}
 seed = 42
 dataset = 'trauma'
-prop_added_missing = 0
+prop_added_missing = 0.05
 n_imputations = 5
 prediction_method = 'rf'
 train_size = 0.5
