@@ -18,11 +18,16 @@ Contains a main method *multiple.prediction* which performs a train/test split, 
 
 These files use the functions defined in hte auxiliary folder to perform a comparison of various imputation methods on different datasets
 
-## example1_titanic.R
+### example1_titanic.R
 Uses the methods from the auxiliary files to perform a full analysis on the titanic data. More precisely, its final purpose is to compare the ROC curves for prediction on 
 - the original dataset
 - the dataset with added missing data and multiple imputation
 - the dataset with added missing data and simple imputation
+
+### example2_trauma.R, example2_trauma.Rmd
+These files contain our first attemps at comparing various methods for haemorrhagic shock prediction in the Traumabase data. We apply the SAEM logistic regression for incomplete data. We compare its predictions to that of standard prediction methods applied after completing the data with various imputation methods.
+
+The results of this analysis are displayed in *example2_trauma.html*
 
 ## SAEM_Wei_Jiang
 Code for the SAEM logistic regression, as implemented by Wei Jiang. 
