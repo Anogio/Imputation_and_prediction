@@ -70,6 +70,7 @@ loader <- function(dataset, max_rows=NULL, seed=42){
   }
   
   if(!is.null(max_rows) & nrow(dat)>max_rows){
+    print(paste('Truncating dataset (from', nrow(dat), 'to approximately', max_rows ,'rows).'))
     set.seed(seed)
     keeprows = createDataPartition(y, p=max_rows/nrow(dat), list=F)
     dat = dat[keeprows,]
