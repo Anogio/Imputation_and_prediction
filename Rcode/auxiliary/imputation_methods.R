@@ -12,7 +12,7 @@ mice_imp <- function(X, m=5){
   imp = mice(X, m=m, printFlag = F)
   res = list()
   for(i in 1:m){
-    res[[i]] = complete(imp,i)
+    res[[i]] = mice::complete(imp,i)
   }
   print('Done.')
   return(res)
@@ -20,7 +20,15 @@ mice_imp <- function(X, m=5){
 
 amelia_imp <- function(X, m=5){
   print(paste('Performing', m, 'imputations with Amelia...'))
-  imp = amelia(X, m=m, ncpus = 4, noms=which(sapply(X,is.factor)))$imputations
+  nom = sapply(X,is.factor)
+  if(any(nom)){
+    noms = which(nom)
+  }
+  else{
+    noms = NULL
+  }
+  
+  imp = amelia(X, m=m, ncpus = 4, noms=noms)$imputations
   print('Done.')
   return(imp)
 }
@@ -28,8 +36,8 @@ amelia_imp <- function(X, m=5){
 mi_imp <- function(X, m=5){
   print(paste('Performing', m, 'imputations with mi...'))
   X_m = missing_data.frame(X)
-  X_m = mi(X)
-  X_m = complete(X_m, m=m)
+  X_m = mi(X, verbose=F)
+  X_m = mi::complete(X_m, m=m)
   print('Done')
   return(X_m)
 }
