@@ -102,4 +102,4 @@ Plot the ROC curve for these estimators. The number in the legend is the AUC (ar
 roc.plot(results$Hemo.shock, results[,c(1,2,3)], legend=T, leg.text=c("MI + randomforest", 'SAEM prediction', "Mean imputation + randomforest"))
 ```
 
-In this case, the results are extremely similar. It is interesting to note that when we restrics the dataset to 1000 entries, the SAEM logistic regression performs significantly better than the other methods. In our work to come, we will try to see how this performance discrepancy evolves when we increase the amount of missing data, as well as the performance of other imputation methods. 
+In this case, the results are extremely similar. It is interesting to note that when we restrict the dataset to 1000 entries, the SAEM logistic regression performs significantly better than the other methods. In our work to come, we will try to see how this performance discrepancy evolves when we increase the amount of missing data, as well as the performance of other imputation methods. 
