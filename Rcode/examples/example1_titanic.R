@@ -48,6 +48,5 @@ results$lower = results$estimator - dev*qnorm(0.95)
 results$true = as.numeric(predictions$y_true == 'X1')
 results$nomiss = predictions_nomiss$y_pred[[1]][,2]
 results$simpleimp = predictions_simple_imp$y_pred[[1]][,2]
-results = results %>% arrange(nomiss)
 
 roc.plot(results$true, results[,c(5,1,6)], legend=T)
