@@ -2,6 +2,9 @@
 library(tidyverse)
 library(verification)
 
+this.dir <- dirname(parent.frame(2)$ofile)
+setwd(this.dir)
+
 # Custom imports
 source('dataloaders.R')
 source('generate_missing.R')
@@ -9,7 +12,7 @@ source('imputation_methods.R')
 source('prediction_methods.R')
 
 seed = 42
-dataset = 'titanic'
+dataset = 'iris'
 prop_added_missing = 0.1
 n_imputations = 5
 prediction_method = 'rf'
