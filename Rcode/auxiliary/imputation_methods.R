@@ -4,6 +4,8 @@ library(mice)
 library(Amelia)
 library(cat)
 
+########################
+# Methods to generate filled datasets
 
 mice_imp <- function(X, m=5){
   print(paste('Performing', m, 'imputations with MICE...'))
