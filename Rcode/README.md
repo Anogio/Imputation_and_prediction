@@ -23,3 +23,6 @@ Uses the methods from the auxiliary files to perform a full analysis on the tita
 - the original dataset
 - the dataset with added missing data and multiple imputation
 - the dataset with added missing data and simple imputation
+
+## SAEM_Wei_Jiang
+Code for the SAEM logistic regression, as implemented by Wei Jiang. 
