@@ -2,18 +2,16 @@
 library(tidyverse)
 library(verification)
 
-this.dir <- dirname(parent.frame(2)$ofile)
-setwd(this.dir)
-
 # Custom imports
-source('dataloaders.R')
-source('generate_missing.R')
-source('imputation_methods.R')
-source('prediction_methods.R')
+aux.folder = '../auxiliary/'
+source(paste(aux.folder,'dataloaders.R',sep=''), chdir = T)
+source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
+source(paste(aux.folder,'imputation_methods.R',sep=''), chdir = T)
+source(paste(aux.folder,'prediction_methods.R',sep=''), chdir = T)
 
 seed = 42
 dataset = 'titanic'
-prop_added_missing = 0
+prop_added_missing = 0.1
 n_imputations = 5
 prediction_method = 'rf'
 train_size = 0.5
