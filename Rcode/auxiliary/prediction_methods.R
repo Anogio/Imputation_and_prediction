@@ -1,4 +1,5 @@
 library(caret)
+library(xgboost)
 
 multiple_prediction <- function(X_MI, y, pred_method, train_size=0.5, seed=42, spl=NULL){
   print(paste('Predicting response using method ', pred_method, ' on ', train_size*100, '% of the data as training set...', sep=''))
@@ -77,13 +78,40 @@ saem_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, printevery=
   return(list(y_pred=pr, y_true=y_test, spl=inTraining))
 }
 
+
+xgboost_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL){
+  print(paste('Predicting response using XGBoost on ', train_size*100, '% of the data as training set...', sep=''))
+  source("../SAEM_Wei_Jiang/saem_model_selection_fct2.R", chdir = T)
+  set.seed(seed)
+  if(is.null(spl)){
+    inTraining = createDataPartition(y, p=train_size, list=FALSE)
+  }
+  else{
+    print('Existing train/test split provided. Ignoring train_size parameter.')
+    inTraining = spl
+  }
+  
+  X = as.matrix(X)
+  
+  y = as.numeric(y) - 1 # Convert back to vector of 0 and 1s for saem
+  y_train = y[inTraining]
+  y_test = y[-inTraining]
+  X_train = X[inTraining,]
+  X_test = X[-inTraining,]
+  
+  train.xgb <- xgboost(data = X_train, label = y_train, nrounds=30, nthread = 4, objective = "binary:logistic")
+  pred <- predict(train.xgb, X_test)
+  
+  return(list(y_pred=pred, y_true=y_test, spl=inTraining))
+}
+
 ####################
 # Method to pool the estimator from a list of prediction results for a binary response
 pool_MI_binary <- function(preds){
   n_imputations = length(preds$y_pred)
   y_pred = matrix(NA, nrow=length(preds$y_true), ncol=n_imputations)
   for(i in 1:n_imputations){
-    y_pred[,i] = predictions$y_pred[[i]][,2]
+    y_pred[,i] = preds$y_pred[[i]][,2]
   }
   
   return(apply(y_pred, 1, mean))
