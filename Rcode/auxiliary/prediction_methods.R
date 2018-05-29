@@ -76,3 +76,15 @@ saem_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, printevery=
   
   return(list(y_pred=pr, y_true=y_test, spl=inTraining))
 }
+
+####################
+# Method to pool the estimator from a list of prediction results for a binary response
+pool_MI_binary <- function(preds){
+  n_imputations = length(preds$y_pred)
+  y_pred = matrix(NA, nrow=length(preds$y_true), ncol=n_imputations)
+  for(i in 1:n_imputations){
+    y_pred[,i] = predictions$y_pred[[i]][,2]
+  }
+  
+  return(apply(y_pred, 1, mean))
+}
