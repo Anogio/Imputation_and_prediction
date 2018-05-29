@@ -69,7 +69,7 @@ loader <- function(dataset, max_rows=NULL, seed=42){
     y = as.numeric(dat[,ycol])
   }
   
-  if(!is.null(max_rows) & nrow(dat)>max_rows){
+  if(!is.null(max_rows) && nrow(dat)>max_rows){
     print(paste('Truncating dataset (from', nrow(dat), 'to approximately', max_rows ,'rows).'))
     set.seed(seed)
     keeprows = createDataPartition(y, p=max_rows/nrow(dat), list=F)
