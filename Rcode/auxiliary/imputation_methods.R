@@ -6,6 +6,26 @@ library(cat)
 
 ########################
 # Methods to generate filled datasets
+impute <- function(X, m=5, method){
+  if(method=='mice'){
+    return(mice_imp(X,m))
+  }
+  else if(method=='amelia'){
+    return(amelia_imp(X,m))
+  }
+  else if(method=='mi'){
+    return(mi_imp(X,m))
+  }
+  else if(method=='cat'){
+    return(cat_imp(X,m))
+  }
+  else if(method=='mean'){
+    return(list(mean_imp_single(X)))
+  }
+  else{
+    stop('Unknown method provided')
+  }
+}
 
 mice_imp <- function(X, m=5){
   print(paste('Performing', m, 'imputations with MICE...'))
@@ -59,18 +79,19 @@ cat_imp <- function(X, m=5){
   return(imp)
 }
 
-mean_imp_single <- function(X, spl){
+mean_imp_single <- function(X){
+  print('Performing mean imputation...')
   catCols = which(sapply(X, is.factor))
   numCols = setdiff(1:ncol(X), catCols)
   
   for(i in numCols){
     c = X[,i]
-    X[is.na(c),i] = mean(c[spl], na.rm = T)
+    X[is.na(c),i] = mean(c, na.rm = T)
   }
   for(i in catCols){
     levels(X[,i]) = c(levels(X[,i]), 'miss')
     X[is.na(X[,i]), i] = 'miss'
   }
-  
+  print('Done.')
   return(X)
 }
