@@ -28,7 +28,7 @@ amelia_imp <- function(X, m=5){
     noms = NULL
   }
   
-  imp = amelia(X, m=m, ncpus = 4, noms=noms)$imputations
+  imp = amelia(X, m=m, noms=noms, p2s=1, parallel = 'multicore', ncpus = 4)$imputations
   print('Done.')
   return(imp)
 }
@@ -59,13 +59,13 @@ cat_imp <- function(X, m=5){
   return(imp)
 }
 
-mean_imp_single <- function(X){
+mean_imp_single <- function(X, spl){
   catCols = which(sapply(X, is.factor))
   numCols = setdiff(1:ncol(X), catCols)
   
   for(i in numCols){
     c = X[,i]
-    X[is.na(c),i] = mean(c, na.rm = T)
+    X[is.na(c),i] = mean(c[spl], na.rm = T)
   }
   for(i in catCols){
     levels(X[,i]) = c(levels(X[,i]), 'miss')
