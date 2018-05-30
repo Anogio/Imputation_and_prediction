@@ -69,7 +69,7 @@ saem_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, printevery=
 }
 
 
-xgboost_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL){
+xgboost_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, nrounds=30){
   print(paste('Predicting response using XGBoost on ', train_size*100, '% of the data as training set...', sep=''))
   source("../SAEM_Wei_Jiang/saem_model_selection_fct2.R", chdir = T)
 
@@ -86,7 +86,7 @@ xgboost_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL){
   X_train = splitted$X_train
   X_test = splitted$X_test
   
-  train.xgb <- xgboost(data = X_train, label = y_train, nrounds=30, nthread = 4, objective = "binary:logistic")
+  train.xgb <- xgboost(data = X_train, label = y_train, nrounds=nrounds, nthread = 4, objective = "binary:logistic")
   pred <- predict(train.xgb, X_test)
   
   return(list(y_pred=pred, y_true=y_test, spl=splitted$spl, trained.predictor=train.xgb))
