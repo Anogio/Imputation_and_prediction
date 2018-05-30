@@ -23,11 +23,11 @@ Parameters for this run
 ```{r}
 seed = 42
 dataset = 'trauma'
-prop_added_missing = 0
+prop_added_missing = 0.1
 n_imputations = 5
 prediction_method = 'rf'
 train_size = 0.5
-max_rows = 1000
+max_rows = NULL
 ```
 
 ## Data preparation
@@ -77,17 +77,7 @@ X_imputed_mi = mi_imp(X_miss, m=n_imputations)
 
 Perform imputaton by the mean
 ```{r}
-catCols = which(sapply(X, is.factor))
-numCols = setdiff(1:ncol(X), catCols)
-X_fillmean = X_miss
-for(i in numCols){
-  c = X_fillmean[,i]
-  X_fillmean[is.na(c),i] = mean(c, na.rm = T)
-}
-for(i in catCols){
-  levels(X_fillmean[,i]) = c(levels(X_fillmean[,i]), 'miss')
-  X_fillmean[is.na(X_fillmean[,i]), i] = 'miss'
-}
+X_fillmean = mean_imp_single(X_miss)
 ```
 
 Fit and predict on each filled dataset using the same train/test split as with the SAEM. Here the prediction is made using any method available for caret (the choice is made at the top of the document. Here, we use a random forest estimator with no parameter tuning.)
@@ -95,9 +85,9 @@ Fit and predict on each filled dataset using the same train/test split as with t
 predictions_mice = multiple_prediction(X_imputed_mice, y, pred_method = prediction_method, 
                                   train_size = train_size, seed=seed, spl=predictions_xgb$spl)
 predictions_amelia = multiple_prediction(X_imputed_amelia, y, pred_method = prediction_method, 
-                                  train_size = train_size, seed=seed, spl=prediction_SAEM$spl)
+                                  train_size = train_size, seed=seed, spl=predictions_xgb$spl)
 predictions_mi = multiple_prediction(X_imputed_mi, y, pred_method = prediction_method, 
-                                  train_size = train_size, seed=seed, spl=prediction_SAEM$spl)
+                                  train_size = train_size, seed=seed, spl=predictions_xgb$spl)
 #predictions_cat = multiple_prediction(X_imputed_cat, y, pred_method = prediction_method, 
 #                                  train_size = train_size, seed=seed, spl=prediction_SAEM$spl)
 ```
