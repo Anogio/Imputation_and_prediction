@@ -58,3 +58,19 @@ cat_imp <- function(X, m=5){
   }
   return(imp)
 }
+
+mean_imp_single <- function(X){
+  catCols = which(sapply(X, is.factor))
+  numCols = setdiff(1:ncol(X), catCols)
+  
+  for(i in numCols){
+    c = X[,i]
+    X[is.na(c),i] = mean(c, na.rm = T)
+  }
+  for(i in catCols){
+    levels(X[,i]) = c(levels(X[,i]), 'miss')
+    X[is.na(X[,i]), i] = 'miss'
+  }
+  
+  return(X)
+}
