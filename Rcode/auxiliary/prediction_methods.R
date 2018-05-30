@@ -4,6 +4,8 @@ library(xgboost)
 multiple_prediction <- function(X_MI, y, pred_method, train_size=0.5, seed=42, spl=NULL){
   print(paste('Predicting response using method ', pred_method, ' on ', train_size*100, '% of the data as training set...', sep=''))
   y_pred = list()
+  trained_predictors = list()
+  
   set.seed(seed)
   if(is.null(spl)){
     inTraining = createDataPartition(y, p=train_size, list=FALSE)
@@ -20,15 +22,16 @@ multiple_prediction <- function(X_MI, y, pred_method, train_size=0.5, seed=42, s
     dat_train = cbind(X_MI[[i]][inTraining, ] , y_train)
     dat_test = X_MI[[i]][-inTraining, ]
     
-    fitControl <- trainControl(method = "none", classProbs = TRUE)
+    fitControl = trainControl(method = "none", classProbs = TRUE)
     fittedM = train(y_train~., data=dat_train,
                     method=pred_method, 
                     trControl=fitControl)
     
     y_pred[[i]] = predict(fittedM, dat_test, type='prob') 
+    trained_predictors[[i]] = fittedM
   }
   print('Done.')
-  return(list(y_pred=y_pred, y_true=y_test, spl=inTraining))
+  return(list(y_pred=y_pred, y_true=y_test, spl=inTraining, trained_predictors=trained_predictors))
 }
 
 saem_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, printevery=50){
@@ -75,7 +78,7 @@ saem_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, printevery=
   tmp <- as.matrix(cbind.data.frame(rep(1,dim(X_test1)[1]),X_test1)) %*% as.matrix(beta.saem.train) 
   pr <- 1/(1+(1/exp(tmp)))
   
-  return(list(y_pred=pr, y_true=y_test, spl=inTraining))
+  return(list(y_pred=pr, y_true=y_test, spl=inTraining, trained_param=list.saem.subset))
 }
 
 
@@ -90,7 +93,10 @@ xgboost_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL){
     print('Existing train/test split provided. Ignoring train_size parameter.')
     inTraining = spl
   }
-  
+  catData = which(sapply(X, is.factor))
+  for(c in catData){
+    X[,c] = as.numeric(X[,c])
+  }
   X = as.matrix(X)
   
   y = as.numeric(y) - 1 # Convert back to vector of 0 and 1s for saem
@@ -102,7 +108,7 @@ xgboost_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL){
   train.xgb <- xgboost(data = X_train, label = y_train, nrounds=30, nthread = 4, objective = "binary:logistic")
   pred <- predict(train.xgb, X_test)
   
-  return(list(y_pred=pred, y_true=y_test, spl=inTraining))
+  return(list(y_pred=pred, y_true=y_test, spl=inTraining, trained.predictor=train.xgb))
 }
 
 ####################
