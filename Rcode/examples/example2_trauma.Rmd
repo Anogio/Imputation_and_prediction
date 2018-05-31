@@ -1,11 +1,10 @@
 ---
-  title: "Comparison of SAEM to multiple imputation methods on trauma data"
+title: "Comparison of SAEM to multiple imputation methods on trauma data"
 output: html_document
 ---
   
-  ## Miscellaneous setup
-  Imports
-
+## Miscellaneous setup
+Imports
 ```{r, results="hide", message=FALSE}
 ## Imports
 library(tidyverse)
@@ -123,7 +122,12 @@ for(method in imputation_methods){
                                   train_size = train_size, seed=seed, spl=spl)
   # Pool the results to get a single estimate
   name = paste(method, '+', prediction_method)
-  y_pred[[name]] = pool_MI_binary(y_pred_multi)
+  if(method == 'mean'){
+    y_pred[[name]] = y_pred_multi$y_pred[[1]][-spl,2]
+  }
+  else{
+    y_pred[[name]] = pool_MI_binary(y_pred_multi, spl, method='mean', y_true=y)
+  }
   
   # Store additional info
   trained_predictors[[method]] = y_pred_multi$trained_predictors
@@ -134,7 +138,7 @@ if(pred_xgb){
   # Perform XGBoost prediction
   t0 = Sys.time()
   y_pred_xgb = xgboost_prediction(X_miss, y, train_size=train_size, seed=seed, nrounds = nrounds_xgb, spl=spl)
-  y_pred[['xgb']] = y_pred_xgb$y_pred
+  y_pred[['xgb']] = y_pred_xgb$y_pred[-spl]
   trained_predictors[['xgb']] = y_pred_xgb$trained.predictor
   times[['xgb']] = as.numeric(Sys.time() - t0)
 }
