@@ -4,7 +4,6 @@ library(caret)
 #############################
 # Information on each dataset, used for automatic loading
 #\\TODO Put all of this in a separate configuration file
-
 data_folder = '../../Data/'
 
 files = list(
@@ -53,6 +52,7 @@ summarise_x <-  function(X_num, X_cat){
 ###############################
 # Main loader
 loader <- function(dataset, max_rows=NULL, seed=42){
+  print(list.dirs('..'))
   print(paste('Loading ',  dataset, ' data...', sep=''))
   
   dat = read.csv(paste(data_folder,files[dataset], sep=''))
