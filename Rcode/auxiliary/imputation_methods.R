@@ -6,7 +6,7 @@ library(cat)
 
 ########################
 # Methods to generate filled datasets
-impute <- function(X, m=5, method){
+impute <- function(X, m=5, method, mipca_ncp=2){
   if(method=='mice'){
     return(mice_imp(X,m))
   }
@@ -18,6 +18,9 @@ impute <- function(X, m=5, method){
   }
   else if(method=='cat'){
     return(cat_imp(X,m))
+  }
+  if(method=='mipca'){
+    return(mipca_imp(X,m, mipca_ncp))
   }
   else if(method=='mean'){
     return(list(mean_imp_single(X)))
@@ -77,6 +80,13 @@ cat_imp <- function(X, m=5){
     imp[[i]] = imp.cat(X_p, theta)
   }
   return(imp)
+}
+
+mipca_imp <- function(X, m=5, ncp=2){
+  print(paste('Performing', m, 'imputations with MIPCA using', ncp, 'components...'))
+  imp = MIPCA(X, ncp=ncp, nboot=m)
+  print('Done.')
+  return(imp$res.MI)
 }
 
 mean_imp_single <- function(X){

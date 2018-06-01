@@ -21,13 +21,13 @@ source(paste(aux.folder,'prediction_methods.R',sep=''), chdir = T)
 Parameters for this run
 ```{r}
 #Global seed
-seed = 42
+seed = 40
 # Dataset to use for the analysis
 dataset = 'trauma'
 # Proportion of MCAR mising data added to the dataset
 prop_added_missing = 0
 # Number of datasets generated via multiple imputation
-n_imputations = 5
+n_imputations = 30
 # Prediction method used on the competed datasets
 prediction_method = 'rf'
 # Proportion of observations used to train the models (the rest is used for evaluation)
@@ -35,15 +35,15 @@ train_size = 0.7
 # Maximum number of rows to keep in the dataset. Keep all rows if NULL
 max_rows = NULL
 
-keep_data = 'all' # all, cat or num
-imputation_methods = c('amelia', 'mi', 'mice', 'mean') #any method accepted by the *impute* method from prediction_methods.R
+keep_data = 'num' # all, cat or num
+imputation_methods = c('mipca', 'mice', 'mean') #any method accepted by the *impute* method from prediction_methods.R
 
 # Do we perform xgboost prediction on the non-imputed dataset?
 pred_xgb = T
 nrounds_xgb = 100
 
 # Do we perform SAEM prediction on the non-imputed dataset? (continuous data only)
-pred_SAEM = F
+pred_SAEM = T
 
 set.seed(seed)
 ```
@@ -87,7 +87,7 @@ if(keep_data == 'all'){
   print('Keeping only numerical variables')
   X = dat$X_numeric
   if(dataset=='trauma'){
-    X = X %>% dplyr::select(one_of(keepCols_cat))
+    X = X %>% dplyr::select(one_of(keepCols_num))
   }
 }else{
   stop('wrong keep_data value')
@@ -121,11 +121,12 @@ for(method in imputation_methods){
   y_pred_multi = multiple_prediction(X_imputed, y, pred_method = prediction_method, 
                                   train_size = train_size, seed=seed, spl=spl)
   # Pool the results to get a single estimate
-  name = paste(method, '+', prediction_method)
   if(method == 'mean'){
+    name = paste(method, '+', prediction_method)
     y_pred[[name]] = y_pred_multi$y_pred[[1]][-spl,2]
   }
   else{
+    name = paste(method,'(', n_imputations, ')', '+', prediction_method)
     y_pred[[name]] = pool_MI_binary(y_pred_multi, spl, method='mean', y_true=y)
   }
   
@@ -146,7 +147,7 @@ if(pred_SAEM){
   # Perform SAEM prediction
   if(keep_data=='num'){
     t0 = Sys.time()
-    y_pred[['SAEM']] = saem_prediction(X_miss, y, train_size=train_size, seed=seed, printevery=50, spl=spl)$y_pred
+    y_pred[['SAEM']] = saem_prediction(X_miss, y, train_size=train_size, seed=seed, printevery=50, spl=spl)$y_pred[-spl]
     times[['SAEM']] = as.numeric(Sys.time() - t0)
   }
   else{
