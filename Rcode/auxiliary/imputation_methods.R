@@ -3,10 +3,11 @@ library(mi)
 library(mice)
 library(Amelia)
 library(cat)
+library(missMDA)
 
 ########################
 # Methods to generate filled datasets
-impute <- function(X, m=5, method, mipca_ncp=2){
+impute <- function(X, m=5, method, mipca_ncp=3){
   if(method=='mice'){
     return(mice_imp(X,m))
   }
@@ -89,7 +90,7 @@ mipca_imp <- function(X, m=5, ncp=2){
   return(imp$res.MI)
 }
 
-mean_imp_single <- function(X){
+mean_imp_single <- function(X, categorical='most.freq'){
   print('Performing mean imputation...')
   catCols = which(sapply(X, is.factor))
   numCols = setdiff(1:ncol(X), catCols)
@@ -99,8 +100,15 @@ mean_imp_single <- function(X){
     X[is.na(c),i] = mean(c, na.rm = T)
   }
   for(i in catCols){
-    levels(X[,i]) = c(levels(X[,i]), 'miss')
-    X[is.na(X[,i]), i] = 'miss'
+    if(categorical=='new.level'){
+      levels(X[,i]) = c(levels(X[,i]), 'miss')
+      X[is.na(X[,i]), i] = 'miss'
+    }
+    else if(categorical=='most.freq'){
+      tt = table(X[,i])
+      most.freq = names(tt[which.max(tt)])
+      X[is.na(X[,i]), i] = most.freq
+    }
   }
   print('Done.')
   return(X)
