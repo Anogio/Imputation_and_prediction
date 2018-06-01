@@ -1,5 +1,5 @@
 ---
-title: "Comparison of SAEM to multiple imputation methods on trauma data"
+title: "Comparison of various imputation methods for the prediction of haemorrhagic shock (numerical data only)"
 output: html_document
 ---
   
@@ -16,27 +16,29 @@ source(paste(aux.folder,'dataloaders.R',sep=''), chdir = T)
 source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
 source(paste(aux.folder,'imputation_methods.R',sep=''), chdir = T)
 source(paste(aux.folder,'prediction_methods.R',sep=''), chdir = T)
+
+data_folder = '../../../Data/'
 ```
 
 Parameters for this run
 ```{r}
 #Global seed
-seed = 40
+seed = 2
 # Dataset to use for the analysis
 dataset = 'trauma'
 # Proportion of MCAR mising data added to the dataset
 prop_added_missing = 0
 # Number of datasets generated via multiple imputation
-n_imputations = 30
+n_imputations = 5
 # Prediction method used on the competed datasets
 prediction_method = 'rf'
 # Proportion of observations used to train the models (the rest is used for evaluation)
-train_size = 0.7
+train_size = 0.6
 # Maximum number of rows to keep in the dataset. Keep all rows if NULL
 max_rows = NULL
 
 keep_data = 'num' # all, cat or num
-imputation_methods = c('mipca', 'mice', 'mean') #any method accepted by the *impute* method from prediction_methods.R
+imputation_methods = c('mi', 'mice', 'amelia', 'mean', 'mipca') #any method accepted by the *impute* method from prediction_methods.R
 
 # Do we perform xgboost prediction on the non-imputed dataset?
 pred_xgb = T
@@ -103,7 +105,7 @@ X_miss = MCAR(X, prop_added_missing)
 
 ## Prediction
 Perform (multiple) imputation and prediction for every selected method
-```{r}
+```{r, message=F, warning=F}
 # Choose the train-test split
 splitted = train_test_split(X_miss,y,train_size,seed=seed)
 spl = splitted$spl
@@ -132,7 +134,11 @@ for(method in imputation_methods){
   
   # Store additional info
   trained_predictors[[method]] = y_pred_multi$trained_predictors
-  times[[name]] = as.numeric(Sys.time() - t0)
+  
+  dt=as.numeric(Sys.time()) - as.numeric(t0)
+  times[[name]] = dt
+  print(paste('Finished in', dt, "seconds."))
+  print('')
 }
 
 if(pred_xgb){
@@ -141,14 +147,21 @@ if(pred_xgb){
   y_pred_xgb = xgboost_prediction(X_miss, y, train_size=train_size, seed=seed, nrounds = nrounds_xgb, spl=spl)
   y_pred[['xgb']] = y_pred_xgb$y_pred[-spl]
   trained_predictors[['xgb']] = y_pred_xgb$trained.predictor
-  times[['xgb']] = as.numeric(Sys.time() - t0)
+ 
+  t=as.numeric(Sys.time()) - as.numeric(t0)
+  times[['XGBoost']] = t
+  print(paste('Finished in', t, "seconds."))
+  print('')
 }
 if(pred_SAEM){
   # Perform SAEM prediction
   if(keep_data=='num'){
     t0 = Sys.time()
-    y_pred[['SAEM']] = saem_prediction(X_miss, y, train_size=train_size, seed=seed, printevery=50, spl=spl)$y_pred[-spl]
-    times[['SAEM']] = as.numeric(Sys.time() - t0)
+    y_pred[['SAEM']] = saem_prediction(X_miss, y, train_size=train_size, seed=seed, printevery=50, spl=spl)$y_pred[-spl] 
+    
+    t=as.numeric(Sys.time()) - as.numeric(t0)
+    times[['SAEM']] = t
+    print(paste('Finished in', t, "seconds."))
   }
   else{
     stop('SAEM only works on continuous data')
@@ -171,11 +184,12 @@ Plot the ROC curve for these estimators. The number in the legend is the AUC (ar
 roc.plot(results$Hemo.shock, results[,1:(length(y_pred))], legend=T, leg.text=names(y_pred))
 ```
 
-In the case with all observations and numeric data, all methods have pretty much the same performance. It is interesting to note that when we restrict the dataset to 1000 entries, the SAEM logistic regression performs significantly better than the other methods. 
+In the case with only numeric data, all methods have pretty much the same performance. It is interesting to note that when we restrict the dataset to 1000 entries, the SAEM logistic regression performs significantly better than the other methods. 
 
 In the case with both numeric and categorical data, the results are significantly better (AUC around 0.87 rather than 0.83), but all methods still have almost identical performance.
 
 Below is the importance of the variables used by the classifier (for the mean-imputed dataset)
+
 ```{r}
 importances = varImp(trained_predictors[['mean']][[1]])
 print(importances)
