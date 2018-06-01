@@ -157,3 +157,20 @@ train_test_split <-  function(X,y, train_size=0.5, spl=NULL, seed=42){
   return(list(X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, spl=inTraining))
 }
 
+weighted_log_loss <- function(y_pred, y_true, y_train=NULL){
+  if(is.null(y_train)){
+    w0 = 1/2
+    w1 = 1/2
+  }
+  else{
+    w0 = mean((as.numeric(as.factor(y_train))-1)==1)
+    w1 = 1-w0
+  }
+  y_true = as.numeric(as.factor(y_true)) - 1
+  y_pred = as.numeric(y_pred)
+  y_pred[y_pred==0] = 1e-10
+  y_pred[y_pred==1] = 1-1e-10
+  return(
+    -2 * mean(y_true * log(y_pred) * w1 + (1-y_true) * log(1-y_pred) * w0)
+  )
+}
