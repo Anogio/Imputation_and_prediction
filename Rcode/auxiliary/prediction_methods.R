@@ -1,6 +1,8 @@
 library(caret)
 library(xgboost)
 
+source("../SAEM_Wei_Jiang/saem_model_selection_fct2.R", chdir = T)
+
 multiple_prediction <- function(X_MI, y, pred_method, train_size=0.5, seed=42, spl=NULL, ...){
   print(paste('Predicting response using method ', pred_method, ' on ', train_size*100, '% of the data as training set...', sep=''))
   y_pred = list()
@@ -70,7 +72,6 @@ saem_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, printevery=
 
 xgboost_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, nrounds=30){
   print(paste('Predicting response using XGBoost on ', train_size*100, '% of the data as training set...', sep=''))
-  source("../SAEM_Wei_Jiang/saem_model_selection_fct2.R", chdir = T)
 
   catData = which(sapply(X, is.factor))
   for(c in catData){
