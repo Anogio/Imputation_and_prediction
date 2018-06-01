@@ -31,7 +31,6 @@ multiple_prediction <- function(X_MI, y, pred_method, train_size=0.5, seed=42, s
 
 saem_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, printevery=50){
   print(paste('Predicting response using SAEM logistic regression on ', train_size*100, '% of the data as training set...', sep=''))
-  source("../SAEM_Wei_Jiang/saem_model_selection_fct2.R", chdir = T)
   
   y = as.numeric(y) - 1 # Convert back to vector of 0 and 1s for saem
   
