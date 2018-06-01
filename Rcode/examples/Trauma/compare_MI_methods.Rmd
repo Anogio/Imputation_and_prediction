@@ -29,7 +29,7 @@ dataset = 'trauma'
 # Proportion of MCAR mising data added to the dataset
 prop_added_missing = 0
 # Number of datasets generated via multiple imputation
-n_imputations = 5
+n_imputations = 2
 # Prediction method used on the competed datasets
 prediction_method = 'rf'
 # Proportion of observations used to train the models (the rest is used for evaluation)
@@ -38,14 +38,14 @@ train_size = 0.6
 max_rows = NULL
 
 keep_data = 'num' # all, cat or num
-imputation_methods = c('mi', 'mice', 'amelia', 'mean', 'mipca') #any method accepted by the *impute* method from prediction_methods.R
+imputation_methods = c('mice', 'mean', 'mipca') #any method accepted by the *impute* method from prediction_methods.R
 
 # Do we perform xgboost prediction on the non-imputed dataset?
 pred_xgb = T
 nrounds_xgb = 100
 
 # Do we perform SAEM prediction on the non-imputed dataset? (continuous data only)
-pred_SAEM = T
+pred_SAEM = F
 
 set.seed(seed)
 ```
@@ -191,16 +191,25 @@ In the case with both numeric and categorical data, the results are significantl
 Below is the importance of the variables used by the classifier (for the mean-imputed dataset)
 
 ```{r}
-importances = varImp(trained_predictors[['mean']][[1]])
-print(importances)
-
-imp = as.data.frame(importances$importance)
-imp$features = rownames(imp)
-dput(imp %>% arrange(desc(Overall)) %>% dplyr::select(features))
+importances = varImp(trained_predictors[['mice']][[1]])
+imp = data.frame(importances$importance)
+colnames(imp) = c('MICE')
+imp$Mean = varImp(trained_predictors[['mean']][[1]])$importance$Overall
+#imp$Amelia = varImp(trained_predictors[['amelia']][[1]])$importance$Overall
+imp$Missingness = colSums(is.na(X_miss)) / nrow(X_miss)*100
+imp
 ```
 
 ```{r}
 timesdf = data.frame(method=names(times), timing = unlist(times))
 ggplot(timesdf) + aes(x=method, y=timing) + geom_bar(stat='identity')
+```
+```{r}
+thresh = 0.15
+i=1
+print(colnames(results[i]))
+print(confusionMatrix(factor(as.integer(results[,i]>thresh)),as.factor(results$Hemo.shock), positive='1'))
+print(LogLoss(as.numeric(results[,i]), results$Hemo.shock))
+print(weighted_log_loss(y_pred=as.numeric(results[,i]), y_true=results$Hemo.shock, y_train=y[spl]))
 ```
 
