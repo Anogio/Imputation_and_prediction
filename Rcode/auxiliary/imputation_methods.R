@@ -7,7 +7,7 @@ library(missMDA)
 
 ########################
 # Methods to generate filled datasets
-impute <- function(X, m=5, method, mipca_ncp=3){
+impute <- function(X, m=5, method, mipca_ncp=3, spl=NULL){
   if(method=='mice'){
     return(mice_imp(X,m))
   }
@@ -24,7 +24,7 @@ impute <- function(X, m=5, method, mipca_ncp=3){
     return(mipca_imp(X,m, mipca_ncp))
   }
   else if(method=='mean'){
-    return(list(mean_imp_single(X)))
+    return(list(mean_imp_single(X, spl=spl)))
   }
   else{
     stop('Unknown method provided')
@@ -90,14 +90,17 @@ mipca_imp <- function(X, m=5, ncp=2){
   return(imp$res.MI)
 }
 
-mean_imp_single <- function(X, categorical='most.freq'){
+mean_imp_single <- function(X, categorical='most.freq', spl=NULL){
   print('Performing mean imputation...')
   catCols = which(sapply(X, is.factor))
   numCols = setdiff(1:ncol(X), catCols)
+  if(is.null(spl)){
+    spl=1:nrow(X)
+  }
   
   for(i in numCols){
     c = X[,i]
-    X[is.na(c),i] = mean(c, na.rm = T)
+    X[is.na(c),i] = mean(c[spl], na.rm = T)
   }
   for(i in catCols){
     if(categorical=='new.level'){
@@ -105,7 +108,7 @@ mean_imp_single <- function(X, categorical='most.freq'){
       X[is.na(X[,i]), i] = 'miss'
     }
     else if(categorical=='most.freq'){
-      tt = table(X[,i])
+      tt = table(X[spl,i])
       most.freq = names(tt[which.max(tt)])
       X[is.na(X[,i]), i] = most.freq
     }
