@@ -95,7 +95,7 @@ xgboost_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, nrounds=
 # Auxiliary functions
 
 # Method to pool the estimator from a list of prediction results for a binary response
-pool_MI_binary <- function(preds, spl, method='mean', y_true=NULL){
+pool_MI_binary <- function(preds, spl, method='mean', y_true=NULL, quantile.split=0.5){
   n_imputations = length(preds$y_pred)
   y_pred = matrix(NA, nrow=length(preds$y_pred[[1]][,2]), ncol=n_imputations)
   for(i in 1:n_imputations){
@@ -114,6 +114,15 @@ pool_MI_binary <- function(preds, spl, method='mean', y_true=NULL){
       res = apply(y_pred_test, 1, mean)
     }
   }
+  else if(method=='quantile'){
+    print('Performing max pooling')
+    if(is.null(dim(y_pred_test))){
+      res = max(y_pred_test)
+    }
+    else{
+      res = apply(y_pred_test, 1, function(x) quantile(x, quantile.split))
+    }
+  }
   else if(method=='svm'){
     print('Performing SVM pooling')
     y_true_train = y_true[spl]
@@ -122,6 +131,17 @@ pool_MI_binary <- function(preds, spl, method='mean', y_true=NULL){
     fitControl = trainControl(method = "none", classProbs = TRUE)
     fittedM = train(y_true_train~., data=dat_train,
                     method='svmLinear', 
+                    trControl=fitControl)
+    res = predict(fittedM, y_pred_test, type='prob')[,2]
+  }
+  else if(method=='rf'){
+    print('Performing RF pooling')
+    y_true_train = y_true[spl]
+    dat_train = cbind(y_pred_train, y_true_train)
+    
+    fitControl = trainControl(method = "none", classProbs = TRUE)
+    fittedM = train(y_true_train~., data=dat_train,
+                    method='rf', 
                     trControl=fitControl)
     res = predict(fittedM, y_pred_test, type='prob')[,2]
   }
@@ -134,6 +154,9 @@ pool_MI_binary <- function(preds, spl, method='mean', y_true=NULL){
       res = apply(y_pred_test, 1, mean)
       res = res + apply(y_pred_test, 1, sd)
     }
+  }
+  else{
+    stop('Unknown method')
   }
   
   print('Done.')
@@ -192,4 +215,26 @@ oversample <- function(X,y, ratio=2){
   
   samples = base::sample(n_pos, n_pos*ratio, replace=T)
   return(X_pos[samples,])
+}
+
+metric_best_separation <- function(y_pred, y_true, positive_weighting=10){
+  w0 = 1/(1+positive_weighting)
+  w1 = positive_weighting/(1+positive_weighting)
+  
+  y_true = as.numeric(as.factor(y_true)) - 1
+  y_pred = as.numeric(y_pred)
+  
+  best_loss = Inf
+  
+  for(thresh in sort(y_pred)){
+    FP = sum(y_pred>=thresh & y_true==0)
+    FN = sum(y_pred<thresh & y_true==1)
+    loss.val = w1 * FN + w0 * FP
+    
+    if(loss.val<best_loss){
+      best_loss = loss.val
+      best_thresh = thresh
+    }
+  }
+  return(list(val=best_loss/length(y_pred)*100, best.threshold=best_thresh))
 }
