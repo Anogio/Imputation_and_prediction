@@ -29,16 +29,18 @@ dataset = 'trauma'
 # Proportion of MCAR mising data added to the dataset
 prop_added_missing = 0
 # Number of datasets generated via multiple imputation
-n_imputations = 2
+n_imputations = 15
 # Prediction method used on the competed datasets
 prediction_method = 'rf'
 # Proportion of observations used to train the models (the rest is used for evaluation)
-train_size = 0.8
+train_size = 0.5
 # Maximum number of rows to keep in the dataset. Keep all rows if NULL
 max_rows = NULL
 
+oversampleX = F
+
 keep_data = 'num' # all, cat or num
-imputation_methods = c('mice', 'mean', 'mipca') #any method accepted by the *impute* method from prediction_methods.R
+imputation_methods = c('mean', 'mipca') #any method accepted by the *impute* method from prediction_methods.R
 
 # Do we perform xgboost prediction on the non-imputed dataset?
 pred_xgb = T
@@ -115,9 +117,11 @@ y_pred = list()
 trained_predictors = list()
 times = list()
 
-X_miss = rbind(X_miss,
-          oversample(X_miss[spl,], y[spl], 8)
-)
+if(oversampleX){
+  X_miss = rbind(X_miss,
+            oversample(X_miss[spl,], y[spl], 8)
+  )
+}
 added = nrow(X_miss)-length(y)
 spl = c(spl, (nrow(X)+1):(nrow(X_miss)))
 y = unlist(list(y,as.factor(base::rep('X1',added))))
@@ -198,7 +202,7 @@ In the case with both numeric and categorical data, the results are significantl
 Below is the importance of the variables used by the classifier (for the mean-imputed dataset)
 
 ```{r}
-importances = varImp(trained_predictors[['mice']][[1]])
+importances = varImp(trained_predictors[['mipca']][[1]])
 imp = data.frame(importances$importance)
 colnames(imp) = c('MICE')
 imp$Mean = varImp(trained_predictors[['mean']][[1]])$importance$Overall
@@ -213,7 +217,7 @@ ggplot(timesdf) + aes(x=method, y=timing) + geom_bar(stat='identity')
 ```
 ```{r}
 thresh = 0.5
-i=5
+i=2
 print(colnames(results[i]))
 print(confusionMatrix(factor(as.integer(results[,i]>thresh)),as.factor(results$Hemo.shock), positive='1'))
 print(LogLoss(as.numeric(results[,i]), results$Hemo.shock))
