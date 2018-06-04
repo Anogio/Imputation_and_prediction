@@ -97,7 +97,7 @@ xgboost_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, nrounds=
 # Method to pool the estimator from a list of prediction results for a binary response
 pool_MI_binary <- function(preds, spl, method='mean', y_true=NULL){
   n_imputations = length(preds$y_pred)
-  y_pred = matrix(NA, nrow=length(preds$y_true), ncol=n_imputations)
+  y_pred = matrix(NA, nrow=length(preds$y_pred[[1]][,2]), ncol=n_imputations)
   for(i in 1:n_imputations){
     y_pred[,i] = preds$y_pred[[i]][,2]
   }
@@ -115,7 +115,7 @@ pool_MI_binary <- function(preds, spl, method='mean', y_true=NULL){
     }
   }
   else if(method=='svm'){
-    print('Performing RF pooling')
+    print('Performing SVM pooling')
     y_true_train = y_true[spl]
     dat_train = cbind(y_pred_train, y_true_train)
     
