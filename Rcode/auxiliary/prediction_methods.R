@@ -125,6 +125,16 @@ pool_MI_binary <- function(preds, spl, method='mean', y_true=NULL){
                     trControl=fitControl)
     res = predict(fittedM, y_pred_test, type='prob')[,2]
   }
+  else if(method=='biased.mean'){
+    print('Performing mean pooling with sd correction')
+    if(is.null(dim(y_pred_test))){
+      res = mean(y_pred_test)
+    }
+    else{
+      res = apply(y_pred_test, 1, mean)
+      res = res + apply(y_pred_test, 1, sd)
+    }
+  }
   
   print('Done.')
   return(res)
