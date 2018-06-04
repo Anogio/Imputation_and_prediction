@@ -9,27 +9,32 @@ data_folder = '../../Data/'
 files = list(
   iris = 'iris.csv',
   titanic = 'titanic.csv',
-  trauma = 'hemo_shock.csv'
+  trauma = 'hemo_shock.csv',
+  abalone = 'abalone.csv'
 )
 response_type_categorical = list(
   iris = T,
   titanic = T,
-  trauma = T
+  trauma = T,
+  abalone = F
 )
 y_columns = list(
   iris = 5,
   titanic = 2,
-  trauma = 38
+  trauma = 38,
+  abalone = 9
 )
 cat_columns = list(
   iris = c(),
   titanic = c(3, 5, 12),
-  trauma = c(2, 6:21, 28:30, 33:35)
+  trauma = c(2, 6:21, 28:30, 33:35),
+  abalone = c(1)
 )
 num_columns = list(
   iris = 1:4,
   titanic = c(6:8, 10),
-  trauma = c(1, 3:5, 22:27, 31, 32, 36, 37)
+  trauma = c(1, 3:5, 22:27, 31, 32, 36, 37),
+  abalone = 2:8
 )
 
 ##################
@@ -52,7 +57,6 @@ summarise_x <-  function(X_num, X_cat){
 ###############################
 # Main loader
 loader <- function(dataset, max_rows=NULL, seed=42){
-  print(list.dirs('..'))
   print(paste('Loading ',  dataset, ' data...', sep=''))
   
   dat = read.csv(paste(data_folder,files[dataset], sep=''))
@@ -77,8 +81,8 @@ loader <- function(dataset, max_rows=NULL, seed=42){
     y = y[keeprows]
   }
   
-  X_num = dat[, numcols]
-  X_cat = dat[, catcols]
+  X_num = data.frame(dat[, numcols])
+  X_cat = data.frame(dat[, catcols])
   
   if (ncol(X_cat)>0){
     for(i in 1:ncol(X_cat)){
