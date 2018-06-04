@@ -33,7 +33,7 @@ n_imputations = 2
 # Prediction method used on the competed datasets
 prediction_method = 'rf'
 # Proportion of observations used to train the models (the rest is used for evaluation)
-train_size = 0.6
+train_size = 0.8
 # Maximum number of rows to keep in the dataset. Keep all rows if NULL
 max_rows = NULL
 
@@ -45,7 +45,7 @@ pred_xgb = T
 nrounds_xgb = 100
 
 # Do we perform SAEM prediction on the non-imputed dataset? (continuous data only)
-pred_SAEM = F
+pred_SAEM = T
 
 set.seed(seed)
 ```
@@ -114,6 +114,13 @@ y_true = splitted$y_test
 y_pred = list()
 trained_predictors = list()
 times = list()
+
+X_miss = rbind(X_miss,
+          oversample(X_miss[spl,], y[spl], 8)
+)
+added = nrow(X_miss)-length(y)
+spl = c(spl, (nrow(X)+1):(nrow(X_miss)))
+y = unlist(list(y,as.factor(base::rep('X1',added))))
 
 for(method in imputation_methods){
   t0 = Sys.time()
@@ -205,11 +212,11 @@ timesdf = data.frame(method=names(times), timing = unlist(times))
 ggplot(timesdf) + aes(x=method, y=timing) + geom_bar(stat='identity')
 ```
 ```{r}
-thresh = 0.15
-i=1
+thresh = 0.5
+i=5
 print(colnames(results[i]))
 print(confusionMatrix(factor(as.integer(results[,i]>thresh)),as.factor(results$Hemo.shock), positive='1'))
 print(LogLoss(as.numeric(results[,i]), results$Hemo.shock))
-print(weighted_log_loss(y_pred=as.numeric(results[,i]), y_true=results$Hemo.shock, y_train=y[spl]))
+print(weighted_log_loss(y_pred=as.numeric(results[,i]), y_true=results$Hemo.shock, y_train=splitted$y_train))
 ```
 

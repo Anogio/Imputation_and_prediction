@@ -1,5 +1,6 @@
 library(caret)
 library(xgboost)
+library(MLmetrics)
 
 source("../SAEM_Wei_Jiang/saem_model_selection_fct2.R", chdir = T)
 
@@ -173,4 +174,12 @@ weighted_log_loss <- function(y_pred, y_true, y_train=NULL){
   return(
     -2 * mean(y_true * log(y_pred) * w1 + (1-y_true) * log(1-y_pred) * w0)
   )
+}
+
+oversample <- function(X,y, ratio=2){
+  X_pos = X[(as.numeric(as.factor(y))-1) == 1,]
+  n_pos = nrow(X_pos)
+  
+  samples = base::sample(n_pos, n_pos*ratio, replace=T)
+  return(X_pos[samples,])
 }
