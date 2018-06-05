@@ -29,11 +29,11 @@ dataset = 'trauma'
 # Proportion of MCAR mising data added to the dataset
 prop_added_missing = 0
 # Number of datasets generated via multiple imputation
-n_imputations = 15
+n_imputations = 20
 # Prediction method used on the competed datasets
 prediction_method = 'rf'
 # Proportion of observations used to train the models (the rest is used for evaluation)
-train_size = 0.5
+train_size = 0.05
 # Maximum number of rows to keep in the dataset. Keep all rows if NULL
 max_rows = NULL
 
@@ -41,6 +41,8 @@ oversampleX = F
 
 keep_data = 'num' # all, cat or num
 imputation_methods = c('mean', 'mipca') #any method accepted by the *impute* method from prediction_methods.R
+aggregation_method = 'quantile'
+qsplit = 0.5
 
 # Do we perform xgboost prediction on the non-imputed dataset?
 pred_xgb = T
@@ -121,10 +123,10 @@ if(oversampleX){
   X_miss = rbind(X_miss,
             oversample(X_miss[spl,], y[spl], 8)
   )
+  added = nrow(X_miss)-length(y)
+  spl = c(spl, (nrow(X)+1):(nrow(X_miss)))
+  y = unlist(list(y,as.factor(base::rep('X1',added))))
 }
-added = nrow(X_miss)-length(y)
-spl = c(spl, (nrow(X)+1):(nrow(X_miss)))
-y = unlist(list(y,as.factor(base::rep('X1',added))))
 
 for(method in imputation_methods){
   t0 = Sys.time()
@@ -140,7 +142,7 @@ for(method in imputation_methods){
   }
   else{
     name = paste(method,'(', n_imputations, ')', '+', prediction_method)
-    y_pred[[name]] = pool_MI_binary(y_pred_multi, spl, method='mean', y_true=y)
+    y_pred[[name]] = pool_MI_binary(y_pred_multi, spl, method=aggregation_method, y_true=y, quantile.split = qsplit)
   }
   
   # Store additional info
@@ -184,6 +186,7 @@ if(pred_SAEM){
 Compute the average predictor for multiple imputation and regroup all the predictions in a table
 ```{r}
 results = data.frame(y_pred)
+results$random = runif(length(y_true))
 results$Hemo.shock = as.numeric(y_true == 'X1')
 
 print('Estimations of the probability of hemorragic shock by various methods')
@@ -192,7 +195,7 @@ head(results)
 
 Plot the ROC curve for these estimators. The number in the legend is the AUC (are under the ROC curve) for each model.
 ```{r, warning=FALSE}
-roc.plot(results$Hemo.shock, results[,1:(length(y_pred))], legend=T, leg.text=names(y_pred))
+roc.plot(results$Hemo.shock, results[,1:(ncol(results)-1)], legend=T, leg.text=colnames(results[-ncol(results)]))
 ```
 
 In the case with only numeric data, all methods have pretty much the same performance. It is interesting to note that when we restrict the dataset to 1000 entries, the SAEM logistic regression performs significantly better than the other methods. 
@@ -202,13 +205,13 @@ In the case with both numeric and categorical data, the results are significantl
 Below is the importance of the variables used by the classifier (for the mean-imputed dataset)
 
 ```{r}
-importances = varImp(trained_predictors[['mipca']][[1]])
-imp = data.frame(importances$importance)
-colnames(imp) = c('MICE')
-imp$Mean = varImp(trained_predictors[['mean']][[1]])$importance$Overall
+#importances = varImp(trained_predictors[['mice']][[1]])
+#imp = data.frame(importances$importance)
+#colnames(imp) = c('MICE')
+#imp$Mean = varImp(trained_predictors[['mean']][[1]])$importance$Overall
 #imp$Amelia = varImp(trained_predictors[['amelia']][[1]])$importance$Overall
-imp$Missingness = colSums(is.na(X_miss)) / nrow(X_miss)*100
-imp
+#imp$Missingness = colSums(is.na(X_miss)) / nrow(X_miss)*100
+#imp
 ```
 
 ```{r}
@@ -216,11 +219,35 @@ timesdf = data.frame(method=names(times), timing = unlist(times))
 ggplot(timesdf) + aes(x=method, y=timing) + geom_bar(stat='identity')
 ```
 ```{r}
-thresh = 0.5
-i=2
-print(colnames(results[i]))
-print(confusionMatrix(factor(as.integer(results[,i]>thresh)),as.factor(results$Hemo.shock), positive='1'))
-print(LogLoss(as.numeric(results[,i]), results$Hemo.shock))
-print(weighted_log_loss(y_pred=as.numeric(results[,i]), y_true=results$Hemo.shock, y_train=splitted$y_train))
+positive_misclassification_penalty = 1
+
+thresholds = sapply(results, function(x) metric_best_separation(as.numeric(x), 
+                                                                results$Hemo.shock, 
+                                                                positive_weighting = positive_misclassification_penalty)$best.threshold)
+
+metrics = data.frame(method=names(results[,-ncol(results)]))
+metrics$logloss = sapply(results[,-ncol(results)], function(x) LogLoss(as.numeric(x), results$Hemo.shock))
+metrics $wlogloss = sapply(results[,-ncol(results)], function(x) weighted_log_loss(y_pred=as.numeric(x), y_true=results$Hemo.shock, y_train=splitted$y_train))
+metrics $inv_AUC = sapply(results[,-ncol(results)], function(x) 1/roc.area(pred=as.numeric(x), obs=results$Hemo.shock)$A)
+metrics$separationloss = sapply(results[,-ncol(results)], function(x) metric_best_separation(as.numeric(x), results$Hemo.shock, positive_weighting = positive_misclassification_penalty)$val)
+
+#metrics[,-1] = t(t(metrics[,-1])/sapply(metrics[,-1], median))
+
+metrics = metrics %>% gather(key='metric', value='value', -method)
+ggplot(metrics) + aes(fill=method, y=value, x=metric) + geom_bar(stat='identity', position='dodge')
+
+
+best.separation = matrix(NA,nrow=2, ncol=length(results))
+for(i in 1:(length(results)-1)){
+  thresh = thresholds[i]
+  conf = confusionMatrix(factor(as.integer(results[,i]>thresh)),as.factor(results$Hemo.shock), positive='1')
+  best.separation[1,i] = conf$table[2,2]
+  best.separation[2,i] = conf$table[2,1]
+}
+best.separation[1,length(results)] = sum(results$Hemo.shock)
+best.separation[2,length(results)] = 0
+colnames(best.separation) = c(names(results)[1:(length(results)-1)], 'Ground truth')
+rownames(best.separation) = c('TP','FP')
+data.frame(best.separation)
 ```
 
