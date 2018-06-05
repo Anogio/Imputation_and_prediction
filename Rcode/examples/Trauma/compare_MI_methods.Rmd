@@ -2,7 +2,7 @@
 title: "Comparison of various imputation methods for the prediction of haemorrhagic shock (numerical data only)"
 output: html_document
 ---
-  
+
 ## Miscellaneous setup
 Imports
 ```{r, results="hide", message=FALSE}
@@ -60,11 +60,11 @@ set.seed(seed)
 keepCols_num = c("Age", "Glasgow.moteur.initial", "FC.max", "Hemocue.init",
                  "Remplissage.total.cristalloides","Remplissage.total.colloides", "SD.min", "SD.SMUR")
 keepCols_all = c("SD.min", "FC.max", "Hemocue.init", 
-                     "Age", "BMI", "Catecholamines", "Remplissage.total.cristalloides", 
-                     "Poids", "Remplissage.total.colloides", "Taille", "FC.SMUR", 
-                     "SD.SMUR", "TC.incarceration", "SpO2.min", "TA.ischemie", "TA.amputation", 
-                     "Glasgow.initial", "TC.ecrase.projete", "Glasgow.moteur.initial", 
-                     "TC.chute")
+                 "Age", "BMI", "Catecholamines", "Remplissage.total.cristalloides", 
+                 "Poids", "Remplissage.total.colloides", "Taille", "FC.SMUR", 
+                 "SD.SMUR", "TC.incarceration", "SpO2.min", "TA.ischemie", "TA.amputation", 
+                 "Glasgow.initial", "TC.ecrase.projete", "Glasgow.moteur.initial", 
+                 "TC.chute")
 ```
 
 ## Data preparation
@@ -82,7 +82,7 @@ if(keep_data == 'all'){
     x = data.frame(Discordance=X$Discordance, Hemo.shock=as.numeric(y)-1)
     print('Illustrate weird Discordance association')
     print(plyr::count(x))
-  
+    
     X = X %>% dplyr::select(-Discordance) # Discordance has a strange correlation with y, it is removed (illustrated above)
     X = X %>% dplyr::select(one_of(keepCols_all)) 
   }
@@ -121,7 +121,7 @@ times = list()
 
 if(oversampleX){
   X_miss = rbind(X_miss,
-            oversample(X_miss[spl,], y[spl], 8)
+                 oversample(X_miss[spl,], y[spl], 8)
   )
   added = nrow(X_miss)-length(y)
   spl = c(spl, (nrow(X)+1):(nrow(X_miss)))
@@ -134,7 +134,7 @@ for(method in imputation_methods){
   X_imputed = impute(X_miss, m=n_imputations, method=method)
   # Perform prediction on the filled dataset
   y_pred_multi = multiple_prediction(X_imputed, y, pred_method = prediction_method, 
-                                  train_size = train_size, seed=seed, spl=spl)
+                                     train_size = train_size, seed=seed, spl=spl)
   # Pool the results to get a single estimate
   if(method == 'mean'){
     name = paste(method, '+', prediction_method)
@@ -160,7 +160,7 @@ if(pred_xgb){
   y_pred_xgb = xgboost_prediction(X_miss, y, train_size=train_size, seed=seed, nrounds = nrounds_xgb, spl=spl)
   y_pred[['xgb']] = y_pred_xgb$y_pred[-spl]
   trained_predictors[['xgb']] = y_pred_xgb$trained.predictor
- 
+  
   t=as.numeric(Sys.time()) - as.numeric(t0)
   times[['XGBoost']] = t
   print(paste('Finished in', t, "seconds."))
@@ -227,9 +227,12 @@ thresholds = sapply(results, function(x) metric_best_separation(as.numeric(x),
 
 metrics = data.frame(method=names(results[,-ncol(results)]))
 metrics$logloss = sapply(results[,-ncol(results)], function(x) LogLoss(as.numeric(x), results$Hemo.shock))
-metrics $wlogloss = sapply(results[,-ncol(results)], function(x) weighted_log_loss(y_pred=as.numeric(x), y_true=results$Hemo.shock, y_train=splitted$y_train))
+metrics$wlogloss = sapply(results[,-ncol(results)], function(x) weighted_log_loss(y_pred=as.numeric(x), y_true=results$Hemo.shock, y_train=splitted$y_train))
 metrics $inv_AUC = sapply(results[,-ncol(results)], function(x) 1/roc.area(pred=as.numeric(x), obs=results$Hemo.shock)$A)
-metrics$separationloss = sapply(results[,-ncol(results)], function(x) metric_best_separation(as.numeric(x), results$Hemo.shock, positive_weighting = positive_misclassification_penalty)$val)
+metrics$separationloss = sapply(results[,-ncol(results)], 
+                                function(x) metric_best_separation(as.numeric(x), 
+                                                                   results$Hemo.shock,
+                                                                   positive_weighting = positive_misclassification_penalty)$val)
 
 #metrics[,-1] = t(t(metrics[,-1])/sapply(metrics[,-1], median))
 
