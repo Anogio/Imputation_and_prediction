@@ -1,0 +1,173 @@
+## Miscellaneous setup
+Imports
+```{r, results="hide", message=FALSE}
+## Imports
+library(tidyverse)
+library(verification)
+
+# Custom imports
+aux.folder = '../../auxiliary/'
+source(paste(aux.folder,'dataloaders.R',sep=''), chdir = T)
+source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
+source(paste(aux.folder,'imputation_methods.R',sep=''), chdir = T)
+source(paste(aux.folder,'prediction_methods.R',sep=''), chdir = T)
+
+data_folder = '../../../Data/'
+```
+
+Parameters for this run
+```{r}
+#Global seed
+seed = 2
+# Dataset to use for the analysis
+dataset = 'titanic'
+# Proportion of MCAR mising data added to the dataset
+prop_added_missing = 0.2
+# Number of datasets generated via multiple imputation
+n_imputations = 20
+# Prediction method used on the competed datasets
+prediction_method = 'rf'
+# Proportion of observations used to train the models (the rest is used for evaluation)
+train_size = 0.4
+# Maximum number of rows to keep in the dataset. Keep all rows if NULL
+max_rows = NULL
+
+oversampleX = F
+
+keep_data = 'all' # all, cat or num
+imputation_method = 'mice' #any method accepted by the *impute* method from prediction_methods.R
+aggregation_method = 'mean'
+qsplit = 0.5
+
+# Do we perform xgboost prediction on the non-imputed dataset?
+pred_xgb = T
+nrounds_xgb = 100
+
+# Do we perform SAEM prediction on the non-imputed dataset? (continuous data only)
+pred_SAEM = T
+
+set.seed(seed)
+```
+
+## Data preparation
+Import and select columns
+
+```{r}
+# Load and format the dataset
+dat = loader(dataset, max_rows, seed)
+y = dat$y
+
+# Keep relevant columns
+if(keep_data == 'all'){
+  X = cbind(dat$X_numeric, dat$X_category)
+}else if(keep_data == 'cat'){
+  print('Keeping only categorical variables')
+  X = dat$X_category
+}else if(keep_data=='num'){
+  print('Keeping only numerical variables')
+  X = dat$X_numeric
+}else{
+  stop('wrong keep_data value')
+}
+
+X$Age = NULL
+
+print(paste('X is of dimension', toString(dim(X))))
+```
+
+Now for the analysis
+```{r}
+X_miss = MCAR(X, prop_added_missing)
+
+X_miss_filled = impute(X_miss, m=1, method=imputation_method)[[1]]
+
+splitted = train_test_split(X,y, train_size)
+spl = splitted$spl
+
+X_train = X[spl,]
+X_test = X[-spl,]
+X_train_miss = X_miss[spl,]
+X_test_miss = X_miss[-spl,]
+X_train_filled = X_miss_filled[spl,]
+X_test_filled = X_miss_filled[-spl,]
+y_train = y[spl]
+y_test = y[-spl]
+```
+```{r}
+X_train_miss_multi = impute(X_train_miss, m=n_imputations, method=imputation_method)
+X_test_miss_multi = impute(X_test_miss, m=n_imputations, method=imputation_method)
+
+#X_train_miss = X_train_miss_multi[[1]]
+#X_test_miss = X_test_miss_multi[[1]]
+X_train_miss = impute(X_train_miss, method='mean')[[1]]
+X_test_miss = impute(X_test_miss, method='mean')[[1]]
+```
+```{r}
+predictions = data.frame(Truth = as.numeric(y_test)-1)
+
+fitControl = trainControl(method = "none", classProbs = TRUE)
+
+# Reference prediction with full data
+ref.fit.logit = glm(y_train ~ .,family=binomial(link='logit'),data=cbind(X_train,y_train))
+predictions$ref.logit = predict(ref.fit.logit, X_test, type='response')
+ref.fit.rf = train(X_train, y_train,
+                  method='rf', 
+                  trControl=fitControl)
+predictions$ref.rf = predict(ref.fit.rf, X_test, type='prob')[,2]
+
+# Prediction from data imputed on whole dataset
+prefilled.fit.logit = glm(y_train ~ .,family=binomial(link='logit'),data=cbind(X_train_filled,y_train))
+predictions$prefilled.logit = predict(prefilled.fit.logit, X_test_filled, type='response')
+prefilled.fit.rf = train(X_train_filled, y_train,
+                  method='rf', 
+                  trControl=fitControl)
+predictions$prefilled.rf = predict(prefilled.fit.rf, X_test_filled, type='prob')[,2]
+
+# Prediction from data imputed separately
+postfilled.fit.logit = glm(y_train ~ .,family=binomial(link='logit'),data=cbind(X_train_miss,y_train))
+predictions$postfilled.mean.logit = predict(postfilled.fit.logit, X_test_miss, type='response')
+prefilled.fit.rf = train(X_train_miss, y_train,
+                  method='rf', 
+                  trControl=fitControl)
+predictions$postfilled.mean.rf = predict(prefilled.fit.rf, X_test_miss, type='prob')[,2]
+
+# Prediction on multiply imputed data 
+predictions.multi.rf =list()
+predictions.multi.logit = list()
+for(i in 1:n_imputations){
+  X_tr = X_train_miss_multi[[i]]
+  X_te = X_test_miss_multi[[i]]
+  
+  fit.logit = glm(y_train ~ .,family=binomial(link='logit'),data=cbind(X_tr,y_train))
+  p = predict(fit.logit, X_te, type='response')
+  predictions.multi.logit[[i]] = cbind(1-p,p)
+  fit.rf = train(X_tr, y_train,
+                  method='rf', 
+                  trControl=fitControl)
+  predictions.multi.rf[[i]] = predict(fit.rf, X_te, type='prob')
+}
+predictions$multi.logit = pool_MI_binary(list(y_pred=predictions.multi.logit), method=aggregation_method, y_true=y_test, 
+                                         quantile.split = qsplit)
+predictions$multi.rf = pool_MI_binary(list(y_pred=predictions.multi.rf), method=aggregation_method, y_true=y_test, 
+                                         quantile.split = qsplit)
+```
+
+```{r}
+positive_misclassification_penalty = 3
+
+metrics = data.frame(method=names(predictions[-1]))
+metrics$logloss = sapply(predictions[,-1], function(x) LogLoss(x, predictions$Truth))
+metrics$wlogloss = sapply(predictions[,-1], function(x) weighted_log_loss(y_pred=x,
+                                                                          y_true=predictions$Truth, 
+                                                                          y_train=y_train))
+metrics $inv_AUC = sapply(predictions[,-1], function(x) 1/roc.area(pred=as.numeric(x), obs=predictions$Truth)$A)
+metrics$separationloss = sapply(predictions[,-1], 
+                                function(x) metric_best_separation(as.numeric(x), 
+                                                                   predictions$Truth,
+                                                                   positive_weighting = positive_misclassification_penalty)$val)
+print(metrics)
+metrics[,-1] = t(t(metrics[,-1])/sapply(metrics[,-1], median))
+metrics = metrics %>% gather(key='metric', value='value', -method)
+ggplot(metrics) + aes(fill=method, y=value, x=metric) + geom_bar(stat='identity', position='dodge', color='white')
+```
+
