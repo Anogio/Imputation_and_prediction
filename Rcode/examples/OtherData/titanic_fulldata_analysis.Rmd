@@ -1,3 +1,8 @@
+Main point of this file: 
+See what happens when we fill data before or after splitting it into a train-test split, and compare performance with the model
+filled on the true full data. Also, see if multiple imputation yields any advantage.
+
+
 ## Miscellaneous setup
 Imports
 ```{r, results="hide", message=FALSE}
@@ -75,7 +80,7 @@ X$Age = NULL
 print(paste('X is of dimension', toString(dim(X))))
 ```
 
-Now for the analysis
+##Now for the analysis
 ```{r}
 X_miss = MCAR(X, prop_added_missing)
 
@@ -165,7 +170,10 @@ metrics$separationloss = sapply(predictions[,-1],
                                 function(x) metric_best_separation(as.numeric(x), 
                                                                    predictions$Truth,
                                                                    positive_weighting = positive_misclassification_penalty)$val)
-print(metrics)
+auc = 1/metrics$inv_AUC
+names(auc) = metrics$method
+print(auc)
+
 metrics[,-1] = t(t(metrics[,-1])/sapply(metrics[,-1], median))
 metrics = metrics %>% gather(key='metric', value='value', -method)
 ggplot(metrics) + aes(fill=method, y=value, x=metric) + geom_bar(stat='identity', position='dodge', color='white')

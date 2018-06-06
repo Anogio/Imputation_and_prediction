@@ -1,3 +1,12 @@
+## Main point of this file:
+# First try to see how much data we need to get good performance. This is important because maybe
+# if there is a lot more data than needed missing value will not be as much of an issue for the algo
+# so we can tryto train it with the bare minimum data for good performance and see if that changes anything.
+
+# Second, compare between filling the data before or after the split. This is similar to titanic_fulldata_analysis.R
+# but here the idea is to do multiple runs with different splits and test whether the performance varies between the two
+# methods in a significant way (whereas in that other file we test lots of methods on just one split)
+
 rocs = c()
 eval.points = seq(0.01,0.99,0.02)
 
