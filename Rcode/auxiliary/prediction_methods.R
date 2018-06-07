@@ -4,7 +4,7 @@ library(MLmetrics)
 
 source("../SAEM_Wei_Jiang/saem_model_selection_fct2.R", chdir = T)
 
-multiple_prediction <- function(X_MI, y, pred_method, train_size=0.5, seed=42, spl=NULL, ...){
+multiple_prediction <- function(X_MI, y, pred_method, train_size=0.5, seed=42, spl=NULL, cat.response=T, ...){
   print(paste('Predicting response using method ', pred_method, ' on ', train_size*100, '% of the data as training set...', sep=''))
   y_pred = list()
   trained_predictors = list()
@@ -18,12 +18,21 @@ multiple_prediction <- function(X_MI, y, pred_method, train_size=0.5, seed=42, s
     dat_train = cbind(splitted$X_train[[i]] , y_train)
     dat_full = X_MI[[i]]
     if(pred_method != 'logit'){
-      fitControl = trainControl(method = "none", classProbs = TRUE)
+      if(cat.response){
+        fitControl = trainControl(method = "none", classProbs = TRUE)
+      }
+      else{
+        fitControl = trainControl(method = "none", classProbs = F)
+      }
       fittedM = train(y_train~., data=dat_train,
                       method=pred_method,
                       trControl=fitControl, ...)
-
-      y_pred[[i]] = predict(fittedM, dat_full, type='prob')
+      if(cat.response){
+        y_pred[[i]] = predict(fittedM, dat_full, type='prob')
+      }
+      else{
+        y_pred[[i]] = predict(fittedM, dat_full)
+      }
       trained_predictors[[i]] = fittedM
     }
     else{
