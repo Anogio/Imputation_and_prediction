@@ -29,19 +29,19 @@ dataset = 'trauma'
 # Proportion of MCAR mising data added to the dataset
 prop_added_missing = 0
 # Number of datasets generated via multiple imputation
-n_imputations = 20
+n_imputations = 5
 # Prediction method used on the competed datasets
 prediction_method = 'rf'
 # Proportion of observations used to train the models (the rest is used for evaluation)
-train_size = 0.05
+train_size = 0.3
 # Maximum number of rows to keep in the dataset. Keep all rows if NULL
 max_rows = NULL
 
-oversampleX = F
+oversampleX = T
 
-keep_data = 'num' # all, cat or num
-imputation_methods = c('mean', 'mipca') #any method accepted by the *impute* method from prediction_methods.R
-aggregation_method = 'quantile'
+keep_data = 'all' # all, cat or num
+imputation_methods = c('mean', 'mipca', 'mice') #any method accepted by the *impute* method from prediction_methods.R
+aggregation_method = 'mean'
 qsplit = 0.5
 
 # Do we perform xgboost prediction on the non-imputed dataset?
@@ -136,7 +136,7 @@ for(method in imputation_methods){
   y_pred_multi = multiple_prediction(X_imputed, y, pred_method = prediction_method, 
                                      train_size = train_size, seed=seed, spl=spl)
   # Pool the results to get a single estimate
-  if(method == 'mean'){
+  if(method == 'mean' | method=='MF'){
     name = paste(method, '+', prediction_method)
     y_pred[[name]] = y_pred_multi$y_pred[[1]][-spl,2]
   }
@@ -205,10 +205,11 @@ In the case with both numeric and categorical data, the results are significantl
 Below is the importance of the variables used by the classifier (for the mean-imputed dataset)
 
 ```{r}
-#importances = varImp(trained_predictors[['mice']][[1]])
+#importances = varImp(trained_predictors[['mice']][[4]])
 #imp = data.frame(importances$importance)
 #colnames(imp) = c('MICE')
 #imp$Mean = varImp(trained_predictors[['mean']][[1]])$importance$Overall
+#imp$MF = varImp(trained_predictors[['MF']][[1]])$importance$Overall
 #imp$Amelia = varImp(trained_predictors[['amelia']][[1]])$importance$Overall
 #imp$Missingness = colSums(is.na(X_miss)) / nrow(X_miss)*100
 #imp
@@ -219,7 +220,7 @@ timesdf = data.frame(method=names(times), timing = unlist(times))
 ggplot(timesdf) + aes(x=method, y=timing) + geom_bar(stat='identity')
 ```
 ```{r}
-positive_misclassification_penalty = 1
+positive_misclassification_penalty = 10
 
 thresholds = sapply(results, function(x) metric_best_separation(as.numeric(x), 
                                                                 results$Hemo.shock, 
