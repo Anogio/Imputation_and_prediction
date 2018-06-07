@@ -1,0 +1,224 @@
+Main point of this file:
+  See what happens when we fill data before or after splitting it into a train-test split, and compare performance with the model
+filled on the true full data. Also, see if multiple imputation yields any advantage.
+
+
+## Miscellaneous setup
+Imports
+```{r, results="hide", message=FALSE}
+## Imports
+library(tidyverse)
+library(verification)
+
+# Custom imports
+aux.folder = '../../auxiliary/'
+source(paste(aux.folder,'dataloaders.R',sep=''), chdir = T)
+source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
+source(paste(aux.folder,'imputation_methods.R',sep=''), chdir = T)
+source(paste(aux.folder,'prediction_methods.R',sep=''), chdir = T)
+
+data_folder = '../../../Data/'
+```
+
+Parameters for this run
+```{r}
+#Global seed
+seed = 2
+# Dataset to use for the analysis
+dataset = 'abalone'
+# Proportion of MCAR mising data added to the dataset
+prop_added_missing = 0.3
+# Number of datasets generated via multiple imputation
+n_imputations = 4
+# Prediction method used on the competed datasets
+prediction_method = 'rf'
+# Proportion of observations used to train the models (the rest is used for evaluation)
+train_size = 0.2
+# Maximum number of rows to keep in the dataset. Keep all rows if NULL
+max_rows = NULL
+
+oversampleX = F
+
+keep_data = 'all' # all, cat or num
+imputation_method = 'mice' #any method accepted by the *impute* method from prediction_methods.R
+aggregation_method = 'mean'
+qsplit = 0.5
+
+# Do we perform xgboost prediction on the non-imputed dataset?
+pred_xgb = T
+nrounds_xgb = 100
+
+# Do we perform SAEM prediction on the non-imputed dataset? (continuous data only)
+pred_SAEM = F
+
+set.seed(seed)
+```
+
+## Data preparation
+Import and select columns
+
+```{r}
+# Load and format the dataset
+dat = loader(dataset, max_rows, seed)
+y = dat$y
+
+# Keep relevant columns
+if(keep_data == 'all'){
+  X = cbind(dat$X_numeric, dat$X_category)
+}else if(keep_data == 'cat'){
+  print('Keeping only categorical variables')
+  X = dat$X_category
+}else if(keep_data=='num'){
+  print('Keeping only numerical variables')
+  X = dat$X_numeric
+}else{
+  stop('wrong keep_data value')
+}
+
+X$Age = NULL
+
+print(paste('X is of dimension', toString(dim(X))))
+```
+
+##Now for the analysis
+```{r}
+X_miss = MCAR(X, prop_added_missing)
+
+X_miss_filled = impute(X_miss, m=1, method=imputation_method)[[1]]
+
+splitted = train_test_split(X,y, train_size)
+spl = splitted$spl
+
+X_train = X[spl,]
+X_test = X[-spl,]
+X_train_miss = X_miss[spl,]
+X_test_miss = X_miss[-spl,]
+X_train_filled = X_miss_filled[spl,]
+X_test_filled = X_miss_filled[-spl,]
+y_train = y[spl]
+y_test = y[-spl]
+```
+```{r}
+X_train_miss_multi = impute(X_train_miss, m=n_imputations, method=imputation_method)
+X_test_miss_multi = impute(X_test_miss, m=n_imputations, method=imputation_method)
+
+#X_train_miss = X_train_miss_multi[[1]]
+#X_test_miss = X_test_miss_multi[[1]]
+X_train_miss = impute(X_train_miss, method='MF')[[1]]
+X_test_miss = impute(X_test_miss, method='MF')[[1]]
+```
+```{r}
+predictions = data.frame(Truth = as.numeric(y_test)-1)
+
+fitControl = trainControl(method = "none", classProbs = F)
+
+# Reference prediction with full data
+ref.fit.linear = lm(y_train ~ . ,data=cbind(X_train,y_train))
+predictions$ref.linear = predict(ref.fit.linear, X_test, type='response')
+ref.fit.rf = train(X_train, y_train,
+                   method='rf',
+                   trControl=fitControl)
+predictions$ref.rf = predict(ref.fit.rf, X_test)
+
+# Prediction from data imputed on whole dataset
+prefilled.fit.linear = lm(y_train ~ .,data=cbind(X_train_filled,y_train))
+predictions$prefilled.linear = predict(prefilled.fit.linear, X_test_filled, type='response')
+prefilled.fit.rf = train(X_train_filled, y_train,
+                         method='rf',
+                         trControl=fitControl)
+predictions$prefilled.rf = predict(prefilled.fit.rf, X_test_filled)
+
+# Prediction from data imputed separately
+postfilled.fit.linear = lm(y_train ~ . ,data=cbind(X_train_miss,y_train))
+predictions$postfilled.mean.linear = predict(postfilled.fit.linear, X_test_miss, type='response')
+prefilled.fit.rf = train(X_train_miss, y_train,
+                         method='rf',
+                         trControl=fitControl)
+predictions$postfilled.mean.rf = predict(prefilled.fit.rf, X_test_miss)
+
+# Prediction on multiply imputed data
+predictions.multi = data.frame(Truth = as.numeric(y_test)-1)
+predictions.multi.rf =list()
+predictions.multi.linear = list()
+for(i in 1:n_imputations){
+  X_tr = X_train_miss_multi[[i]]
+  X_te = X_test_miss_multi[[i]]
+
+  fit.linear = lm(y_train ~ ., data=cbind(X_tr,y_train))
+  p = predict(fit.linear, X_te, type='response')
+  predictions.multi.linear[[i]] = p
+  fit.rf = train(X_tr, y_train,
+                 method='rf',
+                 trControl=fitControl)
+  predictions.multi.rf[[i]] = predict(fit.rf, X_te)
+  
+  predictions.multi = cbind(predictions.multi, rowMeans(as.data.frame(predictions.multi.linear)))
+}
+predictions$multi.linear = rowMeans(as.data.frame(predictions.multi.linear))
+predictions$multi.rf = rowMeans(as.data.frame(predictions.multi.rf))
+```
+
+```{r}
+metrics = data.frame(method=names(predictions[-1]))
+metrics$MSE = sapply(predictions[,-1], function(x) mean((x - predictions$Truth)^2))
+
+metrics = metrics %>% gather(key='metric', value='value', -method)
+ggplot(metrics) + aes(fill=method, y=value, x=metric) + geom_bar(stat='identity', position='dodge', color='white')
+```
+```{r}
+MSEs.multi = sapply(predictions.multi[,-1], function(x) mean((x - predictions.multi$Truth)^2))
+plot(MSEs.multi)
+```
+
+#######################################
+
+```{r}
+MSEs = c()
+eval.points = seq(0.01,0.5,0.03)
+
+splitted = train_test_split(X_miss,y,0.7,seed=6)
+spl_val = splitted$spl
+X_eval = X_miss[-spl_val,]
+y_eval = y[-spl_val]
+
+X_remain = X_miss[spl_val,]
+y_remain = y[spl_val]
+
+for(rate in eval.points){
+  print(rate)
+  splitted = train_test_split(X_remain,y_remain,rate,seed=seed)
+  spl = splitted$spl
+
+  X_train = X_remain[spl,]
+  y_train = y_remain[spl]
+
+  X_test = X_eval
+  y_test = y_eval
+
+  for(i in 1:ncol(X_train)){
+    c = X_train[,i]
+    if(!is.factor(c)){
+      m = mean(c, na.rm=T)
+      X_train[is.na(X_train[i]),i] = m
+      X_test[is.na(X_test[i]),i] = m
+    }
+    else{
+      tt = table(c)
+      most.freq = names(tt[which.max(tt)])
+      X_train[is.na(X_train[i]),i] = most.freq
+      X_test[is.na(X_test[i]),i] = most.freq
+    }
+  }
+
+  fitControl = trainControl(method = "none", classProbs = F)
+  fittedM = train(X_train, y_train,
+                  method='rf',
+                  trControl=fitControl)
+  y_pred = predict(fittedM, X_test)
+
+  MSEs = c(MSEs,mean((y_test - y_pred)^2))
+}
+
+plot(eval.points*0.7, MSEs)
+```
+
