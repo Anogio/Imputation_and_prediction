@@ -4,10 +4,10 @@ library(mice)
 library(Amelia)
 library(cat)
 library(missMDA)
-
+library(missForest)
 ########################
 # Methods to generate filled datasets
-impute <- function(X, m=5, method, mipca_ncp=3, spl=NULL){
+impute <- function(X, method, m=5, mipca_ncp=3, spl=NULL){
   if(method=='mice'){
     return(mice_imp(X,m))
   }
@@ -25,6 +25,9 @@ impute <- function(X, m=5, method, mipca_ncp=3, spl=NULL){
   }
   else if(method=='mean'){
     return(list(mean_imp_single(X, spl=spl)))
+  }
+  else if(method=='MF'){
+    return(list(missforest_imp_single(X)))
   }
   else{
     stop('Unknown method provided')
@@ -51,7 +54,7 @@ amelia_imp <- function(X, m=5){
   else{
     noms = NULL
   }
-  
+
   imp = amelia(X, m=m, noms=noms, p2s=1, parallel = 'multicore', ncpus = 4)$imputations
   print('Done.')
   return(imp)
@@ -72,7 +75,7 @@ cat_imp <- function(X, m=5){
     stop("All variables must be categorical")
   }
   rngseed()
-  
+
   X = as.matrix(as.data.frame(lapply(X,as.numeric)))
   X_p = prelim.cat(X)
   theta = em.cat(X_p)
@@ -97,7 +100,7 @@ mean_imp_single <- function(X, categorical='most.freq', spl=NULL){
   if(is.null(spl)){
     spl=1:nrow(X)
   }
-  
+
   for(i in numCols){
     c = X[,i]
     X[is.na(c),i] = mean(c[spl], na.rm = T)
@@ -115,4 +118,11 @@ mean_imp_single <- function(X, categorical='most.freq', spl=NULL){
   }
   print('Done.')
   return(X)
+}
+
+missforest_imp_single <- function(X){
+  print('Performing missForest imputation...')
+  res = missForest(X)$ximp
+  print('Done.')
+  return(res)
 }
