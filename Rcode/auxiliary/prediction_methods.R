@@ -137,7 +137,7 @@ pool_MI_binary <- function(preds, spl=NULL, method='mean', y_true=NULL, quantile
     }
   }
   else if(method=='quantile'){
-    print('Performing max pooling')
+    print('Performing quantile pooling')
     if(is.null(dim(y_pred_test))){
       res = max(y_pred_test)
     }
