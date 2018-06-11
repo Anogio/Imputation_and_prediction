@@ -29,19 +29,19 @@ dataset = 'abalone'
 # Proportion of MCAR mising data added to the dataset
 prop_added_missing = 0.3
 # Number of datasets generated via multiple imputation
-n_imputations = 4
+n_imputations = 10
 # Prediction method used on the competed datasets
 prediction_method = 'rf'
 # Proportion of observations used to train the models (the rest is used for evaluation)
-train_size = 0.2
+train_size = 0.4
 # Maximum number of rows to keep in the dataset. Keep all rows if NULL
-max_rows = NULL
+max_rows = 1000
 
 oversampleX = F
 
 keep_data = 'all' # all, cat or num
 imputation_method = 'mice' #any method accepted by the *impute* method from prediction_methods.R
-aggregation_method = 'mean'
+aggregation_method = 'quantile'
 qsplit = 0.5
 
 # Do we perform xgboost prediction on the non-imputed dataset?
@@ -104,8 +104,8 @@ X_test_miss_multi = impute(X_test_miss, m=n_imputations, method=imputation_metho
 
 #X_train_miss = X_train_miss_multi[[1]]
 #X_test_miss = X_test_miss_multi[[1]]
-X_train_miss = impute(X_train_miss, method='MF')[[1]]
-X_test_miss = impute(X_test_miss, method='MF')[[1]]
+X_train_miss = impute(X_train_miss, method='mean')[[1]]
+X_test_miss = impute(X_test_miss, method='mean')[[1]]
 ```
 ```{r}
 predictions = data.frame(Truth = as.numeric(y_test)-1)
@@ -152,10 +152,10 @@ for(i in 1:n_imputations){
                  trControl=fitControl)
   predictions.multi.rf[[i]] = predict(fit.rf, X_te)
   
-  predictions.multi = cbind(predictions.multi, rowMeans(as.data.frame(predictions.multi.linear)))
+  predictions.multi = cbind(predictions.multi, rowMeans(as.data.frame(predictions.multi.rf)))
 }
-predictions$multi.linear = rowMeans(as.data.frame(predictions.multi.linear))
-predictions$multi.rf = rowMeans(as.data.frame(predictions.multi.rf))
+predictions$multi.linear = apply(as.data.frame(predictions.multi.linear), 1, mean)
+predictions$multi.rf = apply(as.data.frame(predictions.multi.rf), 1, mean)
 ```
 
 ```{r}
@@ -174,7 +174,7 @@ plot(MSEs.multi)
 
 ```{r}
 MSEs = c()
-eval.points = seq(0.01,0.5,0.03)
+eval.points = seq(0.01,0.95,0.03)
 
 splitted = train_test_split(X_miss,y,0.7,seed=6)
 spl_val = splitted$spl

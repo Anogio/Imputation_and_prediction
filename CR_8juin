@@ -1,0 +1,25 @@
+ACP - Comparaison avec la moyenne: plots (est-ce qu'on est proche en terme d'imputation?)
+
+Prediction améliorée par imputation (simple puis multiple)? (comparaison mice, moyenne, MF, ...)
+
+
+Split train/test -> simuler différentes possibilités ²
+
+Récupérer les paramètres de modèle joint puis remettre les valeurs espérées (cf https://www.dropbox.com/preview/MissingTutorials/Tutorials/LectureMissing.html?role=personal)
+ + http://www.lsta.upmc.fr/guyader/files/teaching/EsperanceConditionnelle.pdf
+
+Nicolas prost -> Slack
+
+Demander à Wei le temps que son code de sélaction de variable tourne
+
+
+
+Reprendre abalone en simplifiant: compaer juste la méthode de séparation, mais en imputant toujours avec la même méthode
+
+Comparaison définitions choc hémo: sélection variable prédiction pour chaque définition -> voir si c'est les mêmes à chaque fois
+
+Comparaison simple mais bien faite des méthodes de pred
+
+Données simulées 
+
+
