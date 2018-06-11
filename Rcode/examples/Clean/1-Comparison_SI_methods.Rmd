@@ -1,0 +1,206 @@
+---
+title: "Imputation methods comparison"
+output: html_document
+---
+
+In this document we compare the effects of imputing missing values with various imputation methods. Here we only use single imputation: each missing value is estimated once.
+
+In a first part, we perform the analysis with the traumabase data. We measure prediction performance using two different metrics but in both cases all methods (including the simplest one, imputation by the mean) seem to perform similarly. One thing that could explain this is the fact that the missingness is not completely at random: very often if one record is missing in a line, a lot of other values are missing in that line. This may mean that lines with missing data become very hard to impute, whichever method is used. Another option is that this correlation in missingness means that when data is missing this is actually a useful information and should be used in the prediction.
+
+The second part performs a similar analysis, but on the abalone data, which is a regression dataset with no missing values. We add some missing values completely at random and evaluate the prediction. It appears that mean imputation performs significantly worse than all other methods on this dataset (although this difference is much less visible when random forest is used for prediction rather than logistic regression). As can be seen on the diagnostic plots, this can be linked to the fact that the data has a strong correlation between the covariates, so imputation by the mean results in completely implausible data.
+
+A good next step would be to make similar comparisons on simulated datasets with different levels of corrlelation in the dataset/in the missingness structure to see how our observasions hold on well controlled data.
+
+# With Trauma data
+
+## Preparation
+### Imports
+```{r, results="hide", message=FALSE}
+## Imports
+library(tidyverse)
+library(cowplot)
+library(verification)
+library(caret)
+library(mice)
+library(Amelia)
+library(missForest)
+library(missMDA)
+library(MLmetrics)
+library(pander)
+
+
+# Custom imports
+aux.folder = '../../auxiliary/'
+source(paste(aux.folder,'dataloaders.R',sep=''), chdir = T)
+source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
+
+data_folder = '../../../Data/'
+```
+
+### Load data
+```{r}
+dataset = 'trauma'
+max_rows = NULL
+seed = 5
+train_size = 0.2
+
+# Load and format the dataset
+dat = loader(dataset, max_rows, seed)
+y = dat$y
+X = dat$X_numeric
+
+keepCols = c("Age", "Glasgow.moteur.initial", "FC.max", "Hemocue.init",
+                 "Remplissage.total.cristalloides","Remplissage.total.colloides", "SD.min", "SD.SMUR")
+X = X %>% dplyr::select(one_of(keepCols))
+colnames(X) = c('Age', 'Glasgow', 'FC', 'Hemo', 'Cristall', 'Colloides', 'SD.min', 'SD.SMUR')
+
+set.seed(seed)
+inTraining = createDataPartition(y, p=train_size, list=FALSE)
+
+print('Correlation of the missingness of the variables')
+pander(cor(is.na(X)))
+```
+
+## Imputations
+
+```{r, results='hide'}
+X_complete = X[rowSums(is.na(X %>% dplyr::select(SD.SMUR, Hemo)))==0,]
+
+filled.datasets = list()
+filled.datasets[['mice.pmm']] = complete(mice(X, m=1, method='pmm', printFlag = F))
+filled.datasets[['mice.norm']] = complete(mice(X, m=1, method='norm', printFlag = F))
+filled.datasets[['mean']] = complete(mice(X, m=1, method='mean', printFlag = F))
+filled.datasets[['mipca']] = MIPCA(X, ncp=3, nboot=1)$res.MI[[1]]
+filled.datasets[['amelia']] = amelia(X, m=1, noms=c(), p2s=0, parallel = 'multicore', ncpus = 4)$imputations$imp1
+filled.datasets[['MF']] = missForest(X)$ximp
+```
+
+We plot a comparison of the distribution of two variables (chosen arbitrarily among those with many missing values) depending on the imputation method. The 'complete' dataset is made only of the points where there are no missing values. It is included as a reference.
+```{r}
+plot.mice.pmm = ggplot(filled.datasets$mice.pmm) + aes(x=SD.SMUR, y=Hemo) + geom_point() #+ geom_hline(yintercept = mean(X$Hemo, na.rm=T), color='red') + geom_vline(xintercept = mean(X$SD.SMUR, na.rm=T), color='red')
+plot.mice.norm = ggplot(filled.datasets$mice.norm) + aes(x=SD.SMUR, y=Hemo) + geom_point()
+plot.mean = ggplot(filled.datasets$mean) + aes(x=SD.SMUR, y=Hemo) + geom_point()
+plot.mipca = ggplot(filled.datasets$mipca) + aes(x=SD.SMUR, y=Hemo) + geom_point()
+plot.amelia = ggplot(filled.datasets$amelia) + aes(x=SD.SMUR, y=Hemo) + geom_point()
+plot.MF = ggplot(filled.datasets$MF) + aes(x=SD.SMUR, y=Hemo) + geom_point()
+plot.complete = ggplot(X_complete) + aes(x=SD.SMUR, y=Hemo) + geom_point()
+
+plot_grid(plot.mice.pmm, plot.mice.norm, plot.mean, plot.mipca, labels=c('mice.pmm', 'mice.norm', 'mean', 'mipca'), ncol=2)
+plot_grid(plot.amelia, plot.MF, plot.complete, labels=c('amelia', 'MissForest', 'complete'), ncol=2)
+
+```
+
+### Predictions
+
+```{r}
+preds = list()
+for(n in names(filled.datasets)){
+  X_filled = filled.datasets[[n]]
+  dat_train = cbind(y,X_filled)[inTraining,]
+  #fitControl = trainControl(method = "none", classProbs = TRUE)
+  #fittedM = train(X_filled[inTraining,], y[inTraining])
+  #preds[[n]] = predict(fittedM, X_filled[-inTraining,], type='prob')[,2]
+  fittedM = glm(y ~ .,family=binomial(link='logit'),data=dat_train)
+  preds[[n]] = predict(fittedM, X_filled[-inTraining,], type='response')
+}
+```
+
+### Evaluation
+
+```{r}
+y_test = as.numeric(y[-inTraining]) -1
+preds = as.data.frame(preds)
+print('Correlation of the prediction on positive cases')
+pander(cor(preds[y_test==1,]))
+
+roc.plot(y_test, preds, legend=T, leg.text=colnames(preds))
+```
+```{r}
+separation = matrix(NA,nrow=2, ncol=length(preds)+1)
+for(i in 1:(length(preds))){
+  thresh = 0.1
+  conf = confusionMatrix(factor(as.integer(preds[,i]>thresh)),as.factor(y_test), positive='1')
+  separation[1,i] = conf$table[2,2]
+  separation[2,i] = conf$table[2,1]
+}
+
+separation[1,length(preds)+1] = sum(y_test)
+separation[2,length(preds)+1] = 0
+colnames(separation) = c(names(preds), 'Ground truth')
+rownames(separation) = c('True positives','False positives')
+print('Confusion matrix for a fixed threshold (0.1)')
+pander(data.frame(separation))
+```
+
+# With Abalone data (and added MCAR values)
+### Load data
+```{r}
+dataset = 'abalone'
+prop.missing = 0.2
+
+# Load and format the dataset
+dat = loader(dataset, max_rows, seed)
+y = dat$y
+X = dat$X_numeric
+
+y = y[X$Height<0.4]
+X = X[X$Height<0.4,]
+  
+set.seed(seed)
+inTraining = createDataPartition(y, p=train_size, list=FALSE)
+
+X_complete = X
+X = MCAR(X, prop.missing)
+```
+
+## Imputations
+
+```{r, results='hide'}
+filled.datasets = list()
+filled.datasets[['mice.pmm']] = complete(mice(X, m=1, method='pmm', printFlag = F))
+filled.datasets[['mice.norm']] = complete(mice(X, m=1, method='norm', printFlag = F))
+filled.datasets[['mean']] = complete(mice(X, m=1, method='mean', printFlag = F))
+filled.datasets[['mipca']] = MIPCA(X, ncp=3, nboot=1)$res.MI[[1]]
+filled.datasets[['amelia']] = amelia(X, m=1, noms=c(), p2s=0, parallel = 'multicore', ncpus = 4)$imputations$imp1
+filled.datasets[['MF']] = missForest(X)$ximp
+```
+```{r}
+plot.mice.pmm = ggplot(filled.datasets$mice.pmm) + aes(x=Height, y=ShuckedWeight) + geom_point() #+ geom_hline(yintercept = mean(X$Hemo, na.rm=T), color='red') + geom_vline(xintercept = mean(X$SD.SMUR, na.rm=T), color='red')
+plot.mice.norm = ggplot(filled.datasets$mice.norm) + aes(x=Height, y=ShuckedWeight) + geom_point()
+plot.mean = ggplot(filled.datasets$mean) + aes(x=Height, y=ShuckedWeight) + geom_point()
+plot.mipca = ggplot(filled.datasets$mipca) + aes(x=Height, y=ShuckedWeight) + geom_point()
+plot.amelia = ggplot(filled.datasets$amelia) + aes(x=Height, y=ShuckedWeight) + geom_point()
+plot.MF = ggplot(filled.datasets$MF) + aes(x=Height, y=ShuckedWeight) + geom_point()
+plot.complete = ggplot(X_complete) + aes(x=Height, y=ShuckedWeight) + geom_point()
+
+plot_grid(plot.mice.pmm, plot.mice.norm, plot.mean, plot.mipca, labels=c('mice.pmm', 'mice.norm', 'mean', 'mipca'), ncol=2)
+plot_grid(plot.amelia, plot.MF, plot.complete, labels=c('amelia', 'MissForest', 'complete'), ncol=2)
+```
+
+### Predictions
+
+```{r}
+preds = list()
+for(n in names(filled.datasets)){
+  print(n)
+  X_filled = filled.datasets[[n]]
+  dat_train = cbind(y,X_filled)[inTraining,]
+  #fitControl = trainControl(method = "none")
+  #fittedM = train(X_filled[inTraining,], y[inTraining])
+  #preds[[n]] = predict(fittedM, X_filled[-inTraining,])
+  fittedM = lm(y ~ .,data=dat_train)
+  preds[[n]] = predict(fittedM, X_filled[-inTraining,], type='response')
+}
+```
+
+### Evaluation
+
+```{r}
+y_test = as.numeric(y[-inTraining]) -1
+preds = as.data.frame(preds)
+print('Correlation between the predictions')
+pander(cor(preds))
+
+MSEs = sapply(preds, function(x) MSE(x, y_test))
+ggplot() + aes(x=names(MSEs), y=MSEs) + geom_bar(stat='identity') + xlab("Imputation method") + ylab('Mean squared error')
+```

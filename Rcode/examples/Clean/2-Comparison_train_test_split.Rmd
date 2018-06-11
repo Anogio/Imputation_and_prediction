@@ -1,0 +1,129 @@
+---
+title: "Imputation - The validation split problem"
+output: html_document
+---
+
+In this document we compare several ways of performing the split of the data to evaluate a prediction method. The idea is that current imputation methods are not designed to be fitted on some dataset and then applied to another one: being iterative methods, they can only be fitted and applied to the same dataset. As a result, when dividing a dataset into a training dataset and a validation dataset with missing data, we have two choices:
+
+- Use the *imputation* method on the whole dataset. *Then split* the observations in two subsets.
+- *Split* the observations in two subsets. *Then*, perform *imputation* independenlty on each subset.
+
+In theory, both methods have severe pitfalls. In the first case, we are effectively using our validation dataset to learn a model, and the imputed values in the training set will depend on the validation data. This means that we are possibly *overfitting* without this reflecting in the testing error. But in the second case the imputation models used for each dataset are different. This means that we are not assured both datasets will be filled in the same way: this is important because the final goal is to fit a predictive model that will learn on the training dataset and perform prediction on the other one. If the imputation on both sets is performed too differently, this is likely to affect the prediction model negatively (as it assumes that the data are identically distributed in both sets).
+
+To evaluate the impact of those issues, we compare the performance of the methods on the abalone regression dataset. We first split the data in two: a *validation* dataset with no missing values and a second dataset where we artificially add missing values (40%, MCAR). Once this is done the second dataset is split into a *training* and a testing *dataset* as usual. The training and testing datasets are filled as previously described and a logistic regression is trained each time. For comparison, we also fit a regression on the same data with to added missing values.
+
+The final plot shows the compared prediction performances of the models. What we see is that, as expected, when we fill the dataset before splitting, there is an decrease in the testing error that is not reflected in the validation error, which reflects the fact that information from the testing set leaked to the training set when we imputed both of them together. 
+
+Note, however, that we may be using a dataset that has too much redundancy or a missingness pattern that is too simple: we need to insert a large amount of missing values for any effect to show. When we add 20% of missing values, the prediction on the imputed data is just as good as on the full data. Even with 30%, the differences are quite small and one might wonder if they are really significant. Still, the negative effects described do seem to be present: this could justify the development of an imputation method able to perform separate fitting and imputation operations.
+
+## Miscellaneous setup
+Imports
+```{r, results="hide", message=FALSE}
+## Imports
+library(tidyverse)
+library(verification)
+library(mice)
+
+# Custom imports
+aux.folder = '../../auxiliary/'
+source(paste(aux.folder,'dataloaders.R',sep=''), chdir = T)
+source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
+data_folder = '../../../Data/'
+```
+
+Parameters for this run
+```{r}
+#Global seed
+seed = 67
+print(seed)
+# Dataset to use for the analysis
+dataset = 'abalone'
+# Proportion of MCAR mising data added to the dataset
+prop_added_missing = 0.3
+# Proportion of observations used to train the models (the rest is used for evaluation)
+train_size = 0.2
+test_size = 0.4
+val_size = 1 - (train_size + test_size)
+# Maximum number of rows to keep in the dataset. Keep all rows if NULL
+max_rows = NULL
+
+imputation = function(X){
+  return(complete(mice(X, m=1, method='pmm', printFlag = F)))
+}
+
+set.seed(seed)
+```
+
+## Data preparation
+Import and select columns
+
+```{r}
+# Load and format the dataset
+dat = loader(dataset, max_rows, seed)
+y = dat$y
+X = cbind(dat$X_numeric, dat$X_category)
+colnames(X)[8] = 'Sex'
+
+X_miss = MCAR(X, prop_added_missing)
+
+inVal = base::sample(1:length(y), floor(val_size*length(y)))
+inTrain = base::sample(1:(length(y)-length(inVal)), train_size*length(y))
+
+X.val = X[inVal,]
+# X.val = X_miss[inVal,]
+y.val = y[inVal]
+y = y[-inVal]
+X_miss = X_miss[-inVal,]
+X_full = X[-inVal,]
+
+rm(X)
+```
+
+##Now for the analysis
+```{r}
+y.train = y[inTrain]
+y.test = y[-inTrain]
+
+X_filled_before = imputation(X_miss)
+X_filled_before.train = X_filled_before[inTrain,]
+X_filled_before.test = X_filled_before[-inTrain,]
+
+X.train = X_miss[inTrain,]
+X.test = X_miss[-inTrain,]
+X_filled_after.train = imputation(X.train)
+X_filled_after.test = imputation(X.test)
+
+X_fulldata.train = X_full[inTrain,]
+X_fulldata.test = X_full[-inTrain,]
+
+#X_val_filled = imputation(X_val)
+```
+
+```{r}
+predictions.test = data.frame(Truth = y.test)
+predictions.val = data.frame(Truth = y.val)
+
+filledBefore.fit = lm(y.train~., data=cbind(y.train, X_filled_before.train))
+filledAfter.fit  = lm(y.train~., data=cbind(y.train, X_filled_after.train))
+fullData.fit     = lm(y.train~., data=cbind(y.train, X_fulldata.train))
+
+predictions.test$filledBefore = predict(filledBefore.fit, X_filled_before.test)
+predictions.test$filledAfter = predict(filledAfter.fit, X_filled_after.test)
+predictions.test$fullData = predict(fullData.fit, X_fulldata.test)
+
+predictions.val$filledBefore = predict(filledBefore.fit, X.val)
+predictions.val$filledAfter = predict(filledAfter.fit, X.val)
+predictions.val$fullData = predict(fullData.fit, X.val)
+
+cor(predictions.test)
+```
+
+```{r}
+test.MSEs = sapply(predictions.test, function(x){RMSE(x, y.test)})
+val.MSEs = sapply(predictions.val, function(x){RMSE(x, y.val)})
+
+results = data.frame(data=c('Filled.before.split', 'Filled.after.split', 'Full.data'), test.RMSE=test.MSEs[-1], val.RMSE=val.MSEs[-1])
+results %>% gather('Metric', 'Value', -data) %>% ggplot() + aes(fill=data, y=Value, x=Metric) + geom_bar(position='dodge', stat='identity')
+```
+
+
