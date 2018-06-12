@@ -105,29 +105,57 @@ traumdata = cbind(traumdata, criteria)
 ```
 
 ## Evaluation of the criteria
+
+### Preliminary comparison
 ```{r}
 # Show the relationships between the criteria
 as.data.frame(table(criteria, useNA = 'ifany'))
-# Show the number of positivs for each criterion
+# Show the number of positives for each criterion
+print('Number of positive matches')
 colSums(criteria)
 
 # Compute the correlation of each criteria with death by harmorrhagic shock
+print('Correlation with exsanguination death')
 sapply(criteria, function(x) cor(x,hemo.shock.death))
+print('Correlation with overalll mortality')
+sapply(criteria, function(x) cor(x,!is.na(traumdata$Cause.du.DC)))
 ```
-
+### Occurence over time
 ```{r}
-
-
 getMonth = function(datetime){
   t =  strptime(datetime, format = '%d/%m/%y')
   return(t$mon + 12*t$year)
 }
 traumdata$arrivalMonth = sapply(traumdata$Date.entree, getMonth)
 traumdata %>%
-  select(arrivalMonth,c1,c3,c4,c5) %>%
+  dplyr::select(arrivalMonth,c1,c3,c4,c5) %>%
   group_by(arrivalMonth) %>%
   summarise_all(funs(sum)) %>%
   gather('Criterion', 'Number_positives', -c(arrivalMonth)) %>%
   ggplot() + aes(x=arrivalMonth/12+1900, y=Number_positives, color=Criterion) + geom_line() +
   xlim(c(2010,NA)) + xlab('Year (one point per month)') + ylab('Number of patients matching criterion this month')
 ```
+
+### Impact on feature selection
+
+We ran feature selection by forward selection with the SAEM logistic regression (cf Wei's code) using each of the criteria as a target. This takes a long time to run and is not included in this document but the results are included below.
+
+```{r}
+load(paste(data_folder,'criteria.comparison.results.RData', sep=''))
+bics = criteria.comparison.results$bics
+aics = criteria.comparison.results$aics
+best.subsets = criteria.comparison.results$best.subsets
+selection.ordered = criteria.comparison.results$best.subset.ordered
+print('Evolution of the BIC with the number of parameters, for each criterion')
+criteria.comparison.results$bics.plot
+```
+```{r}
+print('Subset of variable selected for the prediction of each criterion:')
+best.subsets
+```
+
+```{r}
+print('Order of selection of the variables for each criterion (first 8 out of a total of 14)')
+selection.ordered
+```
+
