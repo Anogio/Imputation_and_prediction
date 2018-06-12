@@ -2,3 +2,8 @@ Data/data_trauma*
 Data/hemo_shock.csv
 .RData
 .Rhistory
+thesis.aux
+thesis.log
+thesis.out
+thesis.synctex.gz
+thesis.toc
