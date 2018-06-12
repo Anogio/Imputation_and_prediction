@@ -126,3 +126,25 @@ missforest_imp_single <- function(X){
   print('Done.')
   return(res)
 }
+
+#############################################
+
+train.MI_mvnorm = function(X_train){
+  # Must run *rngseed* at least once before using
+  pre <- prelim.norm(as.matrix(X_train))
+  thetahat <- em.norm(pre)
+  return(thetahat)
+}
+
+impute.MI_mvnorm = function(thetahat.train, X, m=5){
+  estimations = list()
+  pre = prelim.norm(as.matrix(X))
+  for(i in 1:m){
+    print(i)
+    estimations[[i]] = imp.norm(pre, thetahat.train, X)
+  }
+  if(any(is.na(estimations[[1]]))){
+    stop('There are still NA values in the imputation. Have you initialized rngseed?')
+  }
+  return(estimations)
+}
