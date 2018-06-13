@@ -1,0 +1,53 @@
+\documentclass[12pt, a4paper]{article}
+
+\usepackage{microtype}
+\usepackage{amsmath,amsthm,amssymb,amsfonts}
+\usepackage{bbm}
+\usepackage{hyperref}
+\usepackage{graphicx, subfig}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{minted}
+\usepackage{xcolor}
+\usepackage{todonotes}
+
+\title{Missing data imputation and prediction}
+\author{Antoine Ogier \\ Supervisor: Julie Josse \\ Academic supervisor: Geoff Nicholls}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+\tableofcontents
+\newpage
+\pagenumbering{arabic}
+
+\section*{Acknowledgements}
+\section*{Introduction}
+Missing values in data is a prominent issue that has been much discussed in statistical literature. In the eighties, Donald Rubin devised many of the tools that are still used today to handle missing data: the expectation-maximisation algorithm, the definition of the three missing data patterns (MCAR, MAR, MNAR), multiple imputation. Two main approaches have been extensively researched to handle missing data: developing an ad-hoc algorithm that is capable of handling missing data itself (this is often based on the EM algorithm); or filling in the missing observations with imputed values.
+
+However, there is in this regard a significant gap between the fields of statistical inference and machine learning: while the former has been actively developing and evaluating methods to handle missing data --- mostly for parameter and confidence intervals estimation ---, these methods are rarely used in the context of prediction, where replacing missing values with the mean of the observed data is standard practice.
+
+This can be explained by the fact that machine learning practitioners enjoy having access to the whole range of standard algorithms they are familiar with, and are thus reluctant to use algorithms made for missing data rather than fill in the values. Conversely, filling by the mean is generally considered as 'good enough' for prediction purposes. Astonishingly in this regard, there is no thorough assessment of the way that missing values impact prediction performance, or comparison of imputation methods in this regard: whenever a new imputation method is published, a comparison with existing methods is usually conducted, but only regarding its performance for statistical inference. This means that we currently do not know whether it is worthwhile, when working on prediction, to turn to more elaborate (but also more computationally intensive) methods than mean imputation.
+
+The goal of this work is to lay the groundwork for a review of imputation methods in the context of predictions. The final goal is twofold:
+\begin{itemize}
+\item Compare the predictive performance of some machine learning algorithms applied to datasets filled in with various imputation methods. This will be done both on real-world datasets and simulated ones with different missingness patterns.
+\item Investigate the relevance of multiple imputation methods (where multiple possible values of each missing observation are imputed) for prediction: in theory, having multiple imputed datasets gives us more information on the certainty of the imputation (and so, of the resulting prediction).
+\end{itemize}
+
+However, conducting this investigation raises a major methodological issue related to the way that current imputation methods are implemented. 
+
+\section{Methodological investigation: the train-validation split}
+\subsection{The issue with current imputation methods}
+\subsection{An imputation method compliant with ML methodology}
+
+\section{The impact of missing values on prediction}
+\subsection{Presentation of some imputation methods}
+\subsection{Is the mean good enough?}
+\subsection{Application: the Traumabase data}
+
+\section{Multiple imputation: uses in prediction}
+\subsection{Presentation}
+\subsection{Aggregating predictions: principle and performance}
+\subsection{Application the Traumabase data}
+\end{document}
