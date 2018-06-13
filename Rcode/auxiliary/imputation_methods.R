@@ -5,6 +5,7 @@ library(Amelia)
 library(cat)
 library(missMDA)
 library(missForest)
+library(norm)
 ########################
 # Methods to generate filled datasets
 impute <- function(X, method, m=5, mipca_ncp=3, spl=NULL){
