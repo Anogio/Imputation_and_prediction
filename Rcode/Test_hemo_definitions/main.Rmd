@@ -6,19 +6,26 @@ output: html_document
 ```{r}
 library(tidyverse)
 library(stringr)
+library(FactoMineR)
 
 data_folder = '../../Data/'
-traumdata <- read.csv(file=paste(data_folder,'data_trauma.csv', sep=''),
-                      header = TRUE,na.strings = c("","NR","IMP","NA","NF"),encoding = "UTF-8")
+newdata = T
+if(newdata){
+  traumdata <- read.csv(file=paste(data_folder,'data_trauma2_oldnames.csv', sep=''),
+                        header = TRUE,na.strings = c("","NR","IMP","NA","NF"),encoding = "UTF-8")
+}else{
+ traumdata <- read.csv(file=paste(data_folder,'data_trauma.csv', sep=''),
+                        header = TRUE,na.strings = c("","NR","IMP","NA","NF"),encoding = "UTF-8") 
+}
 
-traumdata.keep.IMP <- read.csv(file=paste(data_folder,'data_trauma.csv', sep=''),
-                      header = TRUE,na.strings = c("","NR","NA","NF"),encoding = "UTF-8")
+##traumdata.keep.IMP <- read.csv(file=paste(data_folder,'data_trauma.csv', sep=''),
+                    #  header = TRUE,na.strings = c("","NR","NA","NF"),encoding = "UTF-8")
 
 # If the pressure cannot be taken it means that it is low!
-traumdata$PAS[traumdata.keep.IMP$PAS=='IMP'] = 30
-traumdata$PAS.min[traumdata.keep.IMP$PAS.min=='IMP'] = 30
-traumdata$PAS.SMUR[traumdata.keep.IMP$PAS.SMUR=='IMP'] = 30
-rm(traumdata.keep.IMP)
+##traumdata$PAS[traumdata.keep.IMP$PAS=='IMP'] = 30
+##traumdata$PAS.min[traumdata.keep.IMP$PAS.min=='IMP'] = 30
+##traumdata$PAS.SMUR[traumdata.keep.IMP$PAS.SMUR=='IMP'] = 30
+##rm(traumdata.keep.IMP)
 
 # Recode death codes
 traumdata$Cause.du.DC<-as.character(traumdata$Cause.du.DC)
@@ -33,7 +40,7 @@ traumdata[which(traumdata[ ,"Cause.du.DC"]=="Choc hémorragique"|
 
 ```{r}
 # ABC score computation
-type.mecanisme.perforant = c('Arme à feu', 'Arme blanche')
+type.mecanisme.perforant = c('Arme à feu', 'Arme blanche', "Stab wound", "Gunshot wound")
 mecanisme.perforant = traumdata$Mecanisme %in% type.mecanisme.perforant
 
 lowest.PAS = pmin(traumdata$PAS.SMUR, traumdata$PAS.min, traumdata$PAS, na.rm=T) # Are values of 0 actual low pressures or no record??
@@ -62,7 +69,7 @@ Cannot be done with current data
 
 ### Def 3 : NAD study
 ```{r}
-crit3 = traumdata$Choc.hemorragique == 1
+crit3 = (!is.na(traumdata$Choc.hemorragique)) & (traumdata$Choc.hemorragique == 1)
 ```
 
 ### Def 4 : Red flag study
@@ -73,7 +80,7 @@ surgery.performed = !is.na(traumdata$Bloc.direct) & (traumdata$Bloc.direct == 1)
 
 hemo.shock.death = !is.na(traumdata$Cause.du.DC) & (traumdata$Cause.du.DC == "Exsanguination")
 
-crit4 = transfusion.firstH | traumdata$Choc.hemorragique | high.lactates | surgery.performed | hemo.shock.death
+crit4 = transfusion.firstH | crit3 | high.lactates | surgery.performed | hemo.shock.death
 ```
 
 ### Def 5 : Resuscitation Outcome Consortium criteria
@@ -103,6 +110,21 @@ crit5 = physiological.crit & pragmatic.crit
 criteria = data.frame(c1=crit1, c3=crit3, c4=crit4, c5=crit5)
 traumdata = cbind(traumdata, criteria)
 ```
+```{r}
+print('Correlation between the criteria')
+cor(criteria)
+
+causation = matrix(NA, nrow=ncol(criteria), ncol=ncol(criteria))
+for(i in 1:ncol(criteria)){
+  for(j in 1:ncol(criteria)){
+    causation[i,j] = sum(criteria[,i]&criteria[,j])/sum(criteria[,i])
+  }
+}
+colnames(causation) = colnames(criteria)
+rownames(causation) = colnames(criteria)
+print('Correlation structure (row i, column j is the proportion of times that criterion j is also true when criterion i is true)')
+causation
+```
 
 ## Evaluation of the criteria
 
@@ -110,30 +132,47 @@ traumdata = cbind(traumdata, criteria)
 ```{r}
 # Show the relationships between the criteria
 as.data.frame(table(criteria, useNA = 'ifany'))
+cat('\n')
 # Show the number of positives for each criterion
-print('Number of positive matches')
+print(paste('Total number of positive matches (out of', nrow(traumdata), 'observations)'))
 colSums(criteria)
-
+cat('\n')
 # Compute the correlation of each criteria with death by harmorrhagic shock
 print('Correlation with exsanguination death')
 sapply(criteria, function(x) cor(x,hemo.shock.death))
-print('Correlation with overalll mortality')
+print('Correlation with overall mortality')
 sapply(criteria, function(x) cor(x,!is.na(traumdata$Cause.du.DC)))
+cat('\n')
+print('Sensitivity (hemo shock death')
+sapply(criteria, function(x) sum(x[hemo.shock.death])/sum(hemo.shock.death))
+print('Specificity (hemo shock death)')
+sapply(criteria, function(x)sum(!x[!hemo.shock.death])/sum(!hemo.shock.death))
+cat('\n')
+print('Sensitivity (All deaths)')
+sapply(criteria, function(x) sum(x[!is.na(traumdata$Cause.du.DC)])/sum(!is.na(traumdata$Cause.du.DC)))
+print('Specificity (All deaths)')
+sapply(criteria, function(x)sum(!x[is.na(traumdata$Cause.du.DC)])/sum(is.na(traumdata$Cause.du.DC)))
 ```
 ### Occurence over time
 ```{r}
 getMonth = function(datetime){
-  t =  strptime(datetime, format = '%d/%m/%y')
+  if(!newdata){
+    t =  strptime(datetime, format = '%d/%m/%y')
+  }
+  else{
+    t =  strptime(datetime, format = '%m/%d/%Y')
+  }
   return(t$mon + 12*t$year)
 }
+
 traumdata$arrivalMonth = sapply(traumdata$Date.entree, getMonth)
 traumdata %>%
   dplyr::select(arrivalMonth,c1,c3,c4,c5) %>%
   group_by(arrivalMonth) %>%
-  summarise_all(funs(sum)) %>%
+  summarise_all(funs(mean)) %>%
   gather('Criterion', 'Number_positives', -c(arrivalMonth)) %>%
   ggplot() + aes(x=arrivalMonth/12+1900, y=Number_positives, color=Criterion) + geom_line() +
-  xlim(c(2010,NA)) + xlab('Year (one point per month)') + ylab('Number of patients matching criterion this month')
+  xlab('Time (one point per month)') + ylab('Proportion of patients matching criterion this month')
 ```
 
 ### Impact on feature selection
@@ -159,3 +198,6 @@ print('Order of selection of the variables for each criterion (first 8 out of a 
 selection.ordered
 ```
 
+Choses à discuter (annexe):
+Etablir un GUID pour les patients? De manière à facilement refaire les corrections quand la base change
+De manière générale, centraliser les correctifs
