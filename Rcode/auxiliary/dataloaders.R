@@ -132,6 +132,7 @@ clean_trauma <- function(){
   Choc.hemorragique = Choc.hemorragique[-which(SAMU$Mecanisme=="Arme blanche" | SAMU$Mecanisme=="Arme à feu")]
   SAMU=SAMU[-which(SAMU$Mecanisme=="Arme blanche" | SAMU$Mecanisme=="Arme à feu"),]
 
+  SAMU$Origine[is.na(SAMU$Origine)] = 'Secondaire'
   Choc.hemorragique = Choc.hemorragique[SAMU$Origine=='Primaire']
   SAMU = SAMU[SAMU$Origine=='Primaire',]
 
@@ -223,6 +224,7 @@ clean_trauma_new <- function(){
   SAMU$SD.min=SAMU$PAS.min-SAMU$PAD.min
   SAMU$SD.SMUR=SAMU$PAS.SMUR-SAMU$PAD.SMUR
 
+  SAMU$Origine[is.na(SAMU$Origine)] = 'Secondaire'
   Choc.hemorragique = Choc.hemorragique[SAMU$Origine=='Primaire']
   SAMU = SAMU[SAMU$Origine=='Primaire',]
 
