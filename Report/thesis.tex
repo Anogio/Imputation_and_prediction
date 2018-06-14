@@ -39,8 +39,43 @@ However, conducting this investigation raises a major methodological issue relat
 
 \section{Methodological investigation: the train-validation split}
 \subsection{The issue with current imputation methods}
+To evaluate the predictive power of a model, the standard practice is to split the dataset in two parts: a training set and a validation set. The model parameters are learned by fitting on the training set. Then, an error metric is computed on the prediction of the same model for the validation set.
 
+The idea for this is simple: we want to verify that the model has learned in a way that generalises to new data: if the validation performance is significantly lower than the training performance, it is a sign of overfitting. On the contrary, if the model is underfitted, both the training and validation error will be high. This validation method is an essential tool for model selection.
+
+However, when trying to apply this methodology using imputation methods we are faced with a difficulty. Most of the imputation methods we will present in this work are iterative, which means that the imputation process alternates between computing new estimate for missing values, and estimating new parameters for some model based on the filled dataset. However, what happens if we want to separate the training and the imputation steps? This is necessary in order to perform the same imputation on new data (the validation set) after learning the imputation parameters on the training set.
+
+Although this question is essential to machine learning applications, current implementations of imputation methods do not concern themselves with it. All of them consist of one main function which takes in a dataset with missing values and returns one or several filled in datasets. If we want to use those functions as-is, there are only two options:
+\begin{itemize}
+\item Run the imputation function separately on the training and the validation dataset. This is sound in terms of evaluation, because no data from the validation set can be used for training. However, on the other hand, we have no guarantee that the imputation will be performed with the same parameters on both datasets. This is an important drawback because the predictive model will be trained on the first dataset and be applied to the second one with the same parameters. If they are filled in in a different way, the performance of the model is far from guaranteed. Note, however, that if both datasets are large and identically distributed, the imputation parameters should be roughly the same.
+
+\item Run the imputation function on both datasets joined together. This means that the parameters are learned on both datasets, which could completely undermine the performance evaluation by giving a validation loss that is too optimistic (since data was allowed to leak from the validation set). Still, no data from the response variable is used, so the impact may be rather small<;
+\end{itemize}
+
+Of course, an ideal solution would be to rethink existing methods so that they can be used on separate training and validation data: though probably feasible in most cases, it would take a significant effort. This, it would be interesting to first assess whether using the aforementioned methods instead would impact the model very negatively. To that effect, we take a case where it is simple to perform the split and compare the three approaches in terms of performance.
 \subsection{An imputation method compliant with ML methodology}
+\emph{Amelia}, a popular imputation package, uses a method that can easily be adapted to our purposes in the case of numeric data. If we model the whole dataset as drawn from a multivariate normal distribution, we can use the EM algorithm in order to estimate the parameters of that distribution. This leaves us with an estimated $\hat{\theta} = (\hat{\mu}, \hat{\Sigma})$. Then the missing values can be estimated for each observation by drawing the missing values conditionally on the observed ones.
+
+In particular, it means that once $\hat{\theta}$ is estimated, it can be used to impute values on any new data without having to apply the EM estimation again. As a result, it is easy to estimate the parameters on just the training set and then impute the missing values of the validation set with those parameters.
+
+We implemented this method.
+\subsection{Evaluation}
+In order to compare all three method, we performed a comparison of predictions on the Abalone dataset (a regression dataset where the goal is to estimate the age of shells), which has no missing values. To that end we split the data at random into three datasets, which we call \emph{Train}, \emph{Test} and \emph{Validation}. We proceed as follows:
+\begin{itemize}
+\item The Validation dataset is set aside with no further modification. In the rest of the data, we introduce some missing data completely at random in the covariates.
+\item We compute a first imputed from all of the remaining data, which we call $X_\text{before}$. It is then divided to form $X_\text{before.train}$ and $X_\text{before.test}$. These correspond to the data imputed before splitting.
+\item We split the data with missing values into Train and Test, and then impute the missing values separately on both of these to obtain $X_\text{after.train}$ and $X_\text{after.test}$ the data imputed after splitting.
+\item We split the data as previously, then we train an the imputation model on the Train data only, and use it to impute the missing data and obtain $X_\text{corect.train}$ and $X_\text{correct.test}$ the data imputed in the theoretically correct way.
+\item For each of those three pairs of datasets, a regression model in trained on the filled training data, and then used to perform predictions both the filled testing data and the Validation set with no missing values.
+\item We compare the mean squared error for the prediction in each case.
+\end{itemize}
+
+If the effects we mentioned previously are significant, we should observe the following:
+\begin{itemize}
+\item For the first dataset, information leak from the Testing dataset should mean that the testing error is lower than in the other cases, with higher Validation error.
+\item For the second dataset, if the Training dataset is filled differently from the Testing, the Testing error should be high.
+\item For the third dataset, 
+\end{itemize}
 
 \section{The impact of missing values on prediction}
 \subsection{Presentation of some imputation methods}
