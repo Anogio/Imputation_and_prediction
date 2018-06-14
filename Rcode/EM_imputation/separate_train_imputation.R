@@ -19,6 +19,30 @@ impute.MI_mvnorm = function(thetahat.train, X, m=5){
   }
   return(estimations)
 }
+
+train.MI_mvnorm_boostrap = function(X_train, m=5){
+  # Must run *rngseed* at least once before using
+  thetas = list()
+  for(i in 1:m){
+    BS_indices = sample(1:nrow(X_train), nrow(X_train), replace = T)
+    X_BS = X_train[BS_indices,]
+    pre <- prelim.norm(as.matrix(X_BS))
+    thetas[[i]] <- em.norm(pre)
+  }
+  return(thetas)
+}
+
+impute.MI_mvnorm_bootstrap = function(thetahat.train, X){
+  estimations = list()
+  pre = prelim.norm(as.matrix(X))
+  for(theta in thetahat.train){
+    estimations[[i]] = imp.norm(pre, theta, X)
+  }
+  if(any(is.na(estimations[[1]]))){
+    stop('There are still NA values in the imputation. Have you initialized rngseed?')
+  }
+  return(estimations)
+}
 rngseed(1204)
 
 inTraining = createDataPartition(y, p=0.3, list=F)
