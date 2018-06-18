@@ -39,8 +39,8 @@ data_folder = '../../../Data/'
 Parameters for this run
 ```{r}
 #Global seed
-#seed = 1e5 + 6
-seed = seed + 1
+seed = 1e5 + 6
+#seed = seed + 1
 print(seed)
 # Dataset to use for the analysis
 dataset = 'abalone'
@@ -51,7 +51,7 @@ train_size = 0.33
 test_size = 0.33
 val_size = 1 - (train_size + test_size)
 # Maximum number of rows to keep in the dataset. Keep all rows if NULL
-max_rows = 800
+max_rows = NULL
 
 imputation = function(X){
   return(mice::complete(mice(X, m=1, method='norm', printFlag = F)))
@@ -78,6 +78,7 @@ y = y[-inVal]
 inTrain = createDataPartition(y, p=train_size/(1-val_size), list=F)
 
 X.val = X[inVal,]
+X_miss.val = MCAR(X.val, prop_added_missing)
 # X.val = X_miss[inVal,]
 X_miss = X_miss[-inVal,]
 X_full = X[-inVal,]
@@ -87,25 +88,30 @@ rm(X)
 
 ##Now for the analysis
 ```{r}
+rngseed(seed)
+
 y.train = y[inTrain]
 y.test = y[-inTrain]
 
-X_filled_before = imputation(X_miss)
+train.filled.before = train.MI_mvnorm(X_miss)
+X_filled_before = impute.MI_mvnorm(train.filled.before, X_miss, m=1)[[1]]
 X_filled_before.train = X_filled_before[inTrain,]
 X_filled_before.test = X_filled_before[-inTrain,]
+X_filled_before.val = impute.MI_mvnorm(train.filled.before, X_miss.val, m=1)[[1]]
 
 X.train = X_miss[inTrain,]
 X.test = X_miss[-inTrain,]
-X_filled_after.train = imputation(X.train)
-X_filled_after.test = imputation(X.test)
+train.filled.after.1 = train.MI_mvnorm(X.train)
+X_filled_after.train = impute.MI_mvnorm(train.filled.after.1, X.train, m=1)[[1]]
+train.filled.after.2 = train.MI_mvnorm(X.test)
+X_filled_after.test = impute.MI_mvnorm(train.filled.after.2, X.test, m=1)[[1]]
+train.filled.after.3 = train.MI_mvnorm(X_miss.val)
+X_filled_after.val = impute.MI_mvnorm(train.filled.after.3, X_miss.val, m=1)[[1]]
 
-rngseed(seed)
 train.imputation = train.MI_mvnorm(X.train)
-train.imputation.BS = train.MI_mvnorm_boostrap(X.train, m=1)
 X_filled_correct.train = impute.MI_mvnorm(train.imputation, X.train, m=1)[[1]]
 X_filled_correct.test = impute.MI_mvnorm(train.imputation, X.test, m=1)[[1]]
-X_filled_correct.train.BS = impute.MI_mvnorm_bootstrap(train.imputation.BS, X.train)[[1]]
-X_filled_correct.test.BS = impute.MI_mvnorm_bootstrap(train.imputation.BS, X.test)[[1]]
+X_filled_correct.val = impute.MI_mvnorm(train.imputation, X_miss.val, m=1)[[1]]
 
 X_fulldata.train = X_full[inTrain,]
 X_fulldata.test = X_full[-inTrain,]
@@ -121,25 +127,21 @@ predictions.train = data.frame(Truth = y.train)
 filledBefore.fit = lm(y.train~., data=cbind(y.train, X_filled_before.train))
 filledAfter.fit  = lm(y.train~., data=cbind(y.train, X_filled_after.train))
 filledCorrect.fit     = lm(y.train~., data=cbind(y.train, X_filled_correct.train))
-filledCorrect.fit.BS  = lm(y.train~., data=cbind(y.train, X_filled_correct.train.BS))
 fullData.fit     = lm(y.train~., data=cbind(y.train, X_fulldata.train))
 
 predictions.train$filledBefore = predict(filledBefore.fit, X_filled_before.train)
 predictions.train$filledAfter = predict(filledAfter.fit, X_filled_after.train)
 predictions.train$filledCorrect = predict(filledCorrect.fit, X_filled_correct.train)
-predictions.train$filledCorrect.BS = predict(filledCorrect.fit.BS, X_filled_correct.train.BS)
 predictions.train$fullData = predict(fullData.fit, X_fulldata.train)
 
 predictions.test$filledBefore = predict(filledBefore.fit, X_filled_before.test)
 predictions.test$filledAfter = predict(filledAfter.fit, X_filled_after.test)
 predictions.test$filledCorrect = predict(filledCorrect.fit, X_filled_correct.test)
-predictions.test$filledCorrect.BS = predict(filledCorrect.fit.BS, X_filled_correct.test.BS)
 predictions.test$fullData = predict(fullData.fit, X_fulldata.test)
 
-predictions.val$filledBefore = predict(filledBefore.fit, X.val)
-predictions.val$filledAfter = predict(filledAfter.fit, X.val)
-predictions.val$filledCorrect = predict(filledCorrect.fit, X.val)
-predictions.val$filledCorrect.BS = predict(filledCorrect.fit.BS, X.val)
+predictions.val$filledBefore = predict(filledBefore.fit, X_filled_before.val)
+predictions.val$filledAfter = predict(filledAfter.fit, X_filled_after.val)
+predictions.val$filledCorrect = predict(filledCorrect.fit, X_filled_correct.val)
 predictions.val$fullData = predict(fullData.fit, X.val)
 
 cor(predictions.test)
@@ -150,8 +152,9 @@ train.MSEs = sapply(predictions.train, function(x){RMSE(x, y.train)})
 test.MSEs = sapply(predictions.test, function(x){RMSE(x, y.test)})
 val.MSEs = sapply(predictions.val, function(x){RMSE(x, y.val)})
 
-results = data.frame(data=c('Filled.before.split', 'Filled.after.split', 'Filled.correct', 'Filled.correct.BS','Full.data'), train.RMSE=train.MSEs[-1], test.RMSE=test.MSEs[-1], val.RMSE=val.MSEs[-1])
-results %>% gather('Metric', 'Value', -data) %>% ggplot() + aes(fill=data, y=Value, x=Metric) + geom_bar(position='dodge', stat='identity')
+results = data.frame(data=c('Filled.before.split', 'Filled.after.split', 'Filled.correct', 'Full.data'), train.RMSE=train.MSEs[-1], test.RMSE=test.MSEs[-1], val.RMSE=val.MSEs[-1])
+results %>% gather('Metric', 'Value', -data) %>% ggplot() + aes(fill=data, y=Value, x=factor(Metric, levels=c('train.RMSE', 'test.RMSE', 'val.RMSE')) ) + geom_bar(position='dodge', stat='identity') + 
+  xlab('')
 ```
 
 
