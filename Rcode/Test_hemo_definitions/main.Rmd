@@ -53,7 +53,7 @@ high.HR = !is.na(highest.HR) & (highest.HR >= 120)
 positive.FAST = !is.na(traumdata$FAST.hemoperitoine) & (traumdata$FAST.hemoperitoine == 1)
 
 ABC = mecanisme.perforant + (low.PAS | vasopressor) + high.HR + positive.FAST
-high.ABC = ABC>=2
+high.ABC = ABC >= 2
 
 # Transfusion first hour
 transfusion.firstH = !is.na(traumdata$Nombre.CGR.dechoc) & (traumdata$Nombre.CGR.dechoc >= 1)
@@ -108,7 +108,11 @@ crit5 = physiological.crit & pragmatic.crit
 
 ```{r}
 criteria = data.frame(c1=crit1, c3=crit3, c4=crit4, c5=crit5)
+HS.procedure = !is.na(traumdata$procedureCH)&(traumdata$procedureCH==1)
+criteria$HS.procedure = HS.procedure
+
 traumdata = cbind(traumdata, criteria)
+traumdata$Hemo.death = hemo.shock.death
 ```
 ```{r}
 print('Correlation between the criteria')
@@ -138,16 +142,27 @@ print(paste('Total number of positive matches (out of', nrow(traumdata), 'observ
 colSums(criteria)
 cat('\n')
 # Compute the correlation of each criteria with death by harmorrhagic shock
+print('Correlation with the activation of the HS procedure')
+
+sapply(criteria, function(x) cor(x, HS.procedure))
 print('Correlation with exsanguination death')
 sapply(criteria, function(x) cor(x,hemo.shock.death))
 print('Correlation with overall mortality')
 sapply(criteria, function(x) cor(x,!is.na(traumdata$Cause.du.DC)))
 cat('\n')
-print('Sensitivity (hemo shock death')
+
+print('Sensitivity (procedure)')
+sapply(criteria, function(x) sum(x[HS.procedure])/sum(HS.procedure))
+print('Specificity (procedure)')
+sapply(criteria, function(x)sum(!x[!HS.procedure])/sum(!HS.procedure))
+cat('\n')
+
+print('Sensitivity (hemo shock death)')
 sapply(criteria, function(x) sum(x[hemo.shock.death])/sum(hemo.shock.death))
 print('Specificity (hemo shock death)')
 sapply(criteria, function(x)sum(!x[!hemo.shock.death])/sum(!hemo.shock.death))
 cat('\n')
+
 print('Sensitivity (All deaths)')
 sapply(criteria, function(x) sum(x[!is.na(traumdata$Cause.du.DC)])/sum(!is.na(traumdata$Cause.du.DC)))
 print('Specificity (All deaths)')
@@ -167,12 +182,12 @@ getMonth = function(datetime){
 
 traumdata$arrivalMonth = sapply(traumdata$Date.entree, getMonth)
 traumdata %>%
-  dplyr::select(arrivalMonth,c1,c3,c4,c5) %>%
+  dplyr::select(arrivalMonth,c1,c3,c4,c5, HS.procedure, Hemo.death) %>%
   group_by(arrivalMonth) %>%
   summarise_all(funs(mean)) %>%
   gather('Criterion', 'Number_positives', -c(arrivalMonth)) %>%
   ggplot() + aes(x=arrivalMonth/12+1900, y=Number_positives, color=Criterion) + geom_line() +
-  xlab('Time (one point per month)') + ylab('Proportion of patients matching criterion this month')
+  xlab('Time (one point per month)') + ylab('Proportion of patients matching criterion this month') + facet_grid(Criterion~.)
 ```
 
 ### Impact on feature selection
