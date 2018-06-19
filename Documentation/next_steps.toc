@@ -1,0 +1,17 @@
+\select@language {french}
+\contentsline {section}{Plan}{1}{section*.2}
+\contentsline {section}{\numberline {1}Simulation}{2}{section.1}
+\contentsline {subsection}{\numberline {1.1}Simulation des covariables}{2}{subsection.1.1}
+\contentsline {subsubsection}{\numberline {1.1.1}Gaussienne multivari\IeC {\'e}e}{2}{subsubsection.1.1.1}
+\contentsline {subsubsection}{\numberline {1.1.2}Noised low rank matrix with LRsim}{2}{subsubsection.1.1.2}
+\contentsline {subsection}{\numberline {1.2}Simulation de la r\IeC {\'e}ponse}{3}{subsection.1.2}
+\contentsline {subsubsection}{\numberline {1.2.1}Choix d'une colonne}{3}{subsubsection.1.2.1}
+\contentsline {subsubsection}{\numberline {1.2.2}Mod\IeC {\`e}le de r\IeC {\'e}gression}{3}{subsubsection.1.2.2}
+\contentsline {subsubsection}{\numberline {1.2.3}\IeC {\textbullet }}{3}{subsubsection.1.2.3}
+\contentsline {subsubsection}{\numberline {1.2.4}Mod\IeC {\`e}le plus complexe que celui de l'imputation}{3}{subsubsection.1.2.4}
+\contentsline {section}{\numberline {2}Ajout de donn\IeC {\'e}es manquantes}{3}{section.2}
+\contentsline {subsection}{\numberline {2.1}MCAR}{3}{subsection.2.1}
+\contentsline {subsection}{\numberline {2.2}MAR}{3}{subsection.2.2}
+\contentsline {section}{\numberline {3}M\IeC {\'e}thodes d'imputation}{3}{section.3}
+\contentsline {section}{\numberline {4}Validation/Apprentissage}{3}{section.4}
+\contentsline {section}{\numberline {5}R\IeC {\'e}sultats}{3}{section.5}

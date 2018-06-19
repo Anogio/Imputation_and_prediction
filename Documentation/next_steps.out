@@ -1,0 +1,16 @@
+\BOOKMARK [1][-]{section*.2}{Plan}{}% 1
+\BOOKMARK [1][-]{section.1}{Simulation}{}% 2
+\BOOKMARK [2][-]{subsection.1.1}{Simulation des covariables}{section.1}% 3
+\BOOKMARK [3][-]{subsubsection.1.1.1}{Gaussienne multivari\351e}{subsection.1.1}% 4
+\BOOKMARK [3][-]{subsubsection.1.1.2}{Noised low rank matrix with LRsim}{subsection.1.1}% 5
+\BOOKMARK [2][-]{subsection.1.2}{Simulation de la r\351ponse}{section.1}% 6
+\BOOKMARK [3][-]{subsubsection.1.2.1}{Choix d'une colonne}{subsection.1.2}% 7
+\BOOKMARK [3][-]{subsubsection.1.2.2}{Mod\350le de r\351gression}{subsection.1.2}% 8
+\BOOKMARK [3][-]{subsubsection.1.2.3}{\200}{subsection.1.2}% 9
+\BOOKMARK [3][-]{subsubsection.1.2.4}{Mod\350le plus complexe que celui de l'imputation}{subsection.1.2}% 10
+\BOOKMARK [1][-]{section.2}{Ajout de donn\351es manquantes}{}% 11
+\BOOKMARK [2][-]{subsection.2.1}{MCAR}{section.2}% 12
+\BOOKMARK [2][-]{subsection.2.2}{MAR}{section.2}% 13
+\BOOKMARK [1][-]{section.3}{M\351thodes d'imputation}{}% 14
+\BOOKMARK [1][-]{section.4}{Validation/Apprentissage}{}% 15
+\BOOKMARK [1][-]{section.5}{R\351sultats}{}% 16
