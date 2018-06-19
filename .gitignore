@@ -2,9 +2,9 @@ Data/data_trauma*
 Data/hemo_shock*
 .RData
 .Rhistory
-thesis.aux
-thesis.log
-thesis.out
-thesis.synctex.gz
-thesis.toc
-thesis.tex.bak
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.bak
