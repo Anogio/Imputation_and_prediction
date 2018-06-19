@@ -1,0 +1,105 @@
+\documentclass[12pt, a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+\usepackage[french]{babel}
+\usepackage{microtype}
+\usepackage{amsmath,amsthm,amssymb,amsfonts}
+\usepackage{bbm}
+\usepackage{hyperref}
+\usepackage{graphicx, subfig}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{minted}
+\usepackage{xcolor}
+\usepackage{todonotes}
+
+\title{Next steps}
+\author{Antoine Ogier}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\section*{Plan}
+\addcontentsline{toc}{section}{Plan}
+Choses à faire: 
+
+\begin{itemize}
+\item[$\bullet$]  Simuler des jeux de données pour la prédiction.
+\item[$\bullet$]  Insérer des données manquantes
+\item[$\bullet$]  Choisir une méthode d'imputation.
+\item[$\bullet$]  Appliquer cette méthode en séparant les données en un jeu d'entraînement et un d'apprentissage, de différentes manières
+\item[$\bullet$]  Evaluer l'imputation, d'une part sur la distance aux données de test et d'autre part sur la performance de prédiction
+\item[$\bullet$]  Répéter l'opération de nombreuses fois pour avoir une bonne estimation de chaque méthode
+\end{itemize}
+
+\section{Simulation}
+\label{Simulation}
+\subsection{Simulation des covariables}
+En premier lieu, on simule un tableau de données $X$ qui servira de variable explicative. On utilise un nombre $p$ à définir de colonnes et $n$ de lignes.
+
+\subsubsection{Gaussienne multivariée}
+Option la plus simple, simuler X par tirage d'une loi normale $\mathcal{N}(\mu, \Sigma)$ pour des paramètres choisis. Sans perte de généralité on prend $\mu$ nul. Pour $\Sigma$, plusieurs possibilités:
+\begin{itemize}
+\item[$\bullet$]	$\Sigma = I_p$ gaussiennes indépendantes
+\item[$\bullet$] $\Sigma = (1-\rho) I_p + \rho \mathbbm{1}$ où $\mathbbm{1}$ est la matrice remplie de $1$: Corrélation identique entre toutes les variables.
+\item[$\bullet$] $\Sigma = 
+\begin{pmatrix}
+1 & \rho & \ldots & \rho & \rho & & & & \\
+\rho & 1 & \ldots & \rho & \rho & & & & \\
+\vdots & \vdots & \ddots & \vdots & \vdots & & 0 & & \\
+\rho & \rho & \ldots & 1 & \rho & & & & \\
+\rho & \rho & \ldots & \rho & 1 & & & & \\
+
+& & & & & 1 & \ldots & \rho \\
+& & 0 & & & \vdots & \ddots & \vdots \\
+& & & & & \rho & \ldots & 1  
+\end{pmatrix}
+$ : deux groupes de variables corrélées entre elles mais indépendantes d'un groupe à l'autre.
+\end{itemize}
+
+\subsubsection{Noised low rank matrix with LRsim}
+Use \emph{LRsim} from package \emph{denoiseR}: a matrix of size $n \times p$ is drawn from a multivariate standard normal then projected on its first $k$ columns and gaussian noise is added:
+\begin{itemize}
+\item[$\bullet$] $X_i \sim \mathcal{N}(0,1)$
+\item[$\bullet$] $ X_i = U D V^T$
+\item[$\bullet$] $X = U_k D_k V_k^T + \epsilon $ , $\epsilon \sim \mathcal{N}(0,\sigma^2)$
+\end{itemize} 
+
+\subsection{Simulation de la réponse}
+On choisit $y$ la vaiable de réponse
+
+\subsubsection{Choix d'une colonne}
+Une colonne de $X$ est choisie comme variable $y$.
+
+\subsubsection{Modèle de régression}
+On choisit $\beta$ un coefficient de régression et $y = X\beta$
+
+\subsubsection{•}
+
+\subsubsection{Modèle plus complexe que celui de l'imputation}
+Choisir un modèle qui ne peut pas complètement être capturé par le modèle d'imputation, comme une régression qui prend en compte le carré d'une des variables. Intéressant pour voir si l'imputation par la moyenne n'est pas meilleure quand les prérequis des modèles d'imputation sont violés.
+
+\section{Ajout de données manquantes}
+\label{missdata}
+\subsection{MCAR}
+Enlever des observations complètement au hasard, sur une variable ou sur un ensemble de variables.
+
+\subsection{MAR}
+Enlever des observations sur une variable en fonction des autres variables.
+\todo{Mécanismes de données manquantes MAR}
+
+\section{Méthodes d'imputation}
+\label{imputation}
+
+\section{Validation/Apprentissage}
+\label{split}
+
+\section{Résultats}
+\label{Results}
+
+
+\end{document}
