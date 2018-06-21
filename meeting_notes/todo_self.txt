@@ -2,3 +2,13 @@ cf Rubin: Better to do imputation before model selection (similar to Xie/Meng fr
 Geoff, always be more saturated in the imputation)
 
 Idea: why not use the imputation from the SAEM? Normal imputation but better
+
+############
+# Amelia: mieux comprendre la manière dont les variables catégorielles sont gérées
+https://gking.harvard.edu/files/gking/files/amelia_jss.pdf
+(en fait tout est remis en binaire mais omment les binaires sont gérées?)
++ cf partie sur les transformations
++ Méthode d'évaluation intéressante: overimputing
++ missmap de Amelia pour visualiser la missingness
+
+
