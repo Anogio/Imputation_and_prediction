@@ -33,6 +33,16 @@ X.basic.MVN = function(n.=n, p.=p, rho.=rho){
   return(X)
 }
 
+X.basic.chisq = function(n.=n, p.=p, rho.=rho){
+  X = rmvnorm(n., sigma = (1-rho.)*diag(p.) + rho.)
+  return(X^2)
+}
+
+X.basic.bin = function(n.=n, p.=p, rho.=rho){
+  X = rmvnorm(n., sigma = (1-rho.)*diag(p.) + rho.)
+  return((X>0)*1)
+}
+
 # Method 1.2: mvtnorm with two groups of variables
 X.two.groups.MVN = function(n.=n, p.=p, rho.=rho){
   p2 = ceiling(p./3)
@@ -147,6 +157,19 @@ imp.mean.estim = function(mu, X){
 
 imp.mean = list(train=imp.mean.train, estim=imp.mean.estim)
 
+###########
+# PCA imputation
+imp.pca.train = function(X){
+  return(X)
+}
+
+imp.pca.estim = function(X_train, X_test){
+  weights = c(rep(1,nrow(X_train)), rep(1e-10, nrow(X_test)))
+  res = imputePCA(rbind(X_train,X_test), row.w=weights)$completeObs
+  return(res[-(1:nrow(X_train)),])
+}
+
+imp.pca = list(train=imp.pca.train, estim=imp.pca.estim)
 ############
 # MVN fit
 imp.mvnorm.train = function(X){
@@ -213,11 +236,10 @@ imp.MI_mvnorm.train = function(X_train){
   return(thetahat)
 }
 
-imp.MI_mvnorm.estim = function(thetahat.train, X, m=10){
+imp.MI_mvnorm.estim = function(thetahat.train, X, m=30){
   estimations = list()
   pre = prelim.norm(as.matrix(X))
   for(i in 1:m){
-    print(i)
     estimations[[i]] = imp.norm(pre, thetahat.train, X)
   }
   if(any(is.na(estimations[[1]]))){
@@ -371,10 +393,10 @@ X.gen = X.two.groups.MVN
 y.gen = y.regression
 miss.gen = MCAR.noEmptyLines
 splitter = train_test_split
-imputer = imp.mvnorm
+imputer = imp.pca
 imp.MI = imp.MI_mvnorm
 regressor = reg.lin
-nSim = 500
+nSim = 200
 
 burnIn = 0
 
@@ -397,13 +419,16 @@ nList = c(100, 1000)
 rhoList= c(0.3, 0.8)
 #rhoList = c(0.1, 0.2)
 allRes = NULL
+imputer = imp.pca
 
 for(n in nList){
-  cat('n=',n, , '\n')
+  cat('\n','n =',n,'\n')
   for(rho in rhoList){
-    cat('rho=',rho, ', ')
-    #X.gen = partial(X.basic.MVN, n=n, rho=rho)
+    cat('rho =',rho, ', ')
     X.gen = function(){X.two.groups.MVN(n.=n, rho.=rho)}
+    #X.gen = partial(X.basic.MVN, n.=n, rho.=rho)
+    #X.gen = X.LR
+    y.gen = y.regression
     r = as.data.frame(
       evaluate.S.run(nSim, X.gen, y.gen, miss.gen, splitter, imputer, regressor, imp.MI)
     )
@@ -421,4 +446,4 @@ for(n in nList){
 allRes %>% as.data.frame() %>%
   gather('method', 'error', -c(impError.correct, rho,n, full)) %>%
   mutate(method = factor(method, levels=levels(as.factor(method))[c(2,1,5,4,3)])) %>%
-  ggplot() + aes(x=method, y=error, color=method) + geom_boxplot() + facet_grid(n~rho, scales='free_y')
+  ggplot() + aes(x=method, y=error, color=method) + geom_boxplot() + facet_grid(n~rho, scales='free_y') #+ coord_cartesian(ylim=c(0,50))
