@@ -10,6 +10,7 @@ print(seed)
 miss_prop = 0.3
 train_prop = 0.4
 
+no_cores = detectCores()
 # Generate dataset
 p = 6
 n = 1000
@@ -145,7 +146,8 @@ imp.mean.estim = function(mu, X){
 }
 
 imp.mean = list(train=imp.mean.train, estim=imp.mean.estim)
-#########
+
+############
 # MVN fit
 imp.mvnorm.train = function(X){
   # Must run *rngseed* at least once before using
@@ -154,18 +156,6 @@ imp.mvnorm.train = function(X){
   return(thetahat)
 }
 
-imp.mvnorm.estim = function(thetahat.train, X){
-  pre = prelim.norm(as.matrix(X))
-  res = imp.norm(pre, thetahat.train, X)
-  if(any(is.na(res))){
-    stop('There are still NA values in the imputation. Have you initialized rngseed?')
-  }
-  return(res)
-}
-imp.mvnorm = list(train=imp.mvnorm.train, estim=imp.mvnorm.estim)
-
-############
-# Alternative MVN fit
 to_matrix = function(x, horiz){
   if(!is.null(dim(x))){
     return(x)
@@ -198,7 +188,7 @@ estimate.1row = function(row, s, m){
   return(row)
 }
 
-impute_X = function(thetahat, X){
+imp.mvnorm.estim = function(thetahat, X){
   #print(dim(X))
   pre <- prelim.norm(as.matrix(X))
   #thetahat <- em.norm(pre)
@@ -211,7 +201,37 @@ impute_X = function(thetahat, X){
   return(X)
 }
 
-imp.mvnorm = list(train=imp.mvnorm.train, estim=impute_X)
+imp.mvnorm = list(train=imp.mvnorm.train, estim=imp.mvnorm.estim)
+
+
+######################
+# Mvnorm for MI
+imp.MI_mvnorm.train = function(X_train){
+  # Must run *rngseed* at least once before using
+  pre <- prelim.norm(as.matrix(X_train))
+  thetahat <- em.norm(pre)
+  return(thetahat)
+}
+
+imp.MI_mvnorm.estim = function(thetahat.train, X, m=10){
+  estimations = list()
+  pre = prelim.norm(as.matrix(X))
+  for(i in 1:m){
+    print(i)
+    estimations[[i]] = imp.norm(pre, thetahat.train, X)
+  }
+  if(any(is.na(estimations[[1]]))){
+    stop('There are still NA values in the imputation. Have you initialized rngseed?')
+  }
+  return(estimations)
+}
+
+imp.MI_mvnorm = list(train=imp.MI_mvnorm.train, estim=imp.MI_mvnorm.estim)
+
+#########
+# PCA imputation
+
+
 ######################################
 # Train/validation split
 train_test_split = function(X,y, train_prop.=train_prop){
@@ -243,7 +263,7 @@ reg.lin = list(train=pred.lin.train, predict=pred.lin.predict)
 
 ################################
 # Evaluation
-evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor){
+evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor, imp.MI){
   X = X.gen()
   y.g = y.gen(X)
   y = y.g$y
@@ -265,6 +285,7 @@ evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor
   separate.imp.train = (imputer$train)(X.test)
   correct.imp.train = (imputer$train)(X.train)
   mean.imp.train = imp.mean.train(X.train)
+  MI.imp.train = (imp.MI$train)(X.train)
 
   X.train.correct = (imputer$estim)(correct.imp.train, X.train)
   X.test.correct = (imputer$estim)(correct.imp.train, X.test)
@@ -279,30 +300,44 @@ evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor
   X.train.mean = imp.mean.estim(mean.imp.train, X.train)
   X.test.mean = imp.mean.estim(mean.imp.train, X.test)
 
+  X.train.MI = (imp.MI$estim)(MI.imp.train, X.train)
+  X.test.MI = (imp.MI$estim)(MI.imp.train, X.test)
+
   correct.reg.train = (regressor$train)(X.train.correct, y.train)
   grouped.reg.train = (regressor$train)(X.train.grouped, y.train)
   separate.reg.train = (regressor$train)(X.train.separate, y.train)
   mean.reg.train = (regressor$train)(X.train.mean, y.train)
   fullData.reg.train = (regressor$train)(X_f[spl$inTrain,], y.train)
+  MI.reg.train = list()
+  for(i in 1:length(X.train.MI)){
+    MI.reg.train[[i]] = (regressor$train)(X.train.MI[[i]], y.train)
+  }
 
   y.pred.correct = (regressor$predict)(correct.reg.train, X.test.correct)
   y.pred.grouped = (regressor$predict)(grouped.reg.train, X.test.grouped)
   y.pred.separate = (regressor$predict)(separate.reg.train, X.test.separate)
   y.pred.mean = (regressor$predict)(mean.reg.train, X.test.mean)
   y.pred.fullData = (regressor$predict)(fullData.reg.train, X_f[-spl$inTrain,])
+  y.pred.MI = matrix(NA,nrow=nrow(X.test), ncol=length(X.train.MI))
+  for(i in 1:length(X.train.MI)){
+    y.pred.MI[,i] = (regressor$predict)(MI.reg.train[[i]], X.test.MI[[i]])
+  }
+  y.pred.MI = rowMeans(y.pred.MI)
 
   err.correct = mean((y.pred.correct-y.test)^2)
   err.grouped = mean((y.pred.grouped-y.test)^2)
   err.separate = mean((y.pred.separate-y.test)^2)
   err.mean = mean((y.pred.mean-y.test)^2)
   err.full = mean((y.pred.fullData-y.test)^2)
+  err.MI = mean((y.pred.MI-y.test)^2)
 
   print(err.mean)
   return(list(correct=err.correct, grouped=err.grouped, separate=err.separate, full=err.full, mean=err.mean,
+              MI=err.MI,
               impute.error.correct=impute.error.correct))
 }
 
-evaluate.S.run = function(S, X.gen, y.gen, miss.gen, splitter, imputer, regressor){
+evaluate.S.run = function(S, X.gen, y.gen, miss.gen, splitter, imputer, regressor, imp.MI){
   MSE.correct = c()
   MSE.grouped = c()
   MSE.separate = c()
@@ -310,7 +345,7 @@ evaluate.S.run = function(S, X.gen, y.gen, miss.gen, splitter, imputer, regresso
   clusterSetRNGStream(cl, seed)
   f= function(i){
     rngseed(seed+i)
-    evaluate.one.run(X.gen, y.gen, miss.gen, splitter, imputer, regressor)
+    evaluate.one.run(X.gen, y.gen, miss.gen, splitter, imputer, regressor, imp.MI)
     }
   z = parLapply(cl, 1:S, f)
   stopCluster(cl)
@@ -319,30 +354,31 @@ evaluate.S.run = function(S, X.gen, y.gen, miss.gen, splitter, imputer, regresso
   res = apply(do.call(rbind, zz), 2, as.list)
 
   #for(i in 1:S){
-  #  r = evaluate.one.run(X.gen, y.gen, miss.gen, splitter, imputer, regressor)
+  #  r = evaluate.one.run(X.gen, y.gen, miss.gen, splitter, imputer, regressor, imp.MI)
   #  MSE.correct = c(MSE.correct, r$correct)
   #  MSE.grouped = c(MSE.grouped, r$grouped)
   #  MSE.separate = c(MSE.separate, r$separate)
   #}
   #return(list(correct=MSE.correct, grouped=MSE.grouped,separate=MSE.separate))
   return(list(correct=unlist(res$correct), grouped=unlist(res$grouped),separate=unlist(res$separate),
-              full=unlist(res$full), mean=unlist(res$mean),
+              full=unlist(res$full), mean=unlist(res$mean), MI=unlist(res$MI),
               impError.correct=unlist(res$impute.error.correct)))
 }
 
 ######################################################################################
 # Execution
-X.gen = function(){X.LR() + X.two.groups.MVN()}
+X.gen = X.two.groups.MVN
 y.gen = y.regression
 miss.gen = MCAR.noEmptyLines
 splitter = train_test_split
 imputer = imp.mvnorm
+imp.MI = imp.MI_mvnorm
 regressor = reg.lin
-nSim = 300
+nSim = 500
 
-burnIn = 200
+burnIn = 0
 
-res = evaluate.S.run(nSim, X.gen, y.gen, miss.gen, splitter, imputer, regressor)
+res = evaluate.S.run(nSim, X.gen, y.gen, miss.gen, splitter, imputer, regressor, imp.MI)
 
 #res %>% lapply(cummean) %>% as.data.frame() %>% slice((burnIn+1):nSim) %>% mutate(s=(burnIn+1):nSim) %>% gather('method', 'error', -s) %>%
 #  ggplot() + aes(x=s, y=error, color=method) + geom_line()
@@ -355,7 +391,7 @@ cor(res$correct, res$impError.correct)
 
 ####################################
 # Multiple run parameters
-nList = c(500, 1000)
+nList = c(100, 1000)
 #nList = c(100,200)
 
 rhoList= c(0.3, 0.8)
@@ -363,13 +399,13 @@ rhoList= c(0.3, 0.8)
 allRes = NULL
 
 for(n in nList){
-  cat('n=',n)
+  cat('n=',n, , '\n')
   for(rho in rhoList){
-    cat('rho=',rho)
+    cat('rho=',rho, ', ')
     #X.gen = partial(X.basic.MVN, n=n, rho=rho)
     X.gen = function(){X.two.groups.MVN(n.=n, rho.=rho)}
     r = as.data.frame(
-      evaluate.S.run(nSim, X.gen, y.gen, miss.gen, splitter, imputer, regressor)
+      evaluate.S.run(nSim, X.gen, y.gen, miss.gen, splitter, imputer, regressor, imp.MI)
     )
     r$n = n
     r$rho=rho
@@ -384,13 +420,5 @@ for(n in nList){
 
 allRes %>% as.data.frame() %>%
   gather('method', 'error', -c(impError.correct, rho,n, full)) %>%
-  mutate(method = factor(method, levels=levels(as.factor(method))[c(2,1,4,3)])) %>%
+  mutate(method = factor(method, levels=levels(as.factor(method))[c(2,1,5,4,3)])) %>%
   ggplot() + aes(x=method, y=error, color=method) + geom_boxplot() + facet_grid(n~rho, scales='free_y')
-
-
-
-
-
-
-
-
