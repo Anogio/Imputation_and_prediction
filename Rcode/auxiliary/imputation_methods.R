@@ -121,6 +121,50 @@ mean_imp_single <- function(X, categorical='most.freq', spl=NULL){
   return(X)
 }
 
+####
+# MVN imp
+to_matrix = function(x, horiz){
+  if(!is.null(dim(x))){
+    return(x)
+  }
+  else{
+    if(!horiz){
+      return(as.matrix(x))
+    }
+    else{
+      return(t(as.matrix(x)))
+    }
+  }
+}
+
+estimate.1row = function(row, s, m){
+  miss_col = is.na(row)
+  nmiss = sum(miss_col)
+  if(nmiss>0){
+    mu.miss = m[miss_col]
+    mu.obs = m[!miss_col]
+    sigma.miss = s[miss_col,miss_col]
+    sigma.miss.obs = to_matrix(s[miss_col,!miss_col], horiz=nmiss==1)
+    sigma.obs = s[!miss_col,!miss_col]
+    mu_cond = mu.miss + sigma.miss.obs %*% solve(sigma.obs) %*% (row[!miss_col] - mu.obs)
+    #sigma_cond = sigma.miss - sigma.miss.obs %*% solve(sigma.obs) %*% t(sigma.miss.obs)
+
+    # row[miss_col] = rmvnorm(1, mean=mu_cond, sigma=sigma_cond)
+    row[miss_col] = mu_cond
+  }
+  return(row)
+}
+
+MVN_imp_single <- function(X){
+  pre <- prelim.norm(as.matrix(X))
+  thetahat <- em.norm(pre)
+  params = getparam.norm(pre,thetahat)
+  sigma = params$sigma
+  mu = params$mu
+  X = t(apply(X, 1, partial(estimate.1row, s=sigma, m=mu)))
+  return(data.frame(X))
+}
+
 missforest_imp_single <- function(X){
   print('Performing missForest imputation...')
   res = missForest(X)$ximp

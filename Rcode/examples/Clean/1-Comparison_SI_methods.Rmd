@@ -73,6 +73,9 @@ filled.datasets[['mean']] = complete(mice(X, m=1, method='mean', printFlag = F))
 filled.datasets[['mipca']] = MIPCA(X, ncp=3, nboot=1)$res.MI[[1]]
 filled.datasets[['amelia']] = amelia(X, m=1, noms=c(), p2s=0, parallel = 'multicore', ncpus = 4)$imputations$imp1
 filled.datasets[['MF']] = missForest(X)$ximp
+filled.datasets[['MVN']] = MVN_imp_single(X)
+
+MI_imputation = mice(X,m=m, method='norm', printFlag = F)
 ```
 
 We plot a comparison of the distribution of two variables (chosen arbitrarily among those with many missing values) depending on the imputation method. The 'complete' dataset is made only of the points where there are no missing values. It is included as a reference.
@@ -80,13 +83,14 @@ We plot a comparison of the distribution of two variables (chosen arbitrarily am
 plot.mice.pmm = ggplot(filled.datasets$mice.pmm) + aes(x=SD.SMUR, y=Hemo) + geom_point() #+ geom_hline(yintercept = mean(X$Hemo, na.rm=T), color='red') + geom_vline(xintercept = mean(X$SD.SMUR, na.rm=T), color='red')
 plot.mice.norm = ggplot(filled.datasets$mice.norm) + aes(x=SD.SMUR, y=Hemo) + geom_point()
 plot.mean = ggplot(filled.datasets$mean) + aes(x=SD.SMUR, y=Hemo) + geom_point()
+plot.MVN = ggplot(filled.datasets$MVN) + aes(x=SD.SMUR, y=Hemo) + geom_point()
 plot.mipca = ggplot(filled.datasets$mipca) + aes(x=SD.SMUR, y=Hemo) + geom_point()
 plot.amelia = ggplot(filled.datasets$amelia) + aes(x=SD.SMUR, y=Hemo) + geom_point()
 plot.MF = ggplot(filled.datasets$MF) + aes(x=SD.SMUR, y=Hemo) + geom_point()
 plot.complete = ggplot(X_complete) + aes(x=SD.SMUR, y=Hemo) + geom_point()
 
 plot_grid(plot.mice.pmm, plot.mice.norm, plot.mean, plot.mipca, labels=c('mice.pmm', 'mice.norm', 'mean', 'mipca'), ncol=2)
-plot_grid(plot.amelia, plot.MF, plot.complete, labels=c('amelia', 'MissForest', 'complete'), ncol=2)
+plot_grid(plot.amelia, plot.MF, plot.MVN, plot.complete, labels=c('amelia', 'MissForest', 'MVN', 'complete'), ncol=2)
 
 ```
 
@@ -103,6 +107,16 @@ for(n in names(filled.datasets)){
   fittedM = glm(y ~ .,family=binomial(link='logit'),data=dat_train)
   preds[[n]] = predict(fittedM, X_filled[-inTraining,], type='response')
 }
+
+pred.MI = matrix(NA,nrow=nrow(X_filled)-length(inTraining), ncol=m)
+for(i in 1:20){
+  X_filled = complete(MI_imputation, action=i)
+  dat_train = cbind(y,X_filled)[inTraining,]
+  fittedM = glm(y ~ .,family=binomial(link='logit'),data=dat_train)
+  pred.MI[,i] = predict(fittedM, X_filled[-inTraining,], type='link')
+}
+o = rowMeans(pred.MI)
+preds[['MI']] = exp(o)/(1+exp(o))
 ```
 
 ### Evaluation
@@ -163,18 +177,22 @@ filled.datasets[['mean']] = complete(mice(X, m=1, method='mean', printFlag = F))
 filled.datasets[['mipca']] = MIPCA(X, ncp=3, nboot=1)$res.MI[[1]]
 filled.datasets[['amelia']] = amelia(X, m=1, noms=c(), p2s=0, parallel = 'multicore', ncpus = 4)$imputations$imp1
 filled.datasets[['MF']] = missForest(X)$ximp
+filled.datasets[['MVN']] = MVN_imp_single(X)
+
+MI_imputation = mice(X,m=m, method='norm', printFlag = F)
 ```
 ```{r}
 plot.mice.pmm = ggplot(filled.datasets$mice.pmm) + aes(x=Height, y=ShuckedWeight) + geom_point() #+ geom_hline(yintercept = mean(X$Hemo, na.rm=T), color='red') + geom_vline(xintercept = mean(X$SD.SMUR, na.rm=T), color='red')
 plot.mice.norm = ggplot(filled.datasets$mice.norm) + aes(x=Height, y=ShuckedWeight) + geom_point()
 plot.mean = ggplot(filled.datasets$mean) + aes(x=Height, y=ShuckedWeight) + geom_point()
+plot.MVN = ggplot(filled.datasets$MVN) + aes(x=Height, y=ShuckedWeight) + geom_point()
 plot.mipca = ggplot(filled.datasets$mipca) + aes(x=Height, y=ShuckedWeight) + geom_point()
 plot.amelia = ggplot(filled.datasets$amelia) + aes(x=Height, y=ShuckedWeight) + geom_point()
 plot.MF = ggplot(filled.datasets$MF) + aes(x=Height, y=ShuckedWeight) + geom_point()
 plot.complete = ggplot(X_complete) + aes(x=Height, y=ShuckedWeight) + geom_point()
 
 plot_grid(plot.mice.pmm, plot.mice.norm, plot.mean, plot.mipca, labels=c('mice.pmm', 'mice.norm', 'mean', 'mipca'), ncol=2)
-plot_grid(plot.amelia, plot.MF, plot.complete, labels=c('amelia', 'MissForest', 'complete'), ncol=2)
+plot_grid(plot.amelia, plot.MF, plot.MVN, plot.complete, labels=c('amelia', 'MissForest', 'MVN', 'complete'), ncol=2)
 ```
 
 ### Predictions
@@ -191,6 +209,16 @@ for(n in names(filled.datasets)){
   fittedM = lm(y ~ .,data=dat_train)
   preds[[n]] = predict(fittedM, X_filled[-inTraining,], type='response')
 }
+
+pred.MI = matrix(NA,nrow=nrow(X_filled)-length(inTraining), ncol=m)
+for(i in 1:20){
+  X_filled = complete(MI_imputation, action=i)
+  dat_train = cbind(y,X_filled)[inTraining,]
+  fittedM = lm(y ~ .,data=dat_train)
+  pred.MI[,i] = predict(fittedM, X_filled[-inTraining,], type='response')
+}
+
+preds[['MI']] = rowMeans(pred.MI)
 ```
 
 ### Evaluation
@@ -203,4 +231,6 @@ pander(cor(preds))
 
 MSEs = sapply(preds, function(x) MSE(x, y_test))
 ggplot() + aes(x=names(MSEs), y=MSEs) + geom_bar(stat='identity') + xlab("Imputation method") + ylab('Mean squared error')
+
+sort(MSEs)
 ```
