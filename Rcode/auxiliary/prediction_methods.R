@@ -136,6 +136,18 @@ pool_MI_binary <- function(preds, spl=NULL, method='mean', y_true=NULL, quantile
       res = apply(y_pred_test, 1, mean)
     }
   }
+  else if(method=='harmonic'){
+    harMean = function(p){
+      1/(prod(1/p-p)^(1/length(p))+1)
+    }
+    print('Performing harmonic pooling')
+    if(is.null(dim(y_pred_test))){
+      res = harMean(y_pred_test)
+    }
+    else{
+      res = apply(y_pred_test, 1, harMean)
+    }
+  }
   else if(method=='quantile'){
     print('Performing quantile pooling')
     if(is.null(dim(y_pred_test))){

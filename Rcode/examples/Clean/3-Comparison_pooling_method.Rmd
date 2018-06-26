@@ -109,11 +109,13 @@ p = PCA(res)
 ```
 ```{r, results='hide'}
 preds_pool_mean = matrix(NA, nrow=length(y)-length(spl), ncol=n_imputations)
+preds_pool_harmonic = matrix(NA, nrow=length(y)-length(spl), ncol=n_imputations)
 preds_pool_median = matrix(NA, nrow=length(y)-length(spl), ncol=n_imputations)
 preds_pool_mean.biased = matrix(NA, nrow=length(y)-length(spl), ncol=n_imputations)
 preds_pool_quartile = matrix(NA, nrow=length(y)-length(spl), ncol=n_imputations)
 
 preds_pool_mean[,1] = y_pred_MI$y_pred[[1]][,2][-spl]
+preds_pool_harmonic[,1] = y_pred_MI$y_pred[[1]][,2][-spl]
 preds_pool_median[,1] = y_pred_MI$y_pred[[1]][,2][-spl]
 preds_pool_mean.biased[,1] = y_pred_MI$y_pred[[1]][,2][-spl]
 preds_pool_quartile[,1] = y_pred_MI$y_pred[[1]][,2][-spl]
@@ -121,6 +123,7 @@ preds_pool_quartile[,1] = y_pred_MI$y_pred[[1]][,2][-spl]
 for(i in 2:n_imputations){
   print(i)
   preds_pool_mean[,i] = pool_MI_binary(preds=list(y_pred=y_pred_MI$y_pred[1:i]), spl=spl, method = 'mean')
+  preds_pool_harmonic[,i] = pool_MI_binary(preds=list(y_pred=y_pred_MI$y_pred[1:i]), spl=spl, method = 'harmonic')
   preds_pool_median[,i] = pool_MI_binary(preds=list(y_pred=y_pred_MI$y_pred[1:i]), spl=spl, method = 'quantile', quantile.split = 0.5)
   preds_pool_quartile[,i] = pool_MI_binary(preds=list(y_pred=y_pred_MI$y_pred[1:i]), spl=spl, method = 'quantile', quantile.split = 0.75)
   preds_pool_mean.biased[,i] = pool_MI_binary(preds=list(y_pred=y_pred_MI$y_pred[1:i]), spl=spl, method = 'biased.mean')
@@ -133,6 +136,7 @@ f =  function(x){roc.area(as.numeric(y[-spl])-1,x)$A}
 
 Losses = data.frame(n_imputations=1:n_imputations)
 Losses$mean = apply(preds_pool_mean, 2, f)
+Losses$harmonic = apply(preds_pool_harmonic, 2, f)
 Losses$median = apply(preds_pool_median, 2, f)
 Losses$mean.biased = apply(preds_pool_mean.biased, 2, f)
 Losses$quartile = apply(preds_pool_quartile, 2, f)
@@ -145,12 +149,13 @@ Losses %>% gather('Pool.method', 'Loss', -n_imputations) %>%
 f = function(x){metric_best_separation(x,y[-spl], 10)$val}
 Losses = data.frame(n_imputations=1:n_imputations)
 Losses$mean = apply(preds_pool_mean, 2, f)
+Losses$harmonic = apply(preds_pool_harmonic, 2, f)
 Losses$median = apply(preds_pool_median, 2, f)
 Losses$mean.biased = apply(preds_pool_mean.biased, 2, f)
 Losses$quartile = apply(preds_pool_quartile, 2, f)
 
 Losses %>% gather('Pool.method', 'Loss', -n_imputations) %>%
   ggplot() + aes(x=n_imputations, y=Loss, color=Pool.method) + geom_line() +
-  ylab('Separation metric')
+  ylab('Separation loss')
 ```
 
