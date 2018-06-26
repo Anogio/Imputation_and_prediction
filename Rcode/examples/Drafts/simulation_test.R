@@ -11,47 +11,47 @@ miss_prop = 0.3
 train_prop = 0.4
 
 # Generate dataset
-p = 3
-n = 3000
+p = 6
+n = 1000
 
 # MVN parameters
-rho = 0.5
+rho = 0.3
 
 # LRsim parameters
 k = ceiling(p/3)
-SNR = 0.1
+SNR = 0.2
 
 # Regression response noise
-sigma_noise = 0.1
+sigma_noise = 0.2
 
 ########
 # Method 1.1: mvtnorm
 
-X.basic.MVN = function(){
-  X = rmvnorm(n, sigma = (1-rho)*diag(p) + rho)
+X.basic.MVN = function(n.=n, p.=p, rho.=rho){
+  X = rmvnorm(n., sigma = (1-rho.)*diag(p.) + rho.)
   return(X)
 }
 
 # Method 1.2: mvtnorm with two groups of variables
-p2 = ceiling(p/3)
-p1 = p - p2
-M1 = (1-rho)*diag(p1) + rho
-M2 = (1-rho)*diag(p2) + rho
-z12 = matrix(0, nrow=p1, ncol=p2)
-z21 = matrix(0, nrow=p2, ncol=p1)
-s = cbind(
-  rbind(M1, z21),
-  rbind(z12, M2)
-)
+X.two.groups.MVN = function(n.=n, p.=p, rho.=rho){
+  p2 = ceiling(p./3)
+  p1 = p. - p2
+  M1 = (1-rho.)*diag(p1) + rho.
+  M2 = (1-rho.)*diag(p2) + rho.
+  z12 = matrix(0, nrow=p1, ncol=p2)
+  z21 = matrix(0, nrow=p2, ncol=p1)
+  s = cbind(
+    rbind(M1, z21),
+    rbind(z12, M2)
+  )
 
-X.two.groups.MVN = function(){
-  X = rmvnorm(n, sigma=s)
+  X = rmvnorm(n., sigma=s)
   return(X)
 }
 
 # Method 2 : LRsim
-X.LR = function(){
-  X = LRsim(n, p, k, SNR)$X
+X.LR = function(n.=n, p.=p, k.=k, SNR.=SNR){
+  X = LRsim(n., p., k., SNR.)$X
   return(X)
 }
 
@@ -163,6 +163,55 @@ imp.mvnorm.estim = function(thetahat.train, X){
   return(res)
 }
 imp.mvnorm = list(train=imp.mvnorm.train, estim=imp.mvnorm.estim)
+
+############
+# Alternative MVN fit
+to_matrix = function(x, horiz){
+  if(!is.null(dim(x))){
+    return(x)
+  }
+  else{
+    if(!horiz){
+      return(as.matrix(x))
+    }
+    else{
+      return(t(as.matrix(x)))
+    }
+  }
+}
+
+estimate.1row = function(row, s, m){
+  miss_col = is.na(row)
+  nmiss = sum(miss_col)
+  if(nmiss>0){
+    mu.miss = m[miss_col]
+    mu.obs = m[!miss_col]
+    sigma.miss = s[miss_col,miss_col]
+    sigma.miss.obs = to_matrix(s[miss_col,!miss_col], horiz=nmiss==1)
+    sigma.obs = s[!miss_col,!miss_col]
+    mu_cond = mu.miss + sigma.miss.obs %*% solve(sigma.obs) %*% (row[!miss_col] - mu.obs)
+    #sigma_cond = sigma.miss - sigma.miss.obs %*% solve(sigma.obs) %*% t(sigma.miss.obs)
+
+   # row[miss_col] = rmvnorm(1, mean=mu_cond, sigma=sigma_cond)
+    row[miss_col] = mu_cond
+  }
+  return(row)
+}
+
+impute_X = function(thetahat, X){
+  #print(dim(X))
+  pre <- prelim.norm(as.matrix(X))
+  #thetahat <- em.norm(pre)
+  params = getparam.norm(pre,thetahat)
+  sigma = params$sigma
+  mu = params$mu
+  X = t(apply(X, 1, partial(estimate.1row, s=sigma, m=mu)))
+  #print(dim(X))
+  #print('')
+  return(X)
+}
+
+imp.mvnorm = list(train=imp.mvnorm.train, estim=impute_X)
 ######################################
 # Train/validation split
 train_test_split = function(X,y, train_prop.=train_prop){
@@ -200,6 +249,7 @@ evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor
   y = y.g$y
   X = y.g$X
 
+  X_f = X
   X = miss.gen(X)
 
   grouped.imp.train = (imputer$train)(X)
@@ -214,9 +264,11 @@ evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor
 
   separate.imp.train = (imputer$train)(X.test)
   correct.imp.train = (imputer$train)(X.train)
+  mean.imp.train = imp.mean.train(X.train)
 
   X.train.correct = (imputer$estim)(correct.imp.train, X.train)
   X.test.correct = (imputer$estim)(correct.imp.train, X.test)
+  impute.error.correct = sum(colSums(X.test.correct-X_f[-spl$inTrain,])^2)/sum(colSums(is.na(X.test)))
 
   X.train.grouped = (imputer$estim)(grouped.imp.train, X.train)
   X.test.grouped = (imputer$estim)(grouped.imp.train, X.test)
@@ -224,25 +276,36 @@ evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor
   X.train.separate = X.train.correct
   X.test.separate = (imputer$estim)(separate.imp.train, X.test)
 
+  X.train.mean = imp.mean.estim(mean.imp.train, X.train)
+  X.test.mean = imp.mean.estim(mean.imp.train, X.test)
+
   correct.reg.train = (regressor$train)(X.train.correct, y.train)
   grouped.reg.train = (regressor$train)(X.train.grouped, y.train)
   separate.reg.train = (regressor$train)(X.train.separate, y.train)
+  mean.reg.train = (regressor$train)(X.train.mean, y.train)
+  fullData.reg.train = (regressor$train)(X_f[spl$inTrain,], y.train)
 
   y.pred.correct = (regressor$predict)(correct.reg.train, X.test.correct)
   y.pred.grouped = (regressor$predict)(grouped.reg.train, X.test.grouped)
   y.pred.separate = (regressor$predict)(separate.reg.train, X.test.separate)
+  y.pred.mean = (regressor$predict)(mean.reg.train, X.test.mean)
+  y.pred.fullData = (regressor$predict)(fullData.reg.train, X_f[-spl$inTrain,])
 
   err.correct = mean((y.pred.correct-y.test)^2)
   err.grouped = mean((y.pred.grouped-y.test)^2)
   err.separate = mean((y.pred.separate-y.test)^2)
-  return(list(correct=err.correct, grouped=err.grouped, separate=err.separate))
+  err.mean = mean((y.pred.mean-y.test)^2)
+  err.full = mean((y.pred.fullData-y.test)^2)
+
+  print(err.mean)
+  return(list(correct=err.correct, grouped=err.grouped, separate=err.separate, full=err.full, mean=err.mean,
+              impute.error.correct=impute.error.correct))
 }
 
 evaluate.S.run = function(S, X.gen, y.gen, miss.gen, splitter, imputer, regressor){
   MSE.correct = c()
   MSE.grouped = c()
   MSE.separate = c()
-
   cl <- makeCluster(no_cores, type='FORK')
   clusterSetRNGStream(cl, seed)
   f= function(i){
@@ -262,24 +325,72 @@ evaluate.S.run = function(S, X.gen, y.gen, miss.gen, splitter, imputer, regresso
   #  MSE.separate = c(MSE.separate, r$separate)
   #}
   #return(list(correct=MSE.correct, grouped=MSE.grouped,separate=MSE.separate))
-  return(list(correct=unlist(res$correct), grouped=unlist(res$grouped),separate=unlist(res$separate)))
+  return(list(correct=unlist(res$correct), grouped=unlist(res$grouped),separate=unlist(res$separate),
+              full=unlist(res$full), mean=unlist(res$mean),
+              impError.correct=unlist(res$impute.error.correct)))
 }
 
 ######################################################################################
 # Execution
-X.gen = X.basic.MVN
+X.gen = function(){X.LR() + X.two.groups.MVN()}
 y.gen = y.regression
 miss.gen = MCAR.noEmptyLines
 splitter = train_test_split
 imputer = imp.mvnorm
 regressor = reg.lin
-nSim = 1000
+nSim = 300
 
-burnIn = 0
+burnIn = 200
 
 res = evaluate.S.run(nSim, X.gen, y.gen, miss.gen, splitter, imputer, regressor)
 
-res %>% lapply(cummean) %>% as.data.frame() %>% slice((burnIn+1):nSim) %>% mutate(s=(burnIn+1):nSim) %>% gather('method', 'error', -s) %>%
-  ggplot() + aes(x=s, y=error, color=method) + geom_line()
+#res %>% lapply(cummean) %>% as.data.frame() %>% slice((burnIn+1):nSim) %>% mutate(s=(burnIn+1):nSim) %>% gather('method', 'error', -s) %>%
+#  ggplot() + aes(x=s, y=error, color=method) + geom_line()
+
+res %>% as.data.frame() %>% gather('method', 'error', -impError.correct) %>% ggplot() + aes(x=method, y=error, color=method) + geom_boxplot()
+
+ggplot(res %>% as.data.frame()) + aes(x=impError.correct, y=correct) + geom_point()
+cor(res$correct, res$impError.correct)
+
+
+####################################
+# Multiple run parameters
+nList = c(500, 1000)
+#nList = c(100,200)
+
+rhoList= c(0.3, 0.8)
+#rhoList = c(0.1, 0.2)
+allRes = NULL
+
+for(n in nList){
+  cat('n=',n)
+  for(rho in rhoList){
+    cat('rho=',rho)
+    #X.gen = partial(X.basic.MVN, n=n, rho=rho)
+    X.gen = function(){X.two.groups.MVN(n.=n, rho.=rho)}
+    r = as.data.frame(
+      evaluate.S.run(nSim, X.gen, y.gen, miss.gen, splitter, imputer, regressor)
+    )
+    r$n = n
+    r$rho=rho
+    if(is.null(allRes)){
+      allRes = r
+    }
+    else{
+      allRes = rbind(allRes,r)
+    }
+  }
+}
+
+allRes %>% as.data.frame() %>%
+  gather('method', 'error', -c(impError.correct, rho,n, full)) %>%
+  mutate(method = factor(method, levels=levels(as.factor(method))[c(2,1,4,3)])) %>%
+  ggplot() + aes(x=method, y=error, color=method) + geom_boxplot() + facet_grid(n~rho, scales='free_y')
+
+
+
+
+
+
 
 
