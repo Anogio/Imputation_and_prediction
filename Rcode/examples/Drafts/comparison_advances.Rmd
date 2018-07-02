@@ -1,0 +1,220 @@
+---
+title: "New comparison - gauging our progress"
+output: html_document
+---
+```{r, results="hide", message=FALSE}
+## Imports
+library(tidyverse)
+library(cowplot)
+library(verification)
+library(caret)
+library(mice)
+library(Amelia)
+library(missForest)
+library(missMDA)
+library(MLmetrics)
+library(pander)
+library(parallel)
+
+
+# Custom imports
+aux.folder = '../../auxiliary/'
+source(paste(aux.folder,'dataloaders.R',sep=''), chdir = T)
+source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
+source(paste(aux.folder,'prediction_methods.R',sep=''), chdir = T)
+
+data_folder = '../../../Data/'
+```
+
+### Load data
+```{r}
+dataset = 'trauma'
+max_rows = NULL
+seed = 5
+train_size = 0.4
+
+# Load and format the dataset
+dat = loader(dataset, max_rows, seed)
+y = dat$y
+X = dat$X_numeric
+
+keepCols = c("Age", "Glasgow.moteur.initial", "FC.max", "Hemocue.init",
+                 "Remplissage.total.cristalloides","Remplissage.total.colloides", "SD.min", "SD.SMUR")
+
+set.seed(seed)
+inTraining = createDataPartition(y, p=train_size, list=FALSE)
+
+#print('Correlation of the missingness of the variables')
+#View(cor(is.na(X)))
+```
+```{r}
+imp.mean.train = function(X){
+  return(colMeans(X, na.rm = T))
+}
+imp.mean.estim = function(mu, X){
+  p = ncol(X)
+  for(i in 1:p){
+    X[is.na(X[,i]),i] = mu[i]
+  }
+  return(X)
+}
+
+imp.mvnorm.train = function(X){
+  # Must run *rngseed* at least once before using
+  pre <- prelim.norm(as.matrix(X))
+  thetahat <- em.norm(pre)
+  return(thetahat)
+}
+
+to_matrix = function(x, horiz){
+  if(!is.null(dim(x))){
+    return(x)
+  }
+  else{
+    if(!horiz){
+      return(as.matrix(x))
+    }
+    else{
+      return(t(as.matrix(x)))
+    }
+  }
+}
+
+estimate.1row = function(row, s, m){
+  miss_col = is.na(row)
+  nmiss = sum(miss_col)
+  if(nmiss>0){
+    mu.miss = m[miss_col]
+    mu.obs = m[!miss_col]
+    sigma.miss = s[miss_col,miss_col]
+    sigma.miss.obs = to_matrix(s[miss_col,!miss_col], horiz=nmiss==1)
+    sigma.obs = s[!miss_col,!miss_col]
+    mu_cond = mu.miss + sigma.miss.obs %*% solve(sigma.obs) %*% (row[!miss_col] - mu.obs)
+    #sigma_cond = sigma.miss - sigma.miss.obs %*% solve(sigma.obs) %*% t(sigma.miss.obs)
+
+   # row[miss_col] = rmvnorm(1, mean=mu_cond, sigma=sigma_cond)
+    row[miss_col] = mu_cond
+  }
+  return(row)
+}
+
+imp.mvnorm.estim = function(thetahat, X){
+  #print(dim(X))
+  pre <- prelim.norm(as.matrix(X))
+  #thetahat <- em.norm(pre)
+  params = getparam.norm(pre,thetahat)
+  sigma = params$sigma
+  mu = params$mu
+  X = t(apply(X, 1, partial(estimate.1row, s=sigma, m=mu))) %>% as.data.frame()
+  #print(dim(X))
+  #print('')
+  return(X)
+}
+
+evaluate.one.run = function(class_imbalance){
+  keepCols = c("Age", "Glasgow.moteur.initial", "FC.max", "Hemocue.init",
+                 "Remplissage.total.cristalloides","Remplissage.total.colloides", "SD.min", "SD.SMUR")
+
+  inTraining = createDataPartition(y, p=train_size, list=FALSE)
+  X.train = X[inTraining,]
+  X.test = X[-inTraining,]
+  y.train = y[inTraining]
+  y.test = y[-inTraining]
+  
+  fit.mean = imp.mean.train(X.train)
+  X.train.mean = imp.mean.estim(fit.mean, X.train)
+  X.test.mean = imp.mean.estim(fit.mean, X.test)
+  X.train.mean = X.train.mean %>% dplyr::select(one_of(keepCols))
+  X.test.mean = X.test.mean %>% dplyr::select(one_of(keepCols))
+  dat_train.mean = cbind(y.train,X.train.mean)
+  
+  
+  fit.MVN = imp.mvnorm.train(X.train)
+  X.train.MVN = imp.mvnorm.estim(fit.MVN, X.train)
+  X.test.MVN = imp.mvnorm.estim(fit.MVN, X.test)
+  X.train.MVN = X.train.MVN %>% dplyr::select(one_of(keepCols))
+  X.test.MVN = X.test.MVN %>% dplyr::select(one_of(keepCols))
+  dat_train.MVN = cbind(y.train,X.train.MVN)
+  
+  fittedM.mean = glm(y.train ~ .,family=binomial(link='logit'),data=dat_train.mean)
+  fittedM.MVN = glm(y.train ~ .,family=binomial(link='logit'),data=dat_train.MVN)
+  pred.mean = predict(fittedM.mean, X.test.mean, type='response')
+  pred.MVN = predict(fittedM.mean, X.test.MVN, type='response')
+  
+  auc.mean = roc.area(as.numeric(y.test)-1,pred.mean)$A
+  auc.MVN = roc.area(as.numeric(y.test)-1,pred.MVN)$A
+  
+  separation.mean = metric_best_separation(pred.mean,y.test, class_imbalance)
+  thresh.mean = separation.mean$best.threshold
+  separation.mean = separation.mean$val
+  separation.MVN = metric_best_separation(pred.MVN,y.test, class_imbalance)
+  thresh.MVN = separation.MVN$best.threshold
+  separation.MVN = separation.MVN$val
+  
+  misclassified.mean = setdiff(1:nrow(X), inTraining)[(pred.mean>thresh.mean) != (y.test=='X1')]
+  misclassified.MVN = setdiff(1:nrow(X), inTraining)[(pred.MVN>thresh.MVN) != (y.test=='X1')]
+  return(list(auc.mean=auc.mean, auc.MVN=auc.MVN, separation.mean=separation.mean, separation.MVN=separation.MVN, 
+              misclassified.MVN=misclassified.MVN, misclassified.mean=misclassified.mean, inTesting=setdiff(1:nrow(X), inTraining)))
+}
+
+
+evaluate.S.run = function(S, class_imbalance=10){
+  seed = ceiling(runif(1,1e5,1e6))
+  no_cores = detectCores()
+  cl <- makeCluster(no_cores, type='FORK')
+  clusterSetRNGStream(cl, seed)
+  f= function(i){
+    rngseed(seed+i)
+    evaluate.one.run(class_imbalance)
+    }
+  z = parLapply(cl, 1:S, f)
+  stopCluster(cl)
+
+  zz <- lapply(z, `[`, names(z[[1]]))
+  res = apply(do.call(rbind, zz), 2, as.list)
+  res = lapply(res, unlist)
+
+  mis.mean = table(res$misclassified.mean)
+  mis.MVN = table(res$misclassified.MVN)
+  included = table(res$inTesting)
+  errs = matrix(0, nrow=nrow(X), ncol=4)
+  colnames(errs)=c('Mean', 'MVN', 'y', 'Included')
+  for(i in 1:length(mis.mean)){
+    errs[as.numeric(names(mis.mean)[i]), 1] = mis.mean[i]
+  }
+  for(i in 1:length(mis.MVN)){
+    errs[as.numeric(names(mis.MVN)[i]), 2] = mis.MVN[i]
+  }
+  for(i in 1:length(included)){
+    errs[as.numeric(names(included)[i]),4] = included[i]
+  }
+  errs[,3] = as.numeric(y)-1
+  errs[,1] = errs[,1]/errs[,4]
+  errs[,2] = errs[,2]/errs[,4]
+  errs = errs[,1:3]
+  
+  res$misclassified.mean = NULL
+  res$misclassified.MVN = NULL
+  
+  return(list(metrics=as.data.frame(res), misclassification=errs))
+}
+```
+
+```{r}
+nSim = 1000
+class_imbalance = 10
+res = evaluate.S.run(nSim, class_imbalance)
+
+res$metrics %>% dplyr::select(auc.mean, auc.MVN) %>% gather('method', 'AUC') %>%
+  ggplot() + aes(x=method, y=AUC, color=method) + geom_boxplot()
+
+res$metrics %>% dplyr::select(separation.mean, separation.MVN) %>% gather('method', 'Separation.Loss') %>%
+  ggplot() + aes(x=method, y=Separation.Loss, color=method) + geom_boxplot()
+```
+
+```{r}
+#View(res$misclassification)
+res$misclassification %>% as.data.frame() %>% gather('method', 'misclassification.rate', -y) %>% filter(y==1) %>%
+ggplot() + aes(x=misclassification.rate, fill=method) + geom_histogram(position='dodge', binwidth = 0.1)
+```
+
