@@ -1,0 +1,10 @@
+Cours : lecture_missing_Wei : modifierl a partie sur imp.norm (tirage et pas esp conditionnelle) + mettre mon code pour l'esp conditionnelle
+
+
+Imputation reglin:
+Ecrire au propre la partie avec apprentissage sans données manquantes
+Autre Idée: imputer les données de train en les accolant à $y$ -> meilleure imputation pour les paramètres du modèle prédictif => imputer données val par leur espérance conditionnelle en fonction des données val observées (grâce à des paramètres imputés sur les X_train, remplis ou pas, à voir) : justifiable par le fait que si on a le bon beta il suffit d'imputer les données de test avec leur espérance conditionnelle
+
+fichier comparaison simu -> ajouter bootstrap sur les lignes (bootstrap+tirage)
+
+Récupérer les variables importantes 
