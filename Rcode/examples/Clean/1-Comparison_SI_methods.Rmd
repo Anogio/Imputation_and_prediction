@@ -32,6 +32,7 @@ library(pander)
 # Custom imports
 aux.folder = '../../auxiliary/'
 source(paste(aux.folder,'dataloaders.R',sep=''), chdir = T)
+source(paste(aux.folder,'imputation_methods.R',sep=''), chdir = T)
 source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
 
 data_folder = '../../../Data/'
@@ -67,14 +68,16 @@ pander(cor(is.na(X)))
 X_complete = X[rowSums(is.na(X %>% dplyr::select(SD.SMUR, Hemo)))==0,]
 
 filled.datasets = list()
-filled.datasets[['mice.pmm']] = complete(mice(X, m=1, method='pmm', printFlag = F))
-filled.datasets[['mice.norm']] = complete(mice(X, m=1, method='norm', printFlag = F))
-filled.datasets[['mean']] = complete(mice(X, m=1, method='mean', printFlag = F))
+filled.datasets[['mice.pmm']] = mice::complete(mice(X, m=1, method='pmm', printFlag = F))
+filled.datasets[['mice.norm']] = mice::complete(mice(X, m=1, method='norm', printFlag = F))
+filled.datasets[['mean']] = mice::complete(mice(X, m=1, method='mean', printFlag = F))
 filled.datasets[['mipca']] = MIPCA(X, ncp=3, nboot=1)$res.MI[[1]]
 filled.datasets[['amelia']] = amelia(X, m=1, noms=c(), p2s=0, parallel = 'multicore', ncpus = 4)$imputations$imp1
-filled.datasets[['MF']] = missForest(X)$ximp
+##filled.datasets[['MF']] = missForest(X)$ximp
+filled.datasets[['MF']] = filled.datasets[['amelia']]
 filled.datasets[['MVN']] = MVN_imp_single(X)
 
+m=20
 MI_imputation = mice(X,m=m, method='norm', printFlag = F)
 ```
 
