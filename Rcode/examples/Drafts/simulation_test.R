@@ -3,14 +3,15 @@ library(denoiseR)
 library(mvtnorm)
 library(norm)
 library(parallel)
-
+library(missMDA)
 ######################################"
 seed = ceiling(runif(1,1e5,1e6))
 print(seed)
 miss_prop = 0.3
 train_prop = 0.4
 
-no_cores = detectCores()
+#no_cores = detectCores()
+no_cores = 4
 # Generate dataset
 p = 6
 n = 1000
@@ -229,18 +230,24 @@ imp.mvnorm = list(train=imp.mvnorm.train, estim=imp.mvnorm.estim)
 
 ######################
 # Mvnorm for MI
-imp.MI_mvnorm.train = function(X_train){
+imp.MI_mvnorm.train = function(X_train, m=30){
   # Must run *rngseed* at least once before using
-  pre <- prelim.norm(as.matrix(X_train))
-  thetahat <- em.norm(pre)
-  return(thetahat)
+  thetahats = list()
+  for(i in 1:m){
+    BS.sample = sample(1:nrow(X_train), nrow(X_train), replace = T)
+    pre <- prelim.norm(as.matrix(X_train[BS.sample,]))
+    thetahats[[i]] <- em.norm(pre)
+  }
+  return(thetahats)
 }
 
 imp.MI_mvnorm.estim = function(thetahat.train, X, m=30){
+  print(thetahat.train)
   estimations = list()
   pre = prelim.norm(as.matrix(X))
+  m = length(thetahat.train)
   for(i in 1:m){
-    estimations[[i]] = imp.norm(pre, thetahat.train, X)
+    estimations[[i]] = imp.norm(pre, thetahat.train[[i]], X)
   }
   if(any(is.na(estimations[[1]]))){
     stop('There are still NA values in the imputation. Have you initialized rngseed?')
@@ -393,7 +400,7 @@ X.gen = X.two.groups.MVN
 y.gen = y.regression
 miss.gen = MCAR.noEmptyLines
 splitter = train_test_split
-imputer = imp.pca
+imputer = imp.mvnorm
 imp.MI = imp.MI_mvnorm
 regressor = reg.lin
 nSim = 200
@@ -419,7 +426,7 @@ nList = c(100, 1000)
 rhoList= c(0.3, 0.8)
 #rhoList = c(0.1, 0.2)
 allRes = NULL
-imputer = imp.pca
+imputer = imp.mvnorm
 
 for(n in nList){
   cat('\n','n =',n,'\n')
