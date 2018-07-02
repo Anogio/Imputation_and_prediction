@@ -124,6 +124,9 @@ mean_imp_single <- function(X, categorical='most.freq', spl=NULL){
 ####
 # MVN imp
 to_matrix = function(x, horiz){
+  # Helper function that converts to matrix
+  # while ensuring that the orientation is the right one if
+  # the inpute is just a vector (->column or row matrix)
   if(!is.null(dim(x))){
     return(x)
   }
