@@ -1,0 +1,185 @@
+\documentclass[12pt, a4paper]{memoir}
+
+\setcounter{secnumdepth}{2}
+\usepackage{natbib}
+\setcitestyle{numbers,open={[},close={]}}
+\bibliographystyle{unsrtnat}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{lmodern}
+%\usepackage[marginparwidth=70pt]{geometry}
+
+\usepackage{microtype}
+\usepackage{amsmath,amsthm,amssymb,amsfonts}
+
+\usepackage{bbm}
+\usepackage{atbegshi}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{minted}
+\usepackage{xcolor}
+\usepackage{todonotes}
+
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\newsubfloat{figure} % used to enable subfloats in the memoir class
+\begin{document}
+\pagenumbering{roman}
+
+\AtBeginShipoutNext{\AtBeginShipoutNext{\AtBeginShipoutDiscard}}
+\begin{titlingpage}
+	\newcommand{\HRule}{\rule{\linewidth}{0.5mm}} % Defines a new command for the horizontal lines, change thickness here
+	
+	\center % Center everything on the page
+	 
+	%----------------------------------------------------------------------------------------
+	%	HEADING SECTIONS
+	%----------------------------------------------------------------------------------------
+	
+	\textsc{\LARGE University of Oxford}\\[1.5cm] % Name of your university/college
+	\textsc{\Large MSc in Statistical Science}\\[0.5cm] % Major heading such as course name
+	\textsc{\large Final thesis}\\[0.5cm] % Minor heading such as course title
+	
+	%----------------------------------------------------------------------------------------
+	%	TITLE SECTION
+	%----------------------------------------------------------------------------------------
+	
+	\HRule \\[0.4cm]
+	{ \huge \bfseries Missing data imputation for Haemorrhagic shock prediction}\\[0.4cm] % Title of your document
+	\HRule \\[1.5cm]
+	 
+	%----------------------------------------------------------------------------------------
+	%	AUTHOR SECTION
+	%----------------------------------------------------------------------------------------
+	
+	\begin{minipage}{0.4\textwidth}
+	\begin{flushleft} \large
+	\emph{Author:}\\
+	Antoine \textsc{Ogier} % Your name
+	\end{flushleft}
+	\end{minipage}
+	~
+	\begin{minipage}{0.4\textwidth}
+	\begin{flushright} \large
+	\emph{Supervisor:} \\
+	Pr. Julie \textsc{Josse} \\(École polytechnique) \\% Supervisor's Name
+	Pr. Geoff \textsc{Nicholls} \\(University of Oxford) % Supervisor's Name
+	
+	\end{flushright}
+	\end{minipage}\\[1cm]
+	
+	% If you don't want a supervisor, uncomment the two lines below and remove the section above
+	%\Large \emph{Author:}\\
+	%John \textsc{Smith}\\[3cm] % Your name
+	
+	%----------------------------------------------------------------------------------------
+	%	DATE SECTION
+	%----------------------------------------------------------------------------------------
+	
+	{\large September 2018}\\[1cm] % Date, change the \today to a set date if you want to be precise
+	
+	%----------------------------------------------------------------------------------------
+	%	LOGO SECTION
+	%----------------------------------------------------------------------------------------
+	
+	\includegraphics[scale=1.2]{logo}\\[1cm] % Include a department/university logo - this will require the graphicx package
+	%----------------------------------------------------------------------------------------
+	%\vfill % Fill the rest of the page with whitespace
+\end{titlingpage}
+
+
+\begin{vplace}[0.7]
+\begin{abstract}
+Lorem ipsum dolot sit amet nunc cui Brexit.
+\end{abstract}
+\end{vplace}
+
+\newpage
+\vspace*{\fill}
+{\centering\huge\bfseries Acknowledgements\par}
+\bigskip
+\noindent Lorem ipsum dolot sit amet
+\vspace*{\fill}
+\newpage
+
+%\vspace*{\fill}
+\tableofcontents*
+\vspace*{\fill}
+
+\addtocontents{toc}{\protect\vspace*{\fill}}
+\chapter*{Introduction}
+\pagenumbering{arabic}
+\addcontentsline{toc}{chapter}{Introduction}
+
+\chapter{Goal and data}
+\label{data}
+	\section{The problem of haemorrhagic shock}
+	Prediction is very hard, as described in \cite{doctors_prediction}
+	\section{The Traumabase data}
+	\section{Exploratory data analysis}
+		\subsection{Variables}
+		\subsection{Missing data}
+
+\chapter{Imputation methods}
+\label{imputation}
+	\section{Main types of imputation}
+		\subsection{Joint parametric specification}
+		\subsection{Fully conditional specification: the MICE algorithm}
+		\subsection{Low-rank approximation for imputation}
+		\subsection{ML-based}
+	\section{Multiple imputation}
+		\subsection{Principle}
+		\subsection{Rubin's rule and prediction aggregation}
+	\section{Normality hypothesis: transforming the data}
+		
+\chapter{Methodology: imputation and the validation split}
+
+\label{validation}
+	\section{Empirical risk minimization (ERM): classical context}
+	\section{The problem of current imputation methods}
+		\subsection{Imputation seen as an ERM}
+		\subsection{Unsuitability of current methods}
+	\section{Possible solutions}
+		\subsection{Using current implementations}
+		\subsection{A new variant: Multivariate Normal Mode with reserved data}
+		\subsection{Comparison on simulated data}
+		
+\addtocontents{toc}{\protect\vspace*{\fill}}
+\addtocontents{toc}{\protect\newpage} % used to split the toc over two pages		
+\addtocontents{toc}{\protect\vspace*{\fill}}
+
+		
+\chapter{Error sources and best imputation: the case of linear regression with missing data}
+\label{linreg}
+	\section{Problem set-up}
+		\subsection{Notations}
+		\subsection{Objective}
+	\section{Partial resolution}
+		\subsection{General loss}
+		\subsection{When the validation set is fully observed}
+		Strong consistency of the least square estimator \citep{consistency_linreg}
+		\subsection{When the data is large and the training data is fully observed}
+	\section{Consequences}
+		\subsection{Theoretical implications for our data}
+		\subsection{Verification with simulated data}
+
+		
+\chapter{Analysis: imputing the Traumabase data for prediction}
+\label{analysis}
+	\section{Criteria for evaluation}
+	\section{Single imputation}
+	\section{Multiple imputation}
+	
+\chapter{Results}
+\label{results}
+
+\chapter*{Conclusion}
+\addcontentsline{toc}{chapter}{Conclusion}
+
+\bibliography{medical,stats,methods}
+\end{document}

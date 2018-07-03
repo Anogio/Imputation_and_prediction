@@ -1,0 +1,22 @@
+\begin{thebibliography}{2}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Pommerening et~al.(2015)Pommerening, Goodman,
+  et~al.]{doctors_prediction}
+Matthew~J Pommerening, Goodman, et~al.
+\newblock Clinical gestalt and the prediction of massive transfusion after
+  trauma.
+\newblock \emph{Injury}, 46\penalty0 (5):\penalty0 807--813, 2015.
+
+\bibitem[Anderson et~al.(1976)Anderson, Taylor, et~al.]{consistency_linreg}
+TW~Anderson, John~B Taylor, et~al.
+\newblock Strong consistency of least squares estimates in normal linear
+  regression.
+\newblock \emph{The Annals of Statistics}, 4\penalty0 (4):\penalty0 788--790,
+  1976.
+
+\end{thebibliography}
