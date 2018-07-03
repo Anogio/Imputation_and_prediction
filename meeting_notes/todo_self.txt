@@ -1,8 +1,6 @@
 cf Rubin: Better to do imputation before model selection (similar to Xie/Meng from 
 Geoff, always be more saturated in the imputation)
 
-Idea: why not use the imputation from the SAEM? Normal imputation but better
-
 ############
 # Amelia: mieux comprendre la manière dont les variables catégorielles sont gérées
 https://gking.harvard.edu/files/gking/files/amelia_jss.pdf
@@ -12,3 +10,17 @@ https://gking.harvard.edu/files/gking/files/amelia_jss.pdf
 + missmap de Amelia pour visualiser la missingness
 
 
+###########
+# Test y
+Coparaison plus formelle entre avec/sans y pour imputer
+Aspects théoriques de l'imputation avec y (congeniality)
+
+# MI
+On impute n tableaux train/test, puis un paramètre train par tableau -> coment faire la prédiction? Prédire tableau de test avec param correspondant ou tous les tableaux différents avec un beta agrégé?
+
+Imputation avec bootstrap + mode (au lieu de bootstrap + tirage) ? En tout cas, explorer un peu plus la partie MI, ce que ça apporte en terme de prédiction, comment on peut s'en servir
+
+# Simulation données binaires (pour se rapprocher du cas traumabase) -> types d'agregation pour le MI
+
+
+#### PRIORITAIRE: En fait la plus grosse part d'erreur vient des données manquantes dans le TEST. Donc raisonnable de faire: imputation simple sur le train (un seul beta) mais multiple sur le test (plein de prédictions différentes): prendre en compte le fait qu'on n'est pas sûrs de la valeur des données test
