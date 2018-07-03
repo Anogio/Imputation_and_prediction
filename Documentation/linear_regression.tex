@@ -8,6 +8,7 @@
 
 \usepackage{microtype}
 \usepackage{amsmath,amsthm,amssymb,amsfonts}
+
 \usepackage{bbm}
 \usepackage{hyperref}
 \usepackage{graphicx, subfig}
@@ -24,6 +25,7 @@
 \author{Antoine Ogier}
 
 \begin{document}
+\tableofcontents
 
 \section{Problem setup}
 \paragraph{True data}
@@ -129,7 +131,7 @@ L(y_V, \hat{y}_V) &= (y_V - \hat{y_V})^2 &\\
 				   & \quad + (\tilde{X}_V (\tilde{\beta}-\hat{\beta}))^2 &(2) \\
 				   & \quad + ((\tilde{X}_V - \hat{X}_V) \hat{\beta})^2 &(3) \\
 				   & \quad + \tilde{X}_V (\beta - \tilde{\beta}) \tilde{X}_V (\tilde{\beta} - \hat{\beta}) & (4) \\
-				   & \quad + \tilde{X}_V (\beta - \tilde{\beta}) (\tilde{X}_V - \hat{X}_V \hat{\beta} & (5) \\
+				   & \quad + \tilde{X}_V (\beta - \tilde{\beta}) (\tilde{X}_V - \hat{X}_V )\hat{\beta} & (5) \\
 				   & \quad + \tilde{X}_V (\tilde{\beta} - \hat{\beta}) (\tilde{X}_V - \hat{X}_V) \hat{\beta} & (6)\\
 				   & + \epsilon_V^2 &\\
 				   & + \epsilon_V K
@@ -137,6 +139,7 @@ L(y_V, \hat{y}_V) &= (y_V - \hat{y_V})^2 &\\
 Where $K$ is some term that will not matter (because when we take the expectation it will be zero). The risk we want to minimize is the expectation of this loss.
 
 \subsection{When the training set is actually known}
+\paragraph*{Imputation}
 The first thing we can easily do is to study the situation where the only missing data is in the validation set. In that case, $\tilde{X}_A = \hat{X}_A$ and so $\tilde{\beta} = \hat{\beta}$, and all we have to choose is $\psi$. In the previously computed loss, it means that terms $(2)$, $(4)$ and $(6)$ are zero.
 
 Furthermore, Cochran's theorem ensures that $(\beta - \tilde{\beta})$ and $\tilde{\beta}$ are independent so term $(5)$ can be factorized and will have zero expectation (since $(\beta - \tilde{\beta})$ has zero expectation).
@@ -151,4 +154,65 @@ This leaves us with only term $(3)$, with expectation:
 Once we are there, we can differentiate this expression to easily derive the optimal expression for $\psi$: $\hat{\psi} = \mathbb{E}[x_1^V\vert x^V_2]$.
 
 Incidentally, this does not use any assumption on the distribution of $X$: this would be true for any joint distribution we choose for the covariates.
+
+\paragraph*{Expected loss}
+First note:
+\begin{align*}
+\eta = \beta - \tilde{\beta} &= \beta - (\tilde{X}_A^T \tilde{X}_A)^{-1} \tilde{X}_A^T y_A \\
+		&= (\tilde{X}_A^T \tilde{X}_A)^{-1} \tilde{X}_A^T (\tilde{X}_A \beta + \epsilon_A) \\
+		&= (\tilde{X}_A^T \tilde{X}_A)^{-1} \tilde{X}_A^T \epsilon_A
+\end{align*}
+
+That is, the difference between the estimated and real parameter is distributed following some centred normal distribution. Let us denote its covariance matrix by $S = \sigma^2 (\tilde{X}_A^T \tilde{X}_A)^{-1} $.
+
+Now, term $(1)$ can be expressed as :
+\begin{align*}
+\mathbb{E}[(\tilde{X}_V \eta)^2 \vert x^V_2] &= \mathbb{E}[(x^V_1 \eta_1 + x^V_2 \eta_2)^2\vert x^V_2] \\
+											&= S_{11} \mathbb{E}[(x^V_1)^2 \vert x^V_2]  + 2x^V_2 S_{12} \mathbb{E}[x^V_1 \vert x^V_2] + S_{22} (x^V_2)^2
+\end{align*}
+
+Term $(3)$ can be expressed as:
+\begin{align*}
+\mathbb{E}[((\tilde{X}_V - \hat{X}_V) \hat{\beta})^2 \vert x^V_2]&= \mathbb{E}[((x^V_1 - \hat{\psi})\tilde{\beta}_1)^2 \vert x^V_2] \\
+									 &= \mathbb{E}[((x^V_1 - \hat{\psi})(\beta_1 + \eta_1))^2 \vert x^V_2] \\
+									&= \beta_1^2 \text{Var}[x^V_1 \vert x^V_2] + S_{11}^2 \text{Var}[x^V_1 \vert x^V_2] 
+\end{align*}
+
+Finaly, adding the variance of the noise $\epsilon_V$, we see that the expected loss is :
+$$
+S_{11} \mathbb{E}[(x^V_1)^2 \vert x^V_2]  + 2x^V_2 S_{12} \mathbb{E}[x^V_1 \vert x^V_2] + S_{22} (x^V_2)^2 + 
+\beta_1^2 \text{Var}[x^V_1 \vert x^V_2] + S_{11}^2 \text{Var}[x^V_1 \vert x^V_2]  +
+\sigma^2
+$$
+
+The terms from $(1)$ would be more or less the same if the test data were fully observed. They represent the impact on the prediction of the error made when estimating $\beta$.
+
+ On the other hand, those from $(3)$ are both positive and unique to the incomplete case. They do not depend on the  test data at all. The first term reflects how an error in the imputation of $X_V$ is amplified by the regression coefficient when predicting $y$. The second one shows how errors in the estimation of $\beta$ and of $X_V$ combine when predicting $y$.
+ 
+ Most importantly, the least squares estimator is a strongly consistent one, which implies that the only error terms that matter with large $n$ are those that remain when $\eta$ is set to zero:
+ $$ \beta_1^2 \text{Var}[x^V_1 \vert x^V_2] + \sigma^2 $$
+ 
+ The missing data in the validation set adds a term that does not vanish for large $n$.
+ 
+ \paragraph*{When there are more than two covariates}
+ An important point is that in a context with more than two covariates, the conditional variance of an observation increases when the number of unobserved variables increases: this means that when the dimension increases, not only do new error terms appear, but the existing ones also increase.
+ 
+ For $X_V$ with $p>2$ covariates, we denote $X_V^{\text{miss}}$ and $X_V^{\text{obs}}$ the missing and observed values in $X_V$. We can now write $(3)$ again:
+ \begin{align*}
+ \mathbb{E}[((\tilde{X}_V - \hat{X}_V)\beta)^2 \vert X_V^{\text{obs}}] &= 
+ 		\mathbb{E}[ (\sum \limits_{\substack{i=1 \\i \in X_V^{\text{miss}}}}^{p} (x_i^V - \hat{x}_i^V)\beta_i)^2 \vert X_V^{\text{obs}}] \\
+ 		&= \mathbb{E}[\sum \limits_{\substack{i=1 \\i \in X_V^{\text{miss}}}}^{p} \sum \limits_{\substack{j=1 \\j \in X_V^{\text{miss}}}}^{p}
+ 			(x^V_i - \hat{x}^V_i)(x^V_j - \hat{x}^V_j)\beta_i \beta_j \vert X_V^{\text{obs}}]
+ \end{align*}
+ 
+ If, as previously, we choose $\hat{x}^V_i = \mathbb{E}[x^V_i \vert X_V^{\text{obs}}]$, we end up with:
+ \begin{align*}
+ \mathbb{E}[((\tilde{X}_V - \hat{X}_V)\beta)^2 \vert X_V^{\text{obs}}] &= 
+ 	\sum \limits_{\substack{i,j=1 \\i,j \in X_V^{\text{miss}}}}^{p} \beta_i \beta_j Cov(x^V_i, x^V_j \vert X_V^{\text{obs}})
+ \end{align*}
+ 
+\subsection{When $n$ is large and the validation data is known}
+We can suppose that $n$ is large and that we know $\tilde{X_V}$. In that case, we can take the approximation that $\beta = \tilde{\beta}$, that is, the only error in the estimation of $\beta$ comes from the missing data in the training set. Then, the only error term that is nonzero is $(2)$:
+$$ (\tilde{X}_V (\beta - \tilde{\beta}))^2$$
+
 \end{document}
