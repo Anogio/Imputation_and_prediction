@@ -7,25 +7,24 @@ library(missMDA)
 ######################################"
 seed = ceiling(runif(1,1e5,1e6))
 print(seed)
-miss_prop = 0.3
+miss_prop = 0.05
 train_prop = 0.4
 
 #no_cores = detectCores()
 no_cores = 4
 # Generate dataset
 p = 6
-n = 1000
+n = 800
 
 # MVN parameters
-rho = 0.3
+rho = 0.8
 
 # LRsim parameters
 k = ceiling(p/3)
 SNR = 0.2
 
 # Regression response noise
-sigma_noise = 0.2
-
+sigma_noise = 1
 ########
 # Method 1.1: mvtnorm
 
@@ -81,13 +80,13 @@ y.first.col = function(X){
 # Method 2: Regression model
 y.regression = function(X, sigma_n=sigma_noise){
   beta = seq(p)
-  y = X %*% beta + rnorm(n, 0, sigma_n)
+  y = X %*% beta + rnorm(n, 0, sqrt(sigma_n))
   return(list(X=X, y=y))
 }
 
 ##########
 # Method 3: Square regression
-y.regression.square = function(X, sigma_n=sigma_noise){
+y.regression.square = function(X, sigma_n=sqrt(sigma_noise)){
   beta = seq(p)
   X.2 = X
   X.2[,1] = X.2[,1]^2
@@ -230,7 +229,7 @@ imp.mvnorm = list(train=imp.mvnorm.train, estim=imp.mvnorm.estim)
 
 ######################
 # Mvnorm for MI
-imp.MI_mvnorm.train = function(X_train, m=30){
+imp.MI_mvnorm.train = function(X_train, m=5){
   # Must run *rngseed* at least once before using
   thetahats = list()
   for(i in 1:m){
@@ -241,7 +240,7 @@ imp.MI_mvnorm.train = function(X_train, m=30){
   return(thetahats)
 }
 
-imp.MI_mvnorm.estim = function(thetahat.train, X, m=30){
+imp.MI_mvnorm.estim = function(thetahat.train, X, m=5){
   print(thetahat.train)
   estimations = list()
   pre = prelim.norm(as.matrix(X))
@@ -256,6 +255,27 @@ imp.MI_mvnorm.estim = function(thetahat.train, X, m=30){
 }
 
 imp.MI_mvnorm = list(train=imp.MI_mvnorm.train, estim=imp.MI_mvnorm.estim)
+
+# MI with bootstrap but no draw
+
+imp.MI_mvnorm2.estim = function(thetahat.train, X, m=5){
+  print(thetahat.train)
+  estimations = list()
+  pre = prelim.norm(as.matrix(X))
+  m = length(thetahat.train)
+  for(i in 1:m){
+    params = getparam.norm(pre,thetahat.train[[i]])
+    sigma = params$sigma
+    mu = params$mu
+    estimations[[i]] = t(apply(X, 1, partial(estimate.1row, s=sigma, m=mu)))
+  }
+  if(any(is.na(estimations[[1]]))){
+    stop('There are still NA values in the imputation. Have you initialized rngseed?')
+  }
+  return(estimations)
+}
+
+imp.MI_mvnorm2 = list(train=imp.MI_mvnorm.train, estim=imp.MI_mvnorm2.estim)
 
 #########
 # PCA imputation
@@ -312,6 +332,7 @@ evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor
   y.test = spl$y.test
 
   separate.imp.train = (imputer$train)(X.test)
+  withY.imp.train = (imputer$train)(cbind(X.train, y.train))
   correct.imp.train = (imputer$train)(X.train)
   mean.imp.train = imp.mean.train(X.train)
   MI.imp.train = (imp.MI$train)(X.train)
@@ -319,6 +340,10 @@ evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor
   X.train.correct = (imputer$estim)(correct.imp.train, X.train)
   X.test.correct = (imputer$estim)(correct.imp.train, X.test)
   impute.error.correct = sum(colSums(X.test.correct-X_f[-spl$inTrain,])^2)/sum(colSums(is.na(X.test)))
+
+  X.train.withY = (imputer$estim)(withY.imp.train, cbind(X.train, y.train))[,1:ncol(X.train)]
+  withY.imp.train2 = (imputer$train)(X.train.withY)
+  X.test.withY = (imputer$estim)(withY.imp.train2, X.test)
 
   X.train.grouped = (imputer$estim)(grouped.imp.train, X.train)
   X.test.grouped = (imputer$estim)(grouped.imp.train, X.test)
@@ -333,6 +358,7 @@ evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor
   X.test.MI = (imp.MI$estim)(MI.imp.train, X.test)
 
   correct.reg.train = (regressor$train)(X.train.correct, y.train)
+  withY.reg.train = (regressor$train)(X.train.withY, y.train)
   grouped.reg.train = (regressor$train)(X.train.grouped, y.train)
   separate.reg.train = (regressor$train)(X.train.separate, y.train)
   mean.reg.train = (regressor$train)(X.train.mean, y.train)
@@ -342,11 +368,19 @@ evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor
     MI.reg.train[[i]] = (regressor$train)(X.train.MI[[i]], y.train)
   }
 
+  betaErr.correct = sum(abs(correct.reg.train$coefficients - 0:ncol(X.train)))
+  betaErr.withY = sum(abs(withY.reg.train$coefficients - 0:ncol(X.train)))
+
   y.pred.correct = (regressor$predict)(correct.reg.train, X.test.correct)
+  y.pred.withY = (regressor$predict)(withY.reg.train, X.test.withY)
   y.pred.grouped = (regressor$predict)(grouped.reg.train, X.test.grouped)
   y.pred.separate = (regressor$predict)(separate.reg.train, X.test.separate)
   y.pred.mean = (regressor$predict)(mean.reg.train, X.test.mean)
   y.pred.fullData = (regressor$predict)(fullData.reg.train, X_f[-spl$inTrain,])
+  y.pred.fullTest = (regressor$predict)(correct.reg.train, X_f[-spl$inTrain,])
+  y.pred.fullTrain = (regressor$predict)(fullData.reg.train, X.test.correct)
+  y.pred.trueBeta = as.numeric(X.test.correct %*% matrix(1:ncol(X.train), ncol=1))
+
   y.pred.MI = matrix(NA,nrow=nrow(X.test), ncol=length(X.train.MI))
   for(i in 1:length(X.train.MI)){
     y.pred.MI[,i] = (regressor$predict)(MI.reg.train[[i]], X.test.MI[[i]])
@@ -354,16 +388,21 @@ evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor
   y.pred.MI = rowMeans(y.pred.MI)
 
   err.correct = mean((y.pred.correct-y.test)^2)
+  err.withY = mean((y.pred.withY-y.test)^2)
   err.grouped = mean((y.pred.grouped-y.test)^2)
   err.separate = mean((y.pred.separate-y.test)^2)
   err.mean = mean((y.pred.mean-y.test)^2)
   err.full = mean((y.pred.fullData-y.test)^2)
+  err.fullTrain = mean((y.pred.fullTrain-y.test)^2)
+  err.fullTest = mean((y.pred.fullTest-y.test)^2)
+  err.trueBeta = mean((y.pred.trueBeta-y.test)^2)
   err.MI = mean((y.pred.MI-y.test)^2)
 
   print(err.mean)
   return(list(correct=err.correct, grouped=err.grouped, separate=err.separate, full=err.full, mean=err.mean,
-              MI=err.MI,
-              impute.error.correct=impute.error.correct))
+              MI=err.MI, withY = err.withY, fullTest=err.fullTest, fullTrain = err.fullTrain,
+              trueBeta = err.trueBeta,
+              impute.error.correct=impute.error.correct, betaErr.correct=betaErr.correct, betaErr.withY=betaErr.withY))
 }
 
 evaluate.S.run = function(S, X.gen, y.gen, miss.gen, splitter, imputer, regressor, imp.MI){
@@ -389,9 +428,11 @@ evaluate.S.run = function(S, X.gen, y.gen, miss.gen, splitter, imputer, regresso
   #  MSE.separate = c(MSE.separate, r$separate)
   #}
   #return(list(correct=MSE.correct, grouped=MSE.grouped,separate=MSE.separate))
+  return(lapply(res, unlist))
   return(list(correct=unlist(res$correct), grouped=unlist(res$grouped),separate=unlist(res$separate),
-              full=unlist(res$full), mean=unlist(res$mean), MI=unlist(res$MI),
-              impError.correct=unlist(res$impute.error.correct)))
+              full=unlist(res$full), mean=unlist(res$mean), MI=unlist(res$MI), withY = unlist(res$withY),
+              impError.correct=unlist(res$impute.error.correct),
+              betaErr.correct=unlist(res$betaErr.correct), betaErr.withY=unlist(res$betaErr.withY)))
 }
 
 ######################################################################################
@@ -412,10 +453,11 @@ res = evaluate.S.run(nSim, X.gen, y.gen, miss.gen, splitter, imputer, regressor,
 #res %>% lapply(cummean) %>% as.data.frame() %>% slice((burnIn+1):nSim) %>% mutate(s=(burnIn+1):nSim) %>% gather('method', 'error', -s) %>%
 #  ggplot() + aes(x=s, y=error, color=method) + geom_line()
 
-res %>% as.data.frame() %>% gather('method', 'error', -impError.correct) %>% ggplot() + aes(x=method, y=error, color=method) + geom_boxplot()
+res %>% as.data.frame() %>% gather('method', 'error', -c(impute.error.correct, betaErr.withY, betaErr.correct)) %>%
+  ggplot() + aes(x=method, y=error, color=method) + geom_boxplot()
 
-ggplot(res %>% as.data.frame()) + aes(x=impError.correct, y=correct) + geom_point()
-cor(res$correct, res$impError.correct)
+ggplot(res %>% as.data.frame()) + aes(x=impute.error.correct, y=correct) + geom_point()
+cor(res$correct, res$impute.error.correct)
 
 
 ####################################
@@ -451,6 +493,6 @@ for(n in nList){
 }
 
 allRes %>% as.data.frame() %>%
-  gather('method', 'error', -c(impError.correct, rho,n, full)) %>%
-  mutate(method = factor(method, levels=levels(as.factor(method))[c(2,1,5,4,3)])) %>%
+  gather('method', 'error', -c(impute.error.correct, rho,n, full, betaErr.withY, betaErr.correct)) %>%
+  mutate(method = factor(method, levels=levels(as.factor(method))[c(2,1,5, 6,4,3,7,8,9,10)])) %>%
   ggplot() + aes(x=method, y=error, color=method) + geom_boxplot() + facet_grid(n~rho, scales='free_y') #+ coord_cartesian(ylim=c(0,50))

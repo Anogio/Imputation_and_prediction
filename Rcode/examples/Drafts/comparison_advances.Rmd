@@ -15,6 +15,7 @@ library(missMDA)
 library(MLmetrics)
 library(pander)
 library(parallel)
+library(norm)
 
 
 # Custom imports
@@ -128,10 +129,11 @@ evaluate.one.run = function(class_imbalance){
   X.test.mean = X.test.mean %>% dplyr::select(one_of(keepCols))
   dat_train.mean = cbind(y.train,X.train.mean)
   
-  
-  fit.MVN = imp.mvnorm.train(X.train)
-  X.train.MVN = imp.mvnorm.estim(fit.MVN, X.train)
-  X.test.MVN = imp.mvnorm.estim(fit.MVN, X.test)
+  y.train.num = as.numeric(y.train)
+  fit.MVN = imp.mvnorm.train(cbind(X.train,y.train.num))
+  X.train.MVN = imp.mvnorm.estim(fit.MVN, cbind(X.train,y.train.num))[,1:ncol(X.train)]
+  fit.MVN2 = imp.mvnorm.train(X.train.MVN)
+  X.test.MVN = imp.mvnorm.estim(fit.MVN2, X.test)
   X.train.MVN = X.train.MVN %>% dplyr::select(one_of(keepCols))
   X.test.MVN = X.test.MVN %>% dplyr::select(one_of(keepCols))
   dat_train.MVN = cbind(y.train,X.train.MVN)
@@ -139,7 +141,7 @@ evaluate.one.run = function(class_imbalance){
   fittedM.mean = glm(y.train ~ .,family=binomial(link='logit'),data=dat_train.mean)
   fittedM.MVN = glm(y.train ~ .,family=binomial(link='logit'),data=dat_train.MVN)
   pred.mean = predict(fittedM.mean, X.test.mean, type='response')
-  pred.MVN = predict(fittedM.mean, X.test.MVN, type='response')
+  wpred.MVN = predict(fittedM.mean, X.test.MVN, type='response')
   
   auc.mean = roc.area(as.numeric(y.test)-1,pred.mean)$A
   auc.MVN = roc.area(as.numeric(y.test)-1,pred.MVN)$A
@@ -201,7 +203,7 @@ evaluate.S.run = function(S, class_imbalance=10){
 ```
 
 ```{r}
-nSim = 1000
+nSim = 200
 class_imbalance = 10
 res = evaluate.S.run(nSim, class_imbalance)
 
