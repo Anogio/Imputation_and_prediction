@@ -1,0 +1,348 @@
+---
+title: "Simulation comparaison imputation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(denoiseR)
+library(mvtnorm)
+library(pander)
+library(norm)
+library(parallel)
+library(missMDA)
+######################################"
+seed = ceiling(runif(1,1e5,1e6))
+print(seed)
+miss_prop = 0.2
+train_prop = 0.4
+```
+
+```{r}
+#no_cores = detectCores()
+no_cores = 4
+# Generate dataset
+p = 5
+n = 800
+
+m = 100 # Number of multiple imputations
+
+# MVN parameters
+rho = 0.8
+
+# Regression response noise
+sigma_noise = 1
+
+seed = ceiling(runif(1,1e3,1e5))
+rngseed(seed)
+set.seed(seed)
+print(seed)
+```
+
+```{r}
+  p2 = ceiling(p/3)
+  p1 = p - p2
+  M1 = (1-rho)*diag(p1) + rho
+  M2 = (1-rho)*diag(p2) + rho
+  z12 = matrix(0, nrow=p1, ncol=p2)
+  z21 = matrix(0, nrow=p2, ncol=p1)
+  s = cbind(
+    rbind(M1, z21),
+    rbind(z12, M2)
+  )
+pander(s)
+
+# mvtnorm with two groups of variables
+X.two.groups.MVN = function(n.=n, p.=p, rho.=rho){
+  p2 = ceiling(p./3)
+  p1 = p. - p2
+  M1 = (1-rho.)*diag(p1) + rho.
+  M2 = (1-rho.)*diag(p2) + rho.
+  z12 = matrix(0, nrow=p1, ncol=p2)
+  z21 = matrix(0, nrow=p2, ncol=p1)
+  s = cbind(
+    rbind(M1, z21),
+    rbind(z12, M2)
+  )
+  X = rmvnorm(n., sigma=s)
+  return(X)
+}
+```
+```{r}
+# Regression model
+y.regression = function(X, sigma_n=sigma_noise){
+  beta = seq(p)
+  y = X %*% beta + rnorm(n, 0, sqrt(sigma_n))
+  return(list(X=X, y=y))
+}
+```
+
+```{r}
+train_test_split = function(X,y, train_prop.=train_prop){
+  intrain = base::sample(n, ceiling(train_prop.*n))
+  return(list(
+    X.train = X[intrain,],
+    X.test = X[-intrain,],
+    y.train = y[intrain],
+    y.test = y[-intrain],
+    inTrain=intrain
+  ))
+}
+```
+
+
+```{r}
+MCAR.noEmptyLines <- function(X, miss_prop.=miss_prop){
+  n = nrow(X)
+  m = ncol(X)
+  missing = matrix(runif(n*m), nrow=n, ncol=m) <= miss_prop.
+  missing[rowSums(missing)==ncol(X), 1] = F
+  X[missing] = NA
+  return(X)
+}
+```
+
+```{r}
+######
+# Mean imputation
+imp.mean.train = function(X){
+  return(colMeans(X, na.rm = T))
+}
+imp.mean.estim = function(mu, X){
+  p = ncol(X)
+  for(i in 1:p){
+    X[is.na(X[,i]),i] = mu[i]
+  }
+  return(X)
+}
+
+```
+
+```{r}
+# MVN fit
+imp.mvnorm.train = function(X){
+  # Must run *rngseed* at least once before using
+  pre <- prelim.norm(as.matrix(X))
+  thetahat <- em.norm(pre)
+  return(thetahat)
+}
+
+to_matrix = function(x, horiz){
+  if(!is.null(dim(x))){
+    return(x)
+  }
+  else{
+    if(!horiz){
+      return(as.matrix(x))
+    }
+    else{
+      return(t(as.matrix(x)))
+    }
+  }
+}
+
+estimate.1row = function(row, s, m){
+  miss_col = is.na(row)
+  nmiss = sum(miss_col)
+  if(nmiss>0){
+    mu.miss = m[miss_col]
+    mu.obs = m[!miss_col]
+    sigma.miss = s[miss_col,miss_col]
+    sigma.miss.obs = to_matrix(s[miss_col,!miss_col], horiz=nmiss==1)
+    sigma.obs = s[!miss_col,!miss_col]
+    mu_cond = mu.miss + sigma.miss.obs %*% solve(sigma.obs) %*% (row[!miss_col] - mu.obs)
+    #sigma_cond = sigma.miss - sigma.miss.obs %*% solve(sigma.obs) %*% t(sigma.miss.obs)
+
+   # row[miss_col] = rmvnorm(1, mean=mu_cond, sigma=sigma_cond)
+    row[miss_col] = mu_cond
+  }
+  return(row)
+}
+
+imp.mvnorm.estim = function(thetahat, X){
+  #print(dim(X))
+  pre <- prelim.norm(as.matrix(X))
+  #thetahat <- em.norm(pre)
+  params = getparam.norm(pre,thetahat)
+  sigma = params$sigma
+  mu = params$mu
+  X = t(apply(X, 1, partial(estimate.1row, s=sigma, m=mu)))
+  #print(dim(X))
+  #print('')
+  return(X)
+}
+
+imp.mvnorm = list(train=imp.mvnorm.train, estim=imp.mvnorm.estim, draw=imp.mvnorm.estim.draw)
+```
+
+```{r}
+# Prediction
+
+pred.lin.train = function(X.train, y.train){
+  dat = data.frame(y=y.train, X=I(X.train))
+  return(
+    lm(y~X, data = dat)
+  )
+}
+
+pred.lin.predict = function(model, X.test){
+  return(predict(model,data.frame(X=I(X.test))))
+}
+
+reg.lin = list(train=pred.lin.train, predict=pred.lin.predict)
+```
+
+```{r}
+evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor){
+  X = X.gen()
+  y.g = y.gen(X)
+  y = y.g$y
+  X = y.g$X
+
+  X_f = X
+  X = miss.gen(X)
+
+  grouped.imp.train = (imputer$train)(X)
+
+  spl = splitter(X,y)
+  rm(X)
+  rm(y)
+  X.train = spl$X.train
+  X.test = spl$X.test
+  y.train = spl$y.train
+  y.test = spl$y.test
+  datasets = list()
+  
+  correct.imp.train = (imputer$train)(X.train)
+  X.train.correct = (imputer$estim)(correct.imp.train, X.train)
+  X.test.correct = (imputer$estim)(correct.imp.train, X.test)
+  datasets$correct = list(train=X.train.correct, test=X.test.correct)
+  
+  separate.imp.train = (imputer$train)(X.test)
+  X.train.separate = datasets$correct$train
+  X.test.separate = (imputer$estim)(separate.imp.train, X.test)
+  datasets$separate = list(train=X.train.separate, test=X.test.separate)
+  
+  withY.imp.train = (imputer$train)(cbind(X.train, y.train))
+  X.train.withY = (imputer$estim)(withY.imp.train, cbind(X.train, y.train))[,1:ncol(X.train)]
+  withY.imp.train2 = (imputer$train)(X.train.withY) # Refit with the imputed data
+  X.test.withY = (imputer$estim)(withY.imp.train2, X.test)
+  datasets$withY = list(train=X.train.withY, test=X.test.withY)
+  
+  mean.imp.train = imp.mean.train(X.train)
+  X.train.mean = imp.mean.estim(mean.imp.train, X.train)
+  X.test.mean = imp.mean.estim(mean.imp.train, X.test)
+  datasets$mean = list(train=X.train.mean, test=X.test.mean)
+
+  X.train.grouped = (imputer$estim)(grouped.imp.train, X.train)
+  X.test.grouped = (imputer$estim)(grouped.imp.train, X.test)
+  datasets$grouped = list(train=X.train.separate, test=X.test.separate)
+  
+  datasets$fullData = list(train=X_f[spl$inTrain,], test=X_f[-spl$inTrain,])
+  datasets$fullTrain = list(train=X_f[spl$inTrain,], test=X.test.correct)
+  datasets$fullTest = list(train=X.train.correct, test=X_f[-spl$inTrain,])
+  
+  regressors.fit = lapply(datasets,
+                      function(x) {(regressor$train)(x$train, y.train)})
+
+  predictions = lapply(names(datasets), function(x){(regressor$predict)(regressors.fit[[x]], datasets[[x]]$test)})
+  names(predictions) = names(datasets)
+  predictions$trueBeta = as.numeric(X.test.correct %*% matrix(1:ncol(X.train), ncol=1))
+
+    
+  predictions_MI = matrix(NA, nrow=length(y.test), ncol=m)
+  pre = prelim.norm(X.test)
+  for(i in 1:m){
+    X.test.MI = imp.norm(pre, correct.imp.train, X.test)
+    predictions_MI[,i] = (regressor$predict)(regressors.fit$correct, X.test.MI)
+  }
+  predictions$MI_testOnly = rowMeans(predictions_MI)
+
+  errors = lapply(predictions, function(x){mean((x-y.test)^2)})
+  
+  return(errors)
+}
+```
+
+```{r}
+evaluate.S.run = function(S, X.gen, y.gen, miss.gen, splitter, imputer, regressor){
+  MSE.correct = c()
+  MSE.grouped = c()
+  MSE.separate = c()
+  cl <- makeCluster(no_cores, type='FORK')
+  clusterSetRNGStream(cl, seed)
+  f= function(i){
+    rngseed(seed+i)
+    evaluate.one.run(X.gen, y.gen, miss.gen, splitter, imputer, regressor)
+    }
+  z = parLapply(cl, 1:S, f)
+  stopCluster(cl)
+
+  zz <- lapply(z, `[`, names(z[[1]]))
+  res = apply(do.call(rbind, zz), 2, as.list)
+
+  #for(i in 1:S){
+  #  r = evaluate.one.run(X.gen, y.gen, miss.gen, splitter, imputer, regressor, imp.MI)
+  #  MSE.correct = c(MSE.correct, r$correct)
+  #  MSE.grouped = c(MSE.grouped, r$grouped)
+  #  MSE.separate = c(MSE.separate, r$separate)
+  #}
+  #return(list(correct=MSE.correct, grouped=MSE.grouped,separate=MSE.separate))
+  return(lapply(res, unlist))
+}
+```
+
+```{r}
+X.gen = X.two.groups.MVN
+y.gen = y.regression
+miss.gen = MCAR.noEmptyLines
+splitter = train_test_split
+imputer = imp.mvnorm
+regressor = reg.lin
+nSim = 200
+
+res = evaluate.S.run(nSim, X.gen, y.gen, miss.gen, splitter, imputer, regressor)
+res %>% as.data.frame() %>% gather('method', 'error') %>%
+  ggplot() + aes(x=method, y=error, color=method) + geom_boxplot()
+```
+```{r}
+# Multiple run parameters
+nList = c(200, 1000)
+#nList = c(100,200)
+
+rhoList= c(0.3, 0.8)
+#rhoList = c(0.1, 0.2)
+allRes = NULL
+imputer = imp.mvnorm
+
+for(n in nList){
+  cat('\n','n =',n,'\n')
+  for(rho in rhoList){
+    cat('rho =',rho, ', ')
+    X.gen = function(){X.two.groups.MVN(n.=n, rho.=rho)}
+    #X.gen = partial(X.basic.MVN, n.=n, rho.=rho)
+    #X.gen = X.LR
+    y.gen = y.regression
+    r = as.data.frame(
+      evaluate.S.run(nSim, X.gen, y.gen, miss.gen, splitter, imputer, regressor)
+    )
+    r$n = n
+    r$rho=rho
+    if(is.null(allRes)){
+      allRes = r
+    }
+    else{
+      allRes = rbind(allRes,r)
+    }
+  }
+}
+
+allRes %>% as.data.frame() %>%
+  gather('method', 'error', -c(rho,n)) %>%
+  mutate(method = factor(method, levels=levels(as.factor(method))[c(5,1,7,9,8,4,3,2,6)])) %>%
+  ggplot() + aes(x=method, y=error, color=method) + geom_boxplot() + facet_grid(n~rho, scales='free_y') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+#+ coord_cartesian(ylim=c(0,50))
+
+```
+
