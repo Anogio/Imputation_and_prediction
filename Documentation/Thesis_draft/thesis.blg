@@ -5,44 +5,44 @@ The style file: unsrtnat.bst
 Database file #1: medical.bib
 Database file #2: stats.bib
 Database file #3: methods.bib
-You've used 2 entries,
+You've used 9 entries,
             2481 wiz_defined-function locations,
-            569 strings with 4803 characters,
-and the built_in function-call counts, 854 in all, are:
-= -- 72
-> -- 42
-< -- 0
-+ -- 16
-- -- 12
-* -- 72
-:= -- 141
-add.period$ -- 6
-call.type$ -- 2
-change.case$ -- 4
-chr.to.int$ -- 2
-cite$ -- 2
-duplicate$ -- 38
-empty$ -- 77
-format.name$ -- 14
-if$ -- 173
+            616 strings with 6265 characters,
+and the built_in function-call counts, 3928 in all, are:
+= -- 296
+> -- 269
+< -- 4
++ -- 100
+- -- 82
+* -- 351
+:= -- 661
+add.period$ -- 27
+call.type$ -- 9
+change.case$ -- 16
+chr.to.int$ -- 9
+cite$ -- 9
+duplicate$ -- 171
+empty$ -- 328
+format.name$ -- 93
+if$ -- 794
 int.to.chr$ -- 1
-int.to.str$ -- 3
-missing$ -- 2
-newline$ -- 18
-num.names$ -- 6
-pop$ -- 14
+int.to.str$ -- 10
+missing$ -- 11
+newline$ -- 53
+num.names$ -- 27
+pop$ -- 72
 preamble$ -- 1
-purify$ -- 2
+purify$ -- 9
 quote$ -- 0
-skip$ -- 21
+skip$ -- 94
 stack$ -- 0
-substring$ -- 54
-swap$ -- 4
-text.length$ -- 0
+substring$ -- 199
+swap$ -- 19
+text.length$ -- 1
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 14
+type$ -- 57
 warning$ -- 0
-while$ -- 8
+while$ -- 32
 width$ -- 0
-write$ -- 33
+write$ -- 123

@@ -1,4 +1,4 @@
-\begin{thebibliography}{2}
+\begin{thebibliography}{9}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -11,6 +11,54 @@ Matthew~J Pommerening, Goodman, et~al.
 \newblock Clinical gestalt and the prediction of massive transfusion after
   trauma.
 \newblock \emph{Injury}, 46\penalty0 (5):\penalty0 807--813, 2015.
+
+\bibitem[Rubin(1976)]{rubin1976inference}
+Donald~B Rubin.
+\newblock Inference and missing data.
+\newblock \emph{Biometrika}, 63\penalty0 (3):\penalty0 581--592, 1976.
+
+\bibitem[Little and Rubin(2014)]{Rubin_missdata}
+Roderick~JA Little and Donald~B Rubin.
+\newblock \emph{Statistical analysis with missing data}, volume 333.
+\newblock John Wiley \& Sons, 2014.
+
+\bibitem[Witten et~al.(2016)Witten, Frank, Hall, and Pal]{ML_missdata}
+Ian~H Witten, Eibe Frank, Mark~A Hall, and Christopher~J Pal.
+\newblock \emph{Data Mining: Practical machine learning tools and techniques}.
+\newblock Morgan Kaufmann, 2016.
+
+\bibitem[Pedregosa et~al.(2011)Pedregosa, Varoquaux, Gramfort, Michel, Thirion,
+  Grisel, Blondel, Prettenhofer, Weiss, Dubourg, Vanderplas, Passos,
+  Cournapeau, Brucher, Perrot, and Duchesnay]{scikit-learn}
+F.~Pedregosa, G.~Varoquaux, A.~Gramfort, V.~Michel, B.~Thirion, O.~Grisel,
+  M.~Blondel, P.~Prettenhofer, R.~Weiss, V.~Dubourg, J.~Vanderplas, A.~Passos,
+  D.~Cournapeau, M.~Brucher, M.~Perrot, and E.~Duchesnay.
+\newblock Scikit-learn: Machine learning in {P}ython.
+\newblock \emph{Journal of Machine Learning Research}, 12:\penalty0 2825--2830,
+  2011.
+
+\bibitem[Vergouwe et~al.(2010)Vergouwe, Royston, Moons, and
+  Altman]{prediction_imputation1}
+Yvonne Vergouwe, Patrick Royston, Karel~GM Moons, and Douglas~G Altman.
+\newblock Development and validation of a prediction model with missing
+  predictor data: a practical approach.
+\newblock \emph{Journal of clinical epidemiology}, 63\penalty0 (2):\penalty0
+  205--214, 2010.
+
+\bibitem[Jerez et~al.(2010)Jerez, Molina, Garc{\'\i}a-Laencina, Alba, Ribelles,
+  Mart{\'\i}n, and Franco]{prediction_imputation2}
+Jos{\'e}~M Jerez, Ignacio Molina, Pedro~J Garc{\'\i}a-Laencina, Emilio Alba,
+  Nuria Ribelles, Miguel Mart{\'\i}n, and Leonardo Franco.
+\newblock Missing data imputation using statistical and machine learning
+  methods in a real breast cancer problem.
+\newblock \emph{Artificial intelligence in medicine}, 50\penalty0 (2):\penalty0
+  105--115, 2010.
+
+\bibitem[Vapnik(1999)]{ERM}
+Vladimir~Naumovich Vapnik.
+\newblock An overview of statistical learning theory.
+\newblock \emph{IEEE transactions on neural networks}, 10\penalty0
+  (5):\penalty0 988--999, 1999.
 
 \bibitem[Anderson et~al.(1976)Anderson, Taylor, et~al.]{consistency_linreg}
 TW~Anderson, John~B Taylor, et~al.

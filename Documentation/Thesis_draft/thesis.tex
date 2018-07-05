@@ -124,6 +124,9 @@ Lorem ipsum dolot sit amet nunc cui Brexit.
 	\section{Exploratory data analysis}
 		\subsection{Variables}
 		\subsection{Missing data}
+	\section{The problem of imputation}
+%	\textbf{Note:} le contexte est néanmoins sensiblement différent du l'ERM classique. En effet, tout le but de l'imputation est de permettre l'utilisation de n'importe quel modèle  prédictif une fois que $X$ est imputé. Une manière de voir la situation est la suivante: deux personnes travaillent sur les données de manière successive, l'Imputeur et l'Analyste. L'Imputeur ne sait pas quel modèle l'analyste va choisir d'utiliser, il va donc optimiser l'imputation en utilisant seulement les informations dont il dispose. Une fois les données imputées, elle sont transmise à l'Analyste qui procède à la prédiction. 
+%réadapter paragraphe pour expliquer l'idée de pourquoi on fait de l'imputation plutôt que du joint modelling
 
 \chapter{Imputation methods}
 \label{imputation}
@@ -138,12 +141,70 @@ Lorem ipsum dolot sit amet nunc cui Brexit.
 	\section{Normality hypothesis: transforming the data}
 		
 \chapter{Methodology: imputation and the validation split}
-
 \label{validation}
+The task we are trying to solve is quite particular: we are trying to impute the missing values in the data, not to perform a statistical analysis, but to select and train a prediction model. Our final benchmark of performance is not parameter estimation but predictive loss. As the next two chapters will show, although this seems like a minor difference, this actually leads to some major changes.
+
+It is interesting to note in that regard how the communities of statistics and machine learning seem to lack any point of convergence on the subject. Missing data have been an active field of research in statistics for a long time \cite{rubin1976inference}, and many complex methods have been developed and proven for statistical inference \cite{Rubin_missdata} (such as those described in Chapter \ref{imputation}).
+
+On the other hand, there is almost no research on these methods when applied to prediction. Even recent manuals for machine learning \cite{ML_missdata} generally make only a quick mention of missing data, and in practice it is extremely rare for anything else than imputation by the mean to be used. \emph{Scikit-learn} \cite{scikit-learn}, by far the most-used machine learning package in the community, only proposes implementation by the mean as of now. 
+
+A few research papers \cite{prediction_imputation1} \cite{prediction_imputation2} try to assess the performance of more modern imputation methods when used in a predictive context. However, they do not propose any framework or theory on this endeavour. They take it for granted that they can impute the whole dataset before performing the subsequent analysis. However, when performing prediction there is one significant difference with statistical inference, which we describe further in this chapter: the data is split into one dataset to learn the model, and another one to validate its performance. This raises many questions that we discuss here and in Chapter \ref{linreg}. 
+
+After laying out the general framework of Empirical Risk Minimization \cite{ERM}, which is the general paradigm used for prediction, we adapt it to fit the context of missing data. We notice that current implementations of modern imputation methods are incompatible with this framework, and try to devise solutions for this issue.
 	\section{Empirical risk minimization (ERM): classical context}
-	\section{The problem of current imputation methods}
+We first describe Empirical Risk Minimization (ERM) without missing data, as described in \cite{ERM}.
+		\subsection{Context and notations}
+We are provided with a matrix $X$ of size $n \times p$ and response vector $y$ of size $n$. Our goal is to learn a model in the form $\hat{y} = f(x, \psi)$, where $\psi$ is some parameter to choose, $\hat{y}$ is a predicted value for $y$ and $f$ is a fixed parametric predictive function (usually corresponding to a choice of function in a given class).
+
+The quality of a prediction is evaluated with the loss $L(y,\hat{y})$. The end goal in this context is to find the parameter $\hat{\psi}$ which minimizes the risk: $R = \mathbb{E}(L(y, f(X)))$. However, we do not have access to the real expectation of the risk, so we must use a proxy for this value. We define the empirical risk:
+
+$$ R_{\text{emp}}(y, f(X, \psi)) = \frac{1}{n} \sum\limits_{i=1}^n L(y_i, f(X_i, \psi))$$
+
+Empirical Risk Minimization corresponds to choosing $\psi$ minimizing $R_{emp}$ for our $X$ and $y$. However, this is not enough. We do not just want the optimal $\psi$, we also want a measure of how well the final model would perform on new data. This is important because this is what we will take into account to make our choice of $f$. But the empirical risk gives us no measure of how well our model generalizes whatsoever, only of how closely it can fit known data.
+
+To address the issue of model selection, the standard practice is to measure the error on some data that were not used to learn the model: it is the principle of cross-validation.
+
+		\subsection{Cross-validation}
+To perform Cross-validation, we divide the data in two datasets: first we choose $n_A < n$ entries in the dataset to be used to loearn $\psi$: this is the training dataset $X_A$ and response $y_A$. We denote $I_A = (i_1, \ldots, i_{n_A})$ the set of indices chosen for the training data. The rest of the observations are noted $X_V$ and $y_V$ and called the validation dataset.
+
+Once this is done, ERM is performed as before, using only the training data. The obtained parameter $\hat{\psi}$ can then be evaluated with the validation error:
+
+$$ R_{V} = \frac{1}{n_V} \sum\limits_{i=1, i \notin I_A}^n L(y_i, f(X_i, \hat{\psi}))$$
+
+It is this value that we can compare to choose our our model class $f$.
+
+	\section{ERM with missing data: the problem of current methodologies}
+We now place ourselves in the same context as before, except some values are missing from $X$, both in the training and the validation data. The context is almost the same as before: choosing a parametric model that takes as input the observed data and outputs a prediction for $y$.
 		\subsection{Imputation seen as an ERM}
+Remember that the purpose of this work is to impute the data independently of the predictive model used afterwards. This does not change the framework of ERM but it does mean that we cannot use any function we like to go from $X$ to $\hat{y}$. The prediction is the composition of two steps.
+			\paragraph{Imputation step}
+First we choose an imputation model $X^{\text{complete}} = g(X, \phi)$ where $X^{\text{complete}}$ is the completed dataset and $\phi$ some parameter. This is similar to predicting $y$ as we did previously with one caveat: we do not know the true data, even on the training dataset. Thus we choose $\hat{\phi}$ to minimize some unsupervised loss
+$$L'(g(X, \phi), \phi)$$
+ measuring the fit of the model to the data. Generally, this means that we choose a parameter that maximizes the likelihood of the observed data according to some generative model (though it is not always the case). Once this is done, we obtain a completed dataset $\hat{X}$.
+
+			\paragraph{Prediction step}
+Once the imputation is done, we can perform as before to choose a parameter $\hat{\psi}$ that minimizes the empirical risk when using the completed data:
+	$$ R_{\text{emp}}(y, f(\hat{X}_i, \psi)) = \frac{1}{n} \sum\limits_{i=1}^n L(y_i, f(\hat{X}_i, \psi))$$
+	
+Putting it all together, we can define 
+$$ h(X, (\psi, \phi)) = f(X^{imp}, \psi) = f( g(X, \phi), \psi) $$
+
+the combined model that takes the observed data as input and outputs a predicted $y$. This is optimized as 
+\begin{align*}
+\hat{\phi} &= \argmin_{\phi} L'(g(X,\phi, \phi) \\
+\hat{\psi} &= \argmin_{\psi} R_{\text{emp}}(y, h(X, (\psi, \hat{\phi})))
+\end{align*}
+
+We choose to use this notation to illustrate our point that imputation is an integral part of the ERM, not a separate, preliminary process. In particular, it means that in theory its parameters \emph{must} be subjected to cross-validation just like those of the prediction. That is $X_A$ the training data are used to estimate $(\hat{\psi}, \hat{\phi})$ as shown just above. Then, we can compute a prediction $\hat{y}_V = h(X_V, (\hat{\psi}, \hat{\phi}))$ which can be compared to $y_V$ to evaluate the choice of model.
+
+The bottom line is that just like for the prediction, the imputation parameter $\phi$ should be estimated only on the training data and then used on the validation data. As we will see, this raises an issue with the way current imputation methods are implemented.
+
 		\subsection{Unsuitability of current methods}
+Over the years, many imputation methods have been proposed, and we describe some in Chapter \ref{imputation}. They have various assumptions and principles but they have one thing in common: they are all implemented (usually in R) via a single function. That function takes a dataset with missing values as an input and returns the dataset completed by the method of choice, \emph{without giving the user any access to the model itself}.
+
+This is a problem because of how cross-validation is supposed to be performed. Normally, one would estimate $(\hat{\psi}_A, \hat{\phi}_A)$ through ERM, and then make a prediction on the validation set as $h(X_V,(\hat{\psi}_{X_A},\hat{\phi}_{X_A}))$. But here, all we have access to is a function $g': X \mapsto g(X, \hat{\phi}_X)$ where $\hat{\phi}_X$ is the optimised parameter for the argument $X$. It is straightforward to see that using such a function, one can no longer separate the estimation of the parameters and the imputation in itself.
+	
+Incidentally, this issue was mentioned recently \cite{github_sklearn}, as part of a larger effort to port the MICE \cite{MICE_founding} imputation method to Scikit-learn \cite{scikit-learn}. This package is developed for data scientists, who are used to having separate functions for training and prediction. Likewise, several other mentions of this problem arose in the last two years \cite{thread_newdata1}\cite{thread_newdata2}\cite{thread_newdata3} with no mention of it earlier. It seems that as more elaborate imputation methods become popular with the machine learning community, the need arises for a change in the way those methods are implemented.
 	\section{Possible solutions}
 		\subsection{Using current implementations}
 		\subsection{A new variant: Multivariate Normal Mode with reserved data}
