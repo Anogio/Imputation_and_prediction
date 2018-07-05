@@ -8,3 +8,5 @@ Data/hemo_shock*
 *.synctex.gz
 *.toc
 *.bak
+*.bbl
+*.blg
