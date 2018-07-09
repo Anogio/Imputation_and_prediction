@@ -339,7 +339,7 @@ evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor
 
   X.train.correct = (imputer$estim)(correct.imp.train, X.train)
   X.test.correct = (imputer$estim)(correct.imp.train, X.test)
-  impute.error.correct = sum(colSums(X.test.correct-X_f[-spl$inTrain,])^2)/sum(colSums(is.na(X.test)))
+  impute.error.correct = sum(colSums(X.test.correct-X_f[-spl$inTrain,])^2)#/sum(colSums(is.na(X.test)))
 
   X.train.withY = (imputer$estim)(withY.imp.train, cbind(X.train, y.train))[,1:ncol(X.train)]
   withY.imp.train2 = (imputer$train)(X.train.withY)
