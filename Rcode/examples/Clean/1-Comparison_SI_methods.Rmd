@@ -34,7 +34,7 @@ aux.folder = '../../auxiliary/'
 source(paste(aux.folder,'dataloaders.R',sep=''), chdir = T)
 source(paste(aux.folder,'imputation_methods.R',sep=''), chdir = T)
 source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
-
+source(paste(aux.folder,'prediction_methods.R',sep=''), chdir = T)
 data_folder = '../../../Data/'
 ```
 
@@ -113,13 +113,16 @@ for(n in names(filled.datasets)){
 
 pred.MI = matrix(NA,nrow=nrow(X_filled)-length(inTraining), ncol=m)
 for(i in 1:20){
-  X_filled = complete(MI_imputation, action=i)
+  X_filled = mice::complete(MI_imputation, action=i)
   dat_train = cbind(y,X_filled)[inTraining,]
   fittedM = glm(y ~ .,family=binomial(link='logit'),data=dat_train)
   pred.MI[,i] = predict(fittedM, X_filled[-inTraining,], type='link')
 }
 o = rowMeans(pred.MI)
 preds[['MI']] = exp(o)/(1+exp(o))
+
+preds.SAEM = saem_prediction(X, y, seed=seed, spl=inTraining, printevery=50)
+preds[['SAEM']] = preds.SAEM$y_pred[-inTraining]
 ```
 
 ### Evaluation
@@ -149,6 +152,33 @@ print('Confusion matrix for a fixed threshold (0.1)')
 pander(data.frame(separation))
 ```
 
+## Comparison with doctors
+
+```{r}
+discordance = dat$X_category$Discordance
+pred.positive = (preds>0.1) %>% as.data.frame()
+pred.positive$discordance = discordance[-inTraining]
+pred.positive$true = y_test
+
+table(pred.positive[c('SAEM', 'discordance')])
+
+pred.doctor = as.character(discordance)
+pred.doctor[discordance %in% c('PDSC','PGA')] = F
+pred.doctor[discordance %in% c('PDAC', 'MGA')] = T
+
+pred.positive$discordance = NULL
+pred.positive$doctor = pred.doctor[-inTraining]
+pred.positive = pred.positive[!is.na(pred.positive$doctor),]
+
+pred.positive[pred.positive==T] = 0.9
+pred.positive[pred.positive==F] = 0.1
+sep.metric = sapply(pred.positive,function(x) metric_best_separation(y_pred =x, y_true =pred.positive$true, positive_weighting = 10)$val)
+o = order(sep.metric[order(names(sep.metric))])
+ggplot() + aes(x=factor(names(sep.metric),levels=levels(as.factor(names(sep.metric)))[o]),
+               y=sep.metric) + geom_bar(stat='identity') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
 # With Abalone data (and added MCAR values)
 ### Load data
 ```{r}
@@ -174,9 +204,9 @@ X = MCAR(X, prop.missing)
 
 ```{r, results='hide'}
 filled.datasets = list()
-filled.datasets[['mice.pmm']] = complete(mice(X, m=1, method='pmm', printFlag = F))
-filled.datasets[['mice.norm']] = complete(mice(X, m=1, method='norm', printFlag = F))
-filled.datasets[['mean']] = complete(mice(X, m=1, method='mean', printFlag = F))
+filled.datasets[['mice.pmm']] = mice::complete(mice(X, m=1, method='pmm', printFlag = F))
+filled.datasets[['mice.norm']] = mice::complete(mice(X, m=1, method='norm', printFlag = F))
+filled.datasets[['mean']] = mice::complete(mice(X, m=1, method='mean', printFlag = F))
 filled.datasets[['mipca']] = MIPCA(X, ncp=3, nboot=1)$res.MI[[1]]
 filled.datasets[['amelia']] = amelia(X, m=1, noms=c(), p2s=0, parallel = 'multicore', ncpus = 4)$imputations$imp1
 filled.datasets[['MF']] = missForest(X)$ximp
@@ -215,7 +245,7 @@ for(n in names(filled.datasets)){
 
 pred.MI = matrix(NA,nrow=nrow(X_filled)-length(inTraining), ncol=m)
 for(i in 1:20){
-  X_filled = complete(MI_imputation, action=i)
+  X_filled = mice::complete(MI_imputation, action=i)
   dat_train = cbind(y,X_filled)[inTraining,]
   fittedM = lm(y ~ .,data=dat_train)
   pred.MI[,i] = predict(fittedM, X_filled[-inTraining,], type='response')
@@ -237,3 +267,7 @@ ggplot() + aes(x=names(MSEs), y=MSEs) + geom_bar(stat='identity') + xlab("Imputa
 
 sort(MSEs)
 ```
+
+
+
+
