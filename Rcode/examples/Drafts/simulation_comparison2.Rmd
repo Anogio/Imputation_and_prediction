@@ -96,19 +96,39 @@ X.random.mvn = function(n.=n, p.=p){
   )
 }
 ```
+```{r}
+aux.folder = '../../auxiliary/'
+source(paste(aux.folder,'dataloaders.R',sep=''), chdir = T)
+data_folder = '../../../Data/'
+dataset = 'abalone'
+
+X.abalone = function(n.=n){
+  return(list(n=n.))
+}
+
+y.abalone = function(X){
+  dat_abalone = loader(dataset, max_rows=X$n)
+  return(
+    list(X=as.matrix(dat_abalone$X_numeric), y=dat_abalone$y)
+  )
+}
+```
 
 ## y generator
 ```{r}
 # Regression model
 y.regression = function(X, sigma_n=sigma_noise){
-  beta = seq(p) * 100
-  y = X %*% beta + rnorm(n, 0, sqrt(sigma_n))
+  print(dim(X))
+  beta = seq(ncol(X))
+  X %*% beta 
+  print('check')
+  y = X %*% beta + rnorm(nrow(X), 0, sqrt(sigma_n))
   return(list(X=X, y=y))
 }
 
 y.regression.squ = function(X, sigma_n=sigma_noise){
   beta = seq(p)
-  y = (X %*% beta)^2 + rnorm(n, 0, sqrt(sigma_n))
+  y = (X %*% beta)^2 + rnorm(nrow(X), 0, sqrt(sigma_n))
   return(list(X=X, y=y))
 }
 ```
@@ -116,7 +136,7 @@ y.regression.squ = function(X, sigma_n=sigma_noise){
 ## Cross-validation splitter
 ```{r}
 train_test_split = function(X,y, train_prop.=train_prop){
-  intrain = base::sample(n, ceiling(train_prop.*n))
+  intrain = base::sample(nrow(X), ceiling(train_prop.*nrow(X)))
   return(list(
     X.train = X[intrain,],
     X.test = X[-intrain,],
@@ -325,11 +345,11 @@ evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor
   datasets$fullTest = list(train=X.train.correct, test=X_f[-spl$inTrain,])
   
   regressors.fit = lapply(datasets,
-                      function(x) {(regressor$train)(x$train, y.train)})
+                      function(x) {print('a');(regressor$train)(x$train, y.train)})
 
   predictions = lapply(names(datasets), function(x){(regressor$predict)(regressors.fit[[x]], datasets[[x]]$test)})
   names(predictions) = names(datasets)
-  predictions$trueBeta = as.numeric(X.test.correct %*% matrix(1:ncol(X.train)*100, ncol=1))
+  predictions$trueBeta = as.numeric(X.test.correct %*% matrix(1:ncol(X.train), ncol=1))
 
     
   predictions_MI = matrix(NA, nrow=length(y.test), ncol=m)
@@ -392,15 +412,15 @@ miss.gen = list(train=MCAR.noEmptyLines, test=MCAR.noEmptyLines)
 splitter = train_test_split
 imputer = imp.mvnorm
 regressor = reg.lin
-nSim = 44
+nSim = 128
 
-res = evaluate.S.run(nSim, X.gen, y.gen, miss.gen, splitter, imputer, regressor, do.parallel = F)
-res %>% as.data.frame() %>% gather('method', 'error') %>%
+res = evaluate.S.run(nSim, X.gen, y.gen, miss.gen, splitter, imputer, regressor, do.parallel = T)
+res %>% as.data.frame() %>% gather('method', 'error', -trueBeta) %>%
   ggplot() + aes(x=method, y=error, color=method) + geom_boxplot() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) #+  # coord_cartesian(ylim=c(0,1e17)) 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +  # coord_cartesian(ylim=c(0,1e17)) 
   scale_y_log10()
   
-res %>% as.data.frame() %>%  gather('method', 'error') %>% group_by(method) %>% summarise(err=mean(error)) %>%
+res %>% as.data.frame() %>%  gather('method', 'error', -trueBeta) %>% group_by(method) %>% summarise(err=mean(error)) %>%
   ggplot() + aes(x=method, y=err) + geom_bar(stat='identity')
 ```
 
@@ -462,7 +482,9 @@ Generate the data and estimates as before
 n = 10000
 p = 20
 m = 1000
-X.gen = X.random.mvn
+X.gen = X.abalone
+y.gen = y.abalone
+
 
 X = X.gen()
 y.g = y.gen(X)
@@ -582,5 +604,70 @@ ggplot() + aes(x=MI.quantiles$span)  + geom_histogram(binwidth = 1)
 
 ```{r}
 ggplot() + aes(x=names(errors), y=as.numeric(errors)) + geom_bar(stat='identity')
+```
+
+```{r}
+evaluate.S.run.varN = function(nList, X.gen, y.gen, miss.gen, splitter, imputer, regressor, do.parallel=T){
+  MSE.correct = c()
+  MSE.grouped = c()
+  MSE.separate = c()
+  
+  f= function(i){
+      rngseed(seed+i)
+      evaluate.S.run(nSim, partial(X.gen,n.=i), y.gen, miss.gen, splitter, imputer, regressor, do.parallel=F) %>% lapply(mean)
+      }
+  if(do.parallel){
+    cl <- makeCluster(no_cores, type='FORK')
+    clusterSetRNGStream(cl, seed)
+    z = pblapply(cl=cl, X=nList, FUN=f)
+    stopCluster(cl)
+  }
+  else{
+    z = pblapply(X=nList, FUN=f)
+  }
+
+  zz <- lapply(z, `[`, names(z[[1]]))
+  res = apply(do.call(rbind, zz), 2, as.list)
+
+  #for(i in 1:S){
+  #  r = evaluate.one.run(X.gen, y.gen, miss.gen, splitter, imputer, regressor, imp.MI)
+  #  MSE.correct = c(MSE.correct, r$correct)
+  #  MSE.grouped = c(MSE.grouped, r$grouped)
+  #  MSE.separate = c(MSE.separate, r$separate)
+  #}
+  #return(list(correct=MSE.correct, grouped=MSE.grouped,separate=MSE.separate))
+  return(lapply(res, unlist))
+}
+## Faire une expérimentation à p=10, rho=x et n=100..1000
+p = 10
+rho = 0
+nSim = 10
+X.gen = X.abalone
+y.gen = y.abalone
+miss.gen = list(train=MCAR.noEmptyLines, test=MCAR.noEmptyLines)
+#miss.gen = list(train=partial(MCAR.nVars,n_vars = 5), test=partial(MCAR.nVars,n_vars = 4))
+splitter = train_test_split
+imputer = imp.mvnorm
+regressor = reg.lin
+
+nList = seq(200,2000,10)
+
+res.varN = evaluate.S.run.varN(nList, X.gen, y.gen, miss.gen, splitter, imputer, regressor, do.parallel = T)
+
+res.varN %>% as.data.frame() %>% mutate(nList=nList) %>%
+  gather('method', 'error', -c(nList, MI_testOnly, trueBeta, fullData, fullTrain, fullTest)) %>%
+  ggplot() + aes(x=nList, y=error) + geom_line(aes(y=fullData), color='black') +
+  geom_line(aes(y=fullTrain), color='blue') + geom_line(aes(y=fullTest), color='green') +
+  geom_line(color='red') +
+  facet_wrap(~method)+
+ # xlim(300,NA) +
+#  ylim(0,15)
+  scale_y_log10() 
+```
+```{r}
+res.varN%>% as.data.frame() %>% slice(1) %>% gather() %>% ggplot() + aes(x=key, y=value) + geom_bar(stat='identity')
+```
+```{r}
+res.varN%>% as.data.frame() %>% slice(length(nList)) %>% gather() %>% ggplot() + aes(x=key, y=value) + geom_bar(stat='identity')
 ```
 
