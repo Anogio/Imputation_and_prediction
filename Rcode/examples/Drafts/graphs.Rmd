@@ -1,0 +1,85 @@
+```{r}
+library(gridExtra)
+library(grid)
+```
+
+Linear regression results (using file simulation_comparison2.Rmd)
+```{r}
+themer = function(sizeAxis = 10, sizeAxisTitle=13,
+                  sizeLegend=15, sizeStrip = 15, angle=T, boldX=F){
+  if(angle){
+    a=45
+    h=1
+  }
+  else{
+    a=0
+    h=0.5
+  }
+  if(boldX){
+    xface = 'bold'
+  }
+  else{
+    xface=NULL
+  }
+  return(
+    theme(axis.text.y= element_text(size=sizeAxis),
+          axis.text.x=element_text(size=sizeAxis,
+                                   angle=a, hjust=h, face=xface),
+          axis.title = element_text(size=sizeAxisTitle),
+          legend.text=element_text(size=sizeLegend),
+          legend.title=element_text(size=0,
+                                    face='bold'),
+          strip.text.x = element_text(size=sizeStrip,
+                                      face='bold'))
+  )
+}
+
+
+res.graph = res.varN[c('fullTrain', 'fullTest', 'fullData', 'mean', 'correct')] %>% as.data.frame()
+colnames(res.graph) = c('Missing validation data', 'Missing training data', 'Full data', 'Mean imputation', 'Normal imputation')
+
+p1 = res.graph %>% mutate(nList=nList) %>%
+  gather('method', 'error', -c(nList, `Full data`, `Missing validation data`, `Missing training data`)) %>%
+  ggplot() + aes(x=nList/2, y=error) + geom_line(aes(y=`Full data`, color='Full data'))+
+  geom_line(aes(y=`Missing training data`, color='Missing training data'))+
+  geom_line(aes(y=`Missing validation data`, color='Missing validation data')) +
+  geom_line(aes(color='Missing in both datasets')) +
+  facet_wrap(~method)+
+  # xlim(300,NA) +
+  #  ylim(0,15)
+  scale_y_log10() +
+  scale_color_manual(values=c('black', 'red','darkblue', 'forestgreen')) +
+  themer(angle=F) +
+  xlab('') +
+  ylab('Validation MSE') +
+  ggtitle('Predictive performance for n varying from 100 to 1000 (log scale)')
+
+
+p2 = res.graph %>% slice(1) %>% gather() %>%
+  ggplot() + aes(x= factor(key,levels=levels(as.factor(key))[c(1,4,3,2,5)]),
+                   y=value, fill=key) +
+  geom_bar(stat='identity') +
+  #scale_y_log10() +
+  scale_fill_manual(values=c('black', 'forestgreen','darkblue', 'red', 'red')[c(1,4,3,2,5)], guide=F) +
+  xlab('') +
+  ylab('Validation MSE') +
+  themer(boldX=T) +
+  ggtitle('Zoom: n=100')
+
+p3 = res.graph %>% slice(length(nList)) %>% gather() %>%
+  ggplot() + aes(x= factor(key,levels=levels(as.factor(key))[c(1,4,3,2,5)]),
+                   y=value, fill=key) +
+  geom_bar(stat='identity') +
+  #scale_y_log10() +
+  scale_fill_manual(values=c('black', 'forestgreen','darkblue', 'red', 'red')[c(1,4,3,2,5)], guide=F) +
+  xlab('') +
+  ylab('Validation MSE') +
+  themer(boldX=T) +
+  ggtitle('Zoom: n=100')
+
+lay = cbind(c(1,1),
+            c(2,3))
+
+grid.arrange(p1,p2,p3, layout_matrix=t(lay))
+```
+
