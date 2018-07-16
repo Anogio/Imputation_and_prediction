@@ -5,6 +5,8 @@
 \setcitestyle{numbers,open={[},close={]}}
 \bibliographystyle{unsrtnat}
 
+\setlength{\headheight}{30pt}
+
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[english]{babel}
@@ -113,6 +115,9 @@ Lorem ipsum dolot sit amet nunc cui Brexit.
 
 \addtocontents{toc}{\protect\vspace*{\fill}}
 \chapter*{Introduction}
+Main outline: Haemorrhagic shock is a condition that can be life-threatening but that has much higher survival rates if treated early. In addition, doctors tend to have a fairly bad record of detecting it. Because of this, we want to build a tool that predicts it based on measurement on trauma patients. For this we use Traumabase, a large patient-records database. Problem: lots of missing data in it. Solutions: use algorithms specifically made for missing data or impute missing data. Nice thing about imputation: once it is done, you can use any existing method -> here we only work on imputation (not so much the prediction part).
+
+We present the data (Chapter \ref{data}), then present the state of the art in imputation (Chapter \ref{imputation}). Then, we derive some theory on imputation when it is performed with prediction as a goal (Chapters \ref{validation} and \ref{linreg}). We then come back to the data to apply what we learn, in order to choose the best imputation method for this problem (Chapter \ref{analysis}) and present our final results (Chapter \ref{results}).
 \pagenumbering{arabic}
 \addcontentsline{toc}{chapter}{Introduction}
 
@@ -142,13 +147,13 @@ Lorem ipsum dolot sit amet nunc cui Brexit.
 		
 \chapter{Methodology: imputation and the validation split}
 \label{validation}
-The task we are trying to solve is quite particular: we are trying to impute the missing values in the data, not to perform a statistical analysis, but to select and train a prediction model. Our final benchmark of performance is not parameter estimation but predictive loss. As the next two chapters will show, although this seems like a minor difference, this actually leads to some major changes.
+The task we are trying to solve is quite peculiar: we are trying to impute the missing values in the data, not to perform a statistical analysis, but to select and train a prediction model. Our final benchmark of performance is not parameter estimation but predictive loss. As the next two chapters will show, although this seems like a small difference, this actually leads to some major changes.
 
 It is interesting to note in that regard how the communities of statistics and machine learning seem to lack any point of convergence on the subject. Missing data have been an active field of research in statistics for a long time \cite{rubin1976inference}, and many complex methods have been developed and proven for statistical inference \cite{Rubin_missdata} (such as those described in Chapter \ref{imputation}).
 
-On the other hand, there is almost no research on these methods when applied to prediction. Even recent manuals for machine learning \cite{ML_missdata} generally make only a quick mention of missing data, and in practice it is extremely rare for anything else than imputation by the mean to be used. \emph{Scikit-learn} \cite{scikit-learn}, by far the most-used machine learning package in the community, only proposes implementation by the mean as of now. 
+On the other hand, there is almost no research on these methods when applied to prediction. Even recent manuals for machine learning \cite{ML_missdata} generally make only a quick mention of missing data, and in practice it is extremely rare for anything else than imputation by the mean to be used. \emph{Scikit-learn} \cite{scikit-learn}, by far the most-used machine learning package, only proposes imputation by the mean as of now. 
 
-A few research papers \cite{prediction_imputation1} \cite{prediction_imputation2} try to assess the performance of more modern imputation methods when used in a predictive context. However, they do not propose any framework or theory on this endeavour. They take it for granted that they can impute the whole dataset before performing the subsequent analysis. However, when performing prediction there is one significant difference with statistical inference, which we describe further in this chapter: the data is split into one dataset to learn the model, and another one to validate its performance. This raises many questions that we discuss here and in Chapter \ref{linreg}. 
+A few research papers \cite{prediction_imputation1} \cite{prediction_imputation2} try to assess the performance of more recent imputation methods when used in a predictive context. However, they do not propose any framework or theory on this endeavour. They take it for granted that they can impute the whole dataset before performing the subsequent analysis. However, when performing prediction there is one significant difference with statistical inference, which we describe further in this chapter: the data is split into one dataset to learn the model, and another one to validate its performance. This raises many questions that we discuss here and in Chapter \ref{linreg}. 
 
 After laying out the general framework of Empirical Risk Minimization \cite{ERM}, which is the general paradigm used for prediction, we adapt it to fit the context of missing data. We notice that current implementations of modern imputation methods are incompatible with this framework, and try to devise solutions for this issue.
 	\section{Empirical risk minimization (ERM): classical context}
@@ -251,7 +256,7 @@ $$X^{(t+1)} = \mathbb{E}(X \vert X^{\text{obs}} ; \mu^{(t)}, \Sigma^{(t)})$$
 The conditional expectation is easily derived using the Schur complement \cite{norm_schur}.
 \end{enumerate}
 
-Once this converges we have an estimated parameter $\hat{phi} = (\hat{\mu}, \hat{\Sigma})$.
+Once this converges we have an estimated parameter $\hat{\phi} = (\hat{\mu}, \hat{\Sigma})$.
 
 \paragraph{Imputation}
 Once we have the parameters, it is very straightforward to get an imputation of the missing data. There are two different ways of doing this:
@@ -404,9 +409,10 @@ Term $(1)$ depends only on the true values of $X_V$, independent of $psi$, so th
 This leaves us with only term $(3)$, with expectation:
 \begin{align*}
 \mathbb{E}[((\tilde{X}_V-\hat{X}_V)\tilde{\beta})^2 \vert x^V_2, X_A] &= \mathbb{E}[(x_1^V - \psi)^2 \tilde{\beta}_1^2 \vert x^V_2, X_A] \\
-													&= \mathbb{E}[\tilde{\beta}_1^2 \vert x^V_2, X_A] (\mathbb{E}[(x_1^V)^2\vert x^V_2, X_A] - 2\psi \mathbb{E}[x_1^V\vert x^V_2, X_A] + \psi^2)
+													&= \mathbb{E}[\tilde{\beta}_1^2 \vert x^V_2, X_A] (\mathbb{E}[(x_1^V)^2\vert x^V_2, X_A] \\
+													& \quad - 2\psi \mathbb{E}[x_1^V\vert x^V_2, X_A] + \psi^2)
 \end{align*}
-Once we are there, we can differentiate this expression to easily derive the optimal expression for $\psi$: $\hat{\psi} = \mathbb{E}[x_1^V\vert x^V_2]$.
+Once we are there, we can differentiate this expression to easily derive the optimal expression for $\psi$: $\hat{\psi} = \mathbb{E}[x_1^V\vert x^V_2]$, the conditional expectation of the missing value.
 
 Incidentally, this does not use any assumption on the distribution of $X$: this would be true for any joint distribution we choose for the covariates.
 
@@ -433,16 +439,9 @@ Term $(3)$ can be expressed as:
 									&= \beta_1^2 \text{Var}[x^V_1 \vert x^V_2] + S_{11}^2 \text{Var}[x^V_1 \vert x^V_2] 
 \end{align*}
 
-Finaly, adding the variance of the noise $\epsilon_V$, we see that the expected loss is :
-$$
-S_{11} \mathbb{E}[(x^V_1)^2 \vert x^V_2]  + 2x^V_2 S_{12} \mathbb{E}[x^V_1 \vert x^V_2] + S_{22} (x^V_2)^2 + 
-\beta_1^2 \text{Var}[x^V_1 \vert x^V_2] + S_{11}^2 \text{Var}[x^V_1 \vert x^V_2]  +
-\sigma^2
-$$
-
 The terms from $(1)$ would be more or less the same if the test data were fully observed. They represent the impact on the prediction of the error made when estimating $\beta$.
 
- On the other hand, those from $(3)$ are both positive and unique to the incomplete case. They do not depend on the  test data at all. The first term reflects how an error in the imputation of $X_V$ is amplified by the regression coefficient when predicting $y$. The second one shows how errors in the estimation of $\beta$ and of $X_V$ combine when predicting $y$.
+ On the other hand, those from $(3)$ are both positive and unique to the incomplete case. They do not depend on the test data at all. The first term reflects how an error in the imputation of $X_V$ is amplified by the regression coefficient when predicting $y$. The second one shows how errors in the estimation of $\beta$ and of $X_V$ combine when predicting $y$.
  
  Most importantly, the least squares estimator is a strongly consistent one\cite{consistency_linreg}, which implies that the only error terms that matter with large $n$ are those that remain when $\eta$ is set to zero:
  $$ \beta_1^2 \text{Var}[x^V_1 \vert x^V_2] + \sigma^2 $$
@@ -465,25 +464,25 @@ The terms from $(1)$ would be more or less the same if the test data were fully 
  \mathbb{E}[((\tilde{X}_V - \hat{X}_V)\beta)^2 \vert X_V^{\text{obs}}] &= 
  	\sum \limits_{\substack{i,j=1 \\i,j \in X_V^{\text{miss}}}}^{p} \beta_i \beta_j Cov(x^V_i, x^V_j \vert X_V^{\text{obs}})
  \end{align*}
- 
+
 		\subsection{When the data is large and the training data is fully observed}
 We can suppose that $n$ is large and that we know $\tilde{X_V}$. In that case, we can take the approximation that $\beta = \tilde{\beta}$, that is, the only error in the estimation of $\beta$ comes from the missing data in the training set. Then, the only error term that is nonzero is $(2)$:
-$$ (\tilde{X}_V (\beta - \tilde{\beta}))^2$$
+$$ (\tilde{X}_V (\hat{\beta} - \tilde{\beta}))^2$$
 \todo{To complete}
-	\section{Consequences}
+	\section{Analysis}
 		\subsection{Implications}
 \paragraph{Theoretical consequences}
 If the results above are any indication as to how things go in more complex settings, there are some interesting implications. 
 
 First, this confirms our intuition that using the conditional mode is the right thing to do to impute the validation data. This is important, especially as most imputation packages were made for multiple imputation and draw from the conditional distribution instead.
 
-Second, there is a major asymmetry between the training and validation dataset: in the training set, every line works together with the others to help estimate some parameter. In particular, this means that even if all of the imputations are imperfect, with enough observation we will obtain a very satisfactory estimate of the parameters (this is similar to the case of statistical inference with missing data, where under some assumptions the estimators are asymptotically consistent \cite{rubin_ignorability}). More data adds information, and even if it is incomplete it helps with the estimation.
+Second, there is a major asymmetry between the training and validation dataset: in the training set, every line works together with the others to help estimate some parameter. In particular, this means that even if all of the imputations are imperfect, with enough observations we can obtain a satisfactory estimate of the parameters (this is similar to the case of statistical inference with missing data, where under some assumptions the estimators are asymptotically consistent \cite{rubin_ignorability}). More data adds information, and even if it is incomplete it helps with the estimation.
 
-The validation data is in a completely different situation. Missing data in the validation dataset adds error terms to the data that can be very large and do not vanish asymptotically. Intuitively, even if we have exactly the right $\beta$ for regression, any error in the estimation of the data will be directly reflected as a prediction error proportional to the regression coefficient, while in the training set this effect is much more indirect. The expected loss will be the same for every line on the validation set, so adding more validation lines will do nothing to reduce the mean error if they also have missing data. This is important not only from the standpoint of model selection, but also because the validation error gives us an idea of how our model will perform on real-world data: missing data in the data we use for prediction can be a much more severe issue than missing data in our training database.
+The validation data is in a completely different situation. Missing data in the validation dataset adds error terms to the data that can be very large and do not vanish asymptotically. Intuitively, even if we have exactly the right $\beta$ for regression, any error in the estimation of the data will be directly reflected as a prediction error proportional to the regression coefficient, while in the training set this effect is much more indirect. Such errors are inevitable, even if we know the exact distribution of the data, because it is random. The expected loss will be the same for every line on the validation set (with the same missingness pattern), so adding more validation lines will do nothing to reduce the mean error if they also have missing data. This is important not only from the standpoint of model selection, but also because the validation error gives us an idea of how our model will perform on real-world data: missing data in the data we use for prediction can be a much more severe issue than missing data in our training database.
 
 \paragraph{Implications for our data}
 
-This could actually be good news. Take the example of Traumabase and haemorrhagic shock prediction: part of what our results mean is that the Traumabase can indeed be used to build a prediction tool, even if it has a significant amount of missing data. If the missing data is mostly due to errors of recording, this may mean that it is available in the real world when a doctor uses the tool: if the data used to make important predictions (that is, not a posteriori from the base but in a hospital when a patient needs care) can be kept full, then our estimates will have a chance of being very good, as long as we built our model with a large enough database.
+This could actually be a positive find. Take the example of Traumabase and haemorrhagic shock prediction: part of what our results mean is that the Traumabase can indeed be used to build a prediction tool, even if it has a significant amount of missing data. If the missing data is mostly due to errors of recording, this may mean that it is available in the real world when a doctor uses the tool: if the data used to make important predictions (that is, not a posteriori from the base but in a hospital when a patient needs care) can be kept full, then our estimates will have a chance of being very good, as long as we built our model with a large enough database.
 
 The flip size, of course, is that when data is indeed missing from the validation dataset, there is little we can do to offset the resulting penalty. The missing value has a natural variability, even when controlling for every other observed variable, so even our best guess could have a high error. 
 
@@ -491,9 +490,50 @@ The flip size, of course, is that when data is indeed missing from the validatio
 This suggests an idea that could help mitigate this drawback while keeping the computational cost rather low. Using $X_A$ the training data, we can estimate parameters $\phi, \psi, \beta$ as usual. Then, keeping these parameters constant, we can make draws from the conditional distribution of $X_V$ and make predictions on the datasets generated this way. Using the quantiles of these predictions, we can build intervals that approximate the possible location of the true value of $y$ and account for uncertainty. The idea behind this is that it is not necessary to multiply impute $X_A$ because with lare $n$ the estimated parameters will not really vary. It is also computationally intensive because it means we have to fit a new model for every imputed dataset. With our method, just one fit is needed and we only perform multiple predictions, which are usually cheaper.
 
 To illustrate these results, we perform an analysis on some very simple simulated data, and check if the properties we derived are visible.
-		\subsection{Verification with simulated data}
+		\subsection{Verification on real and simulated data}
+We ran an analysis on two sets of data:
+\begin{enumerate}
+\item A simulated dataset designed to respect the assumptions of our model: the $X$ data is generated as a multivariate normal for some random covariance matrix (with $p=10$ variables), and the response are obtained linearly by scalar product with some parameter $\beta$ (plus some noise)
+\item A very simple real world dataset: the Abalone dataset. It is a regression dataset where the goal is to predict the age of a shell based on 7 measurements. It has no missing data and the covariates have high correlation.There are more that 4000 observations.
+\end{enumerate}
 
+On both dataset, we ran the following procedure:
+\begin{itemize}
+\item Split the data in a training and a validation datasets.
+\item Perform one linear regression on the complete dataset.
+\item Add some (30\%) missing data completely at random.
+\item Impute the data by the mean, perform a regression.
+\item Using the complete training data and the validation data with missing values, impute the data as a multivariate normal and perform a regression.
+\item Using the training data data with missing values and the complete validation, impute the data as a multivariate normal and perform a regression.
+\item Using both datasets with missing values, impute the data as a multivariate normal and perform a regression.
+\item Compute the mean squared prediction error for each of the five regressions on the validation data.
+\end{itemize}
 		
+This is repeated multiple times to smooth out the variability of the results. We do this for a broad range of $n$ values (for Abalone we select $n$ rows at random for the analysis, for the simulated data we generate $n$ rows each time).
+
+The results are shown in Figure \ref{fig.linreg}. 
+
+\begin{figure}[h]
+  \centering
+  \subbottom[Simulated data]{
+  \subfloat{\label{fig.linreg.sim}\includegraphics[scale=0.5]{linreg_sim}}
+  }
+  \\
+  \subbottom[Abalone data]{
+  \subfloat{\label{fig.linreg.abalone}\includegraphics[scale=0.5]{linreg_abalone}}
+  }
+  \caption{Linear regression with missing data}
+  \label{fig.linreg}
+\end{figure}
+
+The trends are less visible in the Abalone data, most likely because the base error from model misspecification is higher so the relative variations are smaller. However, we can see some general trends emerge.
+
+\textbf{For large $n$}, the results match our expectations. The error is much lower when the validation data is known, while there is almost no difference with and without knowing the real training data: with enough information we make up for the missing data when estimating the parameters. Even on the Abalone data (which is not really normally distributed), the normal imputation performs much better than imputation by the mean.
+
+\textbf{For small $n$}, everything is very different. The first striking result is that the main error term comes from the missing data in the training set, this time. This makes sense, as for such a small $n$ it is very difficult to accurately estimate the covariance of the data, so missing values in the training data can seriously impact parameter estimation for the imputation. For the same reason, it is understandable that imputation by the mean works better than normal imputation in this context: with less parameters to estimate, we can at least have a fairly good estimation of the mean rather than a very bad estimation of both the mean and covariance. 
+
+Throughout the spectrum of $n$, we also see that the imputation with missing data everywhere tends to match whichever is worse between the full training data and the full validation data. These values act as lower bounds for the quality of prediction. 
+
 \chapter{Analysis: imputing the Traumabase data for prediction}
 \label{analysis}
 	\section{Criteria for evaluation}
