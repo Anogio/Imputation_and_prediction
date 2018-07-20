@@ -1,0 +1,32 @@
+Therem then proof rather than proof then result
++ more concise math
+
+Explain that mu and sigma are known
+Expectations: averaging over what variables? (epsilons, unobserved Xs)
+
+Terme (5): vraiment nul??
+
+Error term for y_A ? Choosing beta tilde: or saying i fix it to automate the prediciton stage
+
+Go Bayesian with the loss 
+
+Revenir sur le framework Imputer/Analyst : l'imputeur passe a l'analyst une règle qui lui permet d'imputer les données de validation (pas accès aux données de validation)
+Be clearer about goals and setting in chapter 4
+
+Cost/benefit of finding out missing data
+Imputer passes on a full parametric model to the analyst, who can use it for imputation and prediciton (imputation with Imp's model and pred however they like, but we propose one: eg we give beta, mu and sigma)
+-> what happens when we remove one missing value in the train or test set? What helps most?
+
+
+Close to the AIC/WAIC? Expectatiion of llk over new data and current data
+
+
+Algorithm box rather than text for the imputation methods (grouped, separate, ...)
+
+NOT mode, mean
+
+IDEAS: 
+1) Four-roles framework: God->Imputer->Analyst->Practitioner (en gros on coupe en deux l'imputer actuel)
+2) Imputation sans connaître le modèle de prédiciton: approximation premier ordre du modèle prédictif général -> toujours espérance conditionnele optimale?
+
+
