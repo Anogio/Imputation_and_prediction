@@ -1,0 +1,115 @@
+---
+title: "Grouped, separate, correct imputation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+aux.folder = '../../auxiliary/'
+source(paste(aux.folder,'MVN_imputation.R',sep=''), chdir = T)
+source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
+source(paste(aux.folder,'simulation_methods.R',sep=''), chdir = T)
+data_folder = '../../../Data/'
+dataset = 'abalone'
+
+seed = ceiling(runif(1,1e3,1e5))
+print(seed)
+```
+
+```{r}
+oneRun = function(args){
+  for(name in names(args)){
+    assign(name, args[[name]])
+  }
+  
+  X = X.gen(n,p,rho)
+  y.g = y.regression(X, sigma_reg)
+  
+  y = y.g$y
+  X = y.g$X
+  
+
+  
+  spl = train_test_split(X, y, train_prop)
+  X.train = spl$X.train
+  X.test = spl$X.test
+  y.train = spl$y.train
+  y.test = spl$y.test
+  
+  X.train = MCAR.nVars(X.train, miss_prop, 1)
+  X.test = MCAR.nVars(X.test, miss_prop, 1)
+  datasets = list()
+  
+  imp.grouped = imp.mvnorm.train(rbind(X.train, X.test))
+  imp.train = imp.mvnorm.train(X.train)
+  imp.test = imp.mvnorm.train(X.test)
+  
+  datasets$grouped = list(train=imp.mvnorm.estim(imp.grouped, X.train), test=imp.mvnorm.estim(imp.grouped, X.test))
+  datasets$separate = list(train=imp.mvnorm.estim(imp.train, X.train), test=imp.mvnorm.estim(imp.test, X.test))
+  datasets$correct = list(train=imp.mvnorm.estim(imp.train, X.train), test=imp.mvnorm.estim(imp.train, X.test))
+  
+  regressors.fit = lapply(datasets,
+                          function(x) {pred.lin.train(x$train, y.train)})
+  
+  predictions = lapply(names(datasets), function(x){pred.lin.predict(regressors.fit[[x]], datasets[[x]]$test)})
+  names(predictions) = names(datasets)
+  errors = lapply(predictions, function(x){mean((x-y.test)^2)})
+  
+  return(errors)
+}
+```
+
+```{r}
+X.gen = X.basic.MVN
+argsL = list(n=c(500),
+            rho=c(0.5),
+            sigma_reg = 0.3,
+            train_prop=0.7,
+            miss_prop = c(0.8),
+            p = 2:10
+)
+
+
+S = 10
+res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+
+res.1 %>% gather('method','error',c(grouped,separate,correct)) %>%
+  ggplot() + aes(x=p, y=error, color=method) + geom_line()
+```
+```{r}
+argsL = list(n=c(500),
+          #  rho=c(0.5),
+            sigma_reg = 0.3,
+            train_prop=0.7,
+            miss_prop = seq(0,0.95,0.05),
+            p = 3
+)
+res.2 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
+res.2 %>% gather('method','error', c(grouped,separate,correct)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line()
+```
+
+
+
+```{r}
+X.gen = X.abalone
+argsL = list(n=seq(100,1000,100),
+            sigma_reg = 0.3,
+            train_prop=0.7,
+            miss_prop = c(0.8)
+)
+
+
+S = 10
+res.3 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+
+res.3 %>% gather('method','error',c(grouped,separate,correct)) %>%
+  ggplot() + aes(x=n, y=error, color=method) + geom_line()
+```
+```{r}
+argsL = list(n=c(500),
+            sigma_reg = 0.3,
+            train_prop=0.7,
+            miss_prop = seq(0,0.95,0.05)
+)
+res.4 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
+res.4 %>% gather('method','error', c(grouped,separate,correct)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line()
+```
