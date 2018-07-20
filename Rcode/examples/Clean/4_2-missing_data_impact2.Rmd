@@ -1,0 +1,118 @@
+---
+title: "Missing values impact"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(plotrix)
+
+aux.folder = '../../auxiliary/'
+source(paste(aux.folder,'MVN_imputation.R',sep=''), chdir = T)
+source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
+source(paste(aux.folder,'simulation_methods.R',sep=''), chdir = T)
+data_folder = '../../../Data/'
+dataset = 'abalone'
+
+seed = ceiling(runif(1,1e3,1e5))
+print(seed)
+```
+
+```{r}
+oneRun = function(args){
+  for(name in names(args)){
+    assign(name, args[[name]])
+  }
+  X = X.random.mvn(n,p)
+  y.g = y.regression(X, sigma_reg)
+  
+  y = y.g$y
+  X = y.g$X
+  
+
+  
+  spl = train_test_split(X, y, train_prop)
+  X.train = spl$X.train
+  X.test = spl$X.test
+  y.train = spl$y.train
+  y.test = spl$y.test
+  
+  X.train = MCAR.noEmptyLines(X.train, miss_prop.train)
+  X.test = MCAR.noEmptyLines(X.test, miss_prop.test)
+  datasets = list()
+  
+  imp.norm = imp.mvnorm.train(X.train)
+  imp.mean = imp.mean.train(X.train)
+
+  datasets$norm = list(train=imp.mvnorm.estim(imp.norm, X.train), test=imp.mvnorm.estim(imp.norm, X.test))
+  datasets$mean = list(train=imp.mean.estim(imp.mean, X.train), test=imp.mean.estim(imp.mean, X.test))
+  
+  regressors.fit = lapply(datasets,
+                          function(x) {pred.lin.train(x$train, y.train)})
+  
+  predictions = lapply(names(datasets), function(x){pred.lin.predict(regressors.fit[[x]], datasets[[x]]$test)})
+  names(predictions) = names(datasets)
+  errors = lapply(predictions, function(x){mean((x-y.test)^2)})
+  
+  return(errors)
+}
+```
+
+
+```{r}
+grid = seq(0,0.7,0.05)
+argsL = list(n=800,
+          #  rho=0.5,
+            sigma_reg = 0.3,
+            train_prop=0.7,
+            miss_prop.train=grid,
+            miss_prop.test=grid,
+            p = 5
+)
+
+
+S = 500
+res = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+
+res.grid = matrix(NA, nrow=length(grid), ncol=length(grid))
+for(i in 1:nrow(res)){
+  missTr = res$miss_prop.train[i]
+  missTe = res$miss_prop.test[i]
+  iTr = which(grid==missTr)
+  iTe = which(grid==missTe)
+  res.grid[iTr,iTe] = res$norm[i]
+}
+
+tlab = 0.5:(length(grid)-0.5)
+lab = grid
+res.grid %>% as.data.frame() %>%color2D.matplot(show.values=1, axes=F, xlab='Missing test values', ylab='Missing train values')
+axis(1, at=tlab, labels=F)
+text(x=tlab, y=par()$usr[3]-0.1*(par()$usr[4]-par()$usr[3]), 
+     labels=lab, srt=45, adj=1, xpd=T)
+axis(2, at=tlab, labels=F)
+text(y=tlab, x=par()$usr[1] -0.02*(par()$usr[2]-par()$usr[1]), 
+     labels=rev(lab), srt=0, adj=1, xpd=T)
+title('Prediction error (MVN imputation)')
+```
+
+```{r}
+res.grid = matrix(NA, nrow=length(grid), ncol=length(grid))
+for(i in 1:nrow(res)){
+  missTr = res$miss_prop.train[i]
+  missTe = res$miss_prop.test[i]
+  iTr = which(grid==missTr)
+  iTe = which(grid==missTe)
+  res.grid[iTr,iTe] = res$mean[i]
+}
+
+tlab = 0.5:(length(grid)-0.5)
+lab = grid
+res.grid %>% as.data.frame() %>%color2D.matplot(show.values=1, axes=F, xlab='Missing test values', ylab='Missing train values')
+axis(1, at=tlab, labels=F)
+text(x=tlab, y=par()$usr[3]-0.1*(par()$usr[4]-par()$usr[3]), 
+     labels=lab, srt=45, adj=1, xpd=T)
+axis(2, at=tlab, labels=F)
+text(y=tlab, x=par()$usr[1] -0.02*(par()$usr[2]-par()$usr[1]), 
+     labels=rev(lab), srt=0, adj=1, xpd=T)
+title('Prediction error (mean imputation)')
+```
+
