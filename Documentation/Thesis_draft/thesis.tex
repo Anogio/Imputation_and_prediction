@@ -16,11 +16,15 @@
 \usepackage{microtype}
 \usepackage{amsmath,amsthm,amssymb,amsfonts}
 
+\usepackage{tikz}
+\usetikzlibrary{shapes,decorations, positioning}
+\usepackage{graphicx}
+\usepackage{float}
+
+\usepackage{standalone}
 \usepackage{bbm}
 \usepackage{atbegshi}
 \usepackage{hyperref}
-\usepackage{graphicx}
-\usepackage{float}
 \usepackage{listings}
 \usepackage{minted}
 \usepackage{xcolor}
@@ -124,12 +128,20 @@ We present the data (Chapter \ref{data}), then present the state of the art in i
 \chapter{Goal and data}
 \label{data}
 	\section{The problem of haemorrhagic shock}
-	Prediction is very hard, as described in \cite{doctors_prediction}
+	\label{shock}
+		\subsection{Importance as a medical condition}
+Descibe HS + hospital context
+		\subsection{Need for an assistance tool}
+Prediction is very hard, as described in \cite{doctors_prediction} + possible to treat if taken early
 	\section{The Traumabase data}
 	\section{Exploratory data analysis}
 		\subsection{Variables}
 		\subsection{Missing data}
-	\section{Our goal: imputation}
+	\section{Objective of this work}
+As explained in Section \ref{shock}, we want to enable the conception of a tool that would detect haemorrhagic shock in trauma patients. In this work, we focus more specifically on handling the missing data
+
+... explain the specificity: patient by patient predicition, analyst has no access to the training data
+
 %	\textbf{Note:} tout le but de l'imputation est de permettre l'utilisation de n'importe quel modèle  prédictif une fois que $X$ est imputé. Une manière de voir la situation est la suivante: deux personnes travaillent sur les données de manière successive, l'Imputeur et l'Analyste. L'Imputeur ne sait pas quel modèle l'analyste va choisir d'utiliser, il va donc optimiser l'imputation en utilisant seulement les informations dont il dispose. Une fois les données imputées, elle sont transmise à l'Analyste qui procède à la prédiction. 
 %réadapter paragraphe pour expliquer l'idée de pourquoi on fait de l'imputation plutôt que du joint modelling
 
@@ -159,22 +171,22 @@ After laying out the general framework of Empirical Risk Minimization \cite{ERM}
 	\section{Empirical risk minimization (ERM): classical context}
 We first describe Empirical Risk Minimization (ERM) without missing data, as described in \cite{ERM}.
 		\subsection{Context and notations}
-We are provided with a matrix $X$ of size $n \times p$ and response vector $y$ of size $n$. Our goal is to learn a model in the form $\hat{y} = f(x, \psi)$, where $\psi$ is some parameter to choose, $\hat{y}$ is a predicted value for $y$ and $f$ is a fixed parametric predictive function (usually corresponding to a choice of function in a given class).
+We are provided with a matrix $X$ of size $n \times p$ and response vector $y$ of size $n$. Our goal is to learn a model in the form $\hat{y} = f(x, \beta)$, where $\beta$ is some parameter to choose, $\hat{y}$ is a predicted value for $y$ and $f$ is a fixed parametric predictive function (usually corresponding to a choice of function in a given class).
 
-The quality of a prediction is evaluated with the loss $L(y,\hat{y})$. The end goal in this context is to find the parameter $\hat{\psi}$ which minimizes the risk: $R = \mathbb{E}(L(y, f(X)))$. However, we do not have access to the real expectation of the risk, so we must use a proxy for this value. We define the empirical risk:
+The quality of a prediction is evaluated with the loss $L(y,\hat{y})$. The end goal in this context is to find the parameter $\hat{\beta}$ which minimizes the risk: $R = \mathbb{E}(L(y, f(X)))$. However, we do not have access to the real expectation of the risk, so we must use a proxy for this value. We define the empirical risk:
 
-$$ R_{\text{emp}}(y, f(X, \psi)) = \frac{1}{n} \sum\limits_{i=1}^n L(y_i, f(X_i, \psi))$$
+$$ R_{\text{emp}}(y, f(X, \beta)) = \frac{1}{n} \sum\limits_{i=1}^n L(y_i, f(X_i, \beta))$$
 
-Empirical Risk Minimization corresponds to choosing $\psi$ minimizing $R_{emp}$ for our $X$ and $y$. However, this is not enough. We do not just want the optimal $\psi$, we also want a measure of how well the final model would perform on new data. This is important because this is what we will take into account to make our choice of $f$. But the empirical risk gives us no measure of how well our model generalizes whatsoever, only of how closely it can fit known data.
+Empirical Risk Minimization corresponds to choosing $\beta$ minimizing $R_{emp}$ for our $X$ and $y$. However, this is not enough. We do not just want the optimal $\beta$, we also want a measure of how well the final model would perform on new data. This is important because this is what we will take into account to make our choice of $f$. But the empirical risk gives us no measure of how well our model generalizes whatsoever, only of how closely it can fit known data.
 
 To address the issue of model selection, the standard practice is to measure the error on some data that were not used to learn the model: it is the principle of cross-validation.
 
 		\subsection{Cross-validation}
-To perform Cross-validation, we divide the data in two datasets: first we choose $n_A < n$ entries in the dataset to be used to loearn $\psi$: this is the training dataset $X_A$ and response $y_A$. We denote $I_A = (i_1, \ldots, i_{n_A})$ the set of indices chosen for the training data. The rest of the observations are noted $X_V$ and $y_V$ and called the validation dataset.
+To perform Cross-validation, we divide the data in two datasets: first we choose $n_A < n$ entries in the dataset to be used to loearn $\beta$: this is the training dataset $X_A$ and response $y_A$. We denote $I_A = (i_1, \ldots, i_{n_A})$ the set of indices chosen for the training data. The rest of the observations are noted $X_V$ and $y_V$ and called the validation dataset.
 
-Once this is done, ERM is performed as before, using only the training data. The obtained parameter $\hat{\psi}$ can then be evaluated with the validation error:
+Once this is done, ERM is performed as before, using only the training data. The obtained parameter $\hat{\beta}$ can then be evaluated with the validation error:
 
-$$ R_{V} = \frac{1}{n_V} \sum\limits_{i=1, i \notin I_A}^n L(y_i, f(X_i, \hat{\psi}))$$
+$$ R_{V} = \frac{1}{n_V} \sum\limits_{i=1, i \notin I_A}^n L(y_i, f(X_i, \hat{\beta}))$$
 
 It is this value that we can compare to choose our our model class $f$.
 
@@ -183,31 +195,31 @@ We now place ourselves in the same context as before, except some values are mis
 		\subsection{Imputation seen as an ERM}
 Remember that the purpose of this work is to impute the data independently of the predictive model used afterwards. This does not change the framework of ERM but it does mean that we cannot use any function we like to go from $X$ to $\hat{y}$. The prediction is the composition of two steps.
 			\paragraph{Imputation step}
-First we choose an imputation model $X^{\text{complete}} = g(X, \phi)$ where $X^{\text{complete}}$ is the completed dataset and $\phi$ some parameter. This is similar to predicting $y$ as we did previously with one caveat: we do not know the true data, even on the training dataset. Thus we choose $\hat{\phi}$ to minimize some unsupervised loss
-$$L'(g(X, \phi), \phi)$$
+First we choose an imputation model $X^{\text{complete}} = g(X, \alpha)$ where $X^{\text{complete}}$ is the completed dataset and $\alpha$ some parameter. This is similar to predicting $y$ as we did previously with one caveat: we do not know the true data, even on the training dataset. Thus we choose $\hat{\alpha}$ to minimize some unsupervised loss
+$$L'(g(X, \alpha), \alpha)$$
  measuring the fit of the model to the data. Generally, this means that we choose a parameter that maximizes the likelihood of the observed data according to some generative model (though it is not always the case). Once this is done, we obtain a completed dataset $\hat{X}$.
 
 			\paragraph{Prediction step}
-Once the imputation is done, we can perform as before to choose a parameter $\hat{\psi}$ that minimizes the empirical risk when using the completed data:
-	$$ R_{\text{emp}}(y, f(\hat{X}_i, \psi)) = \frac{1}{n} \sum\limits_{i=1}^n L(y_i, f(\hat{X}_i, \psi))$$
+Once the imputation is done, we can perform as before to choose a parameter $\hat{\beta}$ that minimizes the empirical risk when using the completed data:
+	$$ R_{\text{emp}}(y, f(\hat{X}_i, \beta)) = \frac{1}{n} \sum\limits_{i=1}^n L(y_i, f(\hat{X}_i, \beta))$$
 	
 Putting it all together, we can define 
-$$ h(X, (\psi, \phi)) = f(X^{imp}, \psi) = f( g(X, \phi), \psi) $$
+$$ h(X, (\beta, \alpha)) = f(X^{imp}, \beta) = f( g(X, \alpha), \beta) $$
 
 the combined model that takes the observed data as input and outputs a predicted $y$. This is optimized as 
 \begin{align*}
-\hat{\phi} &= \argmin_{\phi} L'(g(X,\phi, \phi) \\
-\hat{\psi} &= \argmin_{\psi} R_{\text{emp}}(y, h(X, (\psi, \hat{\phi})))
+\hat{\alpha} &= \argmin_{\alpha} L'(g(X,\alpha, \alpha) \\
+\hat{\beta} &= \argmin_{\beta} R_{\text{emp}}(y, h(X, (\beta, \hat{\alpha})))
 \end{align*}
 
-We choose to use this notation to illustrate our point that imputation is an integral part of the ERM, not a separate, preliminary process. In particular, it means that in theory its parameters \emph{must} be subjected to cross-validation just like those of the prediction. That is $X_A$ the training data are used to estimate $(\hat{\psi}, \hat{\phi})$ as shown just above. Then, we can compute a prediction $\hat{y}_V = h(X_V, (\hat{\psi}, \hat{\phi}))$ which can be compared to $y_V$ to evaluate the choice of model.
+We choose to use this notation to illustrate our point that imputation is an integral part of the ERM, not a separate, preliminary process. In particular, it means that in theory its parameters \emph{must} be subjected to cross-validation just like those of the prediction. That is $X_A$ the training data are used to estimate $(\hat{\beta}, \hat{\alpha})$ as shown just above. Then, we can compute a prediction $\hat{y}_V = h(X_V, (\hat{\beta}, \hat{\alpha}))$ which can be compared to $y_V$ to evaluate the choice of model.
 
-The bottom line is that just like for the prediction, the imputation parameter $\phi$ should be estimated only on the training data and then used on the validation data. As we will see, this raises an issue with the way current imputation methods are implemented.
+The bottom line is that just like for the prediction, the imputation parameter $\alpha$ should be estimated only on the training data and then used on the validation data. As we will see, this raises an issue with the way current imputation methods are implemented.
 
 		\subsection{Unsuitability of current methods}
 Over the years, many imputation methods have been proposed, and we describe some in Chapter \ref{imputation}. They have various assumptions and principles but they have one thing in common: they are all implemented (usually in R) via a single function. That function takes a dataset with missing values as an input and returns the dataset completed by the method of choice, \emph{without giving the user any access to the model itself}.
 
-This is a problem because of how cross-validation is supposed to be performed. Normally, one would estimate $(\hat{\psi}_A, \hat{\phi}_A)$ through ERM, and then make a prediction on the validation set as $h(X_V,(\hat{\psi}_{X_A},\hat{\phi}_{X_A}))$. But here, all we have access to is a function $g': X \mapsto g(X, \hat{\phi}_X)$ where $\hat{\phi}_X$ is the optimised parameter for the argument $X$. It is straightforward to see that using such a function, one can no longer separate the estimation of the parameters and the imputation in itself.
+This is a problem because of how cross-validation is supposed to be performed. Normally, one would estimate $(\hat{\beta}_A, \hat{\alpha}_A)$ through ERM, and then make a prediction on the validation set as $h(X_V,(\hat{\beta}_{X_A},\hat{\alpha}_{X_A}))$. But here, all we have access to is a function $g': X \mapsto g(X, \hat{\alpha}_X)$ where $\hat{\alpha}_X$ is the optimised parameter for the argument $X$. It is straightforward to see that using such a function, one can no longer separate the estimation of the parameters and the imputation in itself.
 	
 Incidentally, this issue was mentioned recently \cite{github_sklearn}, as part of a larger effort to port the MICE \cite{MICE_founding} imputation method to Scikit-learn \cite{scikit-learn}. This package is developed for data scientists, who are used to having separate functions for training and prediction. Likewise, several other mentions of this problem arose in the last two years \cite{thread_newdata1}\cite{thread_newdata2}\cite{thread_newdata3} with no mention of it earlier. It seems that as more elaborate imputation methods become popular with the machine learning community, the need arises for a change in the way those methods are implemented. However, it is clear that such changes take time, and for now we can do one of two things: make do with what is available, or build our own implementation to adapt one of these methods to our goals.
 	\section{Possible solutions}
@@ -215,21 +227,21 @@ Incidentally, this issue was mentioned recently \cite{github_sklearn}, as part o
 			\subsubsection{Methods}
 There are many ways we can use to approximate the correct procedure, though none of them is theoretically satisfactory. We describe the most natural ones and their caveats.
 
-\paragraph{Grouped imputation} Impute all of the data at once before performing the cross-validation split. That is, estimate $\hat{\phi}_X$ on the whole data then $$\hat{\psi}_{X_A} = \argmin_{\psi} R_{emp}(y, h(X, (\psi, \hat{\phi}_X)))$$
- and $\hat{y}_V = h(X_V, (\psi_{X_A}, \phi_X))$. 
+\paragraph{Grouped imputation} Impute all of the data at once before performing the cross-validation split. That is, estimate $\hat{\alpha}_X$ on the whole data then $$\hat{\beta}_{X_A} = \argmin_{\beta} R_{emp}(y, h(X, (\beta, \hat{\alpha}_X)))$$
+ and $\hat{y}_V = h(X_V, (\beta_{X_A}, \alpha_X))$. 
 
-In that case, the parameter $\phi$ is imputed using the validation data. In particular, imputed values in $X_A$ \emph{depend on those in $X_V$}, which is contrary to the basic principles of cross-validation where validation data must be held out during parameter estimation. In theory this could falsify the validation error by making it too optimistic (if some hard-to-predict observations are present in the test set, that would otherwise have high validation error but will not in this case because of our 'cheating').
+In that case, the parameter $\alpha$ is imputed using the validation data. In particular, imputed values in $X_A$ \emph{depend on those in $X_V$}, which is contrary to the basic principles of cross-validation where validation data must be held out during parameter estimation. In theory this could falsify the validation error by making it too optimistic (if some hard-to-predict observations are present in the test set, that would otherwise have high validation error but will not in this case because of our 'cheating').
 
 \paragraph{Separate imputation}
 Divide the data first, then impute each dataset separately:
 \begin{align*}
-\hat{\phi}_{X_A} &= \argmin_{\phi} R_{emp}'(X_A, \phi) \\
-\hat{\phi}_{X_V} &= \argmin_{\phi} R_{emp}'(X_V, \phi) \\
-\hat{\psi}_{X_A} &= \argmin_{\psi} R_{emp}(y, h(X, (\psi, \hat{\phi}_{X_A}))) \\
-\hat{y}_V &= h(X_V, (\psi_{X_A}, \phi_{X_V}))
+\hat{\alpha}_{X_A} &= \argmin_{\alpha} R_{emp}'(X_A, \alpha) \\
+\hat{\alpha}_{X_V} &= \argmin_{\alpha} R_{emp}'(X_V, \alpha) \\
+\hat{\beta}_{X_A} &= \argmin_{\beta} R_{emp}(y, h(X, (\beta, \hat{\alpha}_{X_A}))) \\
+\hat{y}_V &= h(X_V, (\beta_{X_A}, \alpha_{X_V}))
 \end{align*}
 
-Contrarily to grouped imputation, this does not violate cross-validation at all. However, we are using parameter $\phi_{X_V}$ to impute the validation data and then apply a predictive model that uses $\psi_{X_A}$, optimized for data imputed with $\phi_{X_A}$. If sample size is not large enough, it is possible that $\phi_{X_A}$ and $\phi_{X_V}$ will be noticeably different. In that case, there is no guarantee that $\psi_{X_A}$ will still be valid for prediction on the validation dataset that was imputed differently. 
+Contrarily to grouped imputation, this does not violate cross-validation at all. However, we are using parameter $\alpha_{X_V}$ to impute the validation data and then apply a predictive model that uses $\beta_{X_A}$, optimized for data imputed with $\alpha_{X_A}$. If sample size is not large enough, it is possible that $\alpha_{X_A}$ and $\alpha_{X_V}$ will be noticeably different. In that case, there is no guarantee that $\beta_{X_A}$ will still be valid for prediction on the validation dataset that was imputed differently. 
 
 \paragraph{Line by line imputation}
 The last option we mention here is to first impute the training data on its own. Then for every line of the validation data we impute it by stacking it with the imputed training data and imputing the whole dataset. Since it is just one line, we can safely assume that the imputation parameters will be those of the training data. The main issue with this method is that is the validation data is rather large, this will be computationally infeasible.
@@ -241,7 +253,7 @@ Moreover, in addition to this theoretical pursuit, we need this because of what 
 
 Below, we design a very simple imputation method for those purposes.
 
-		\subsection{A new variant: Multivariate Normal Mode with reserved data}
+		\subsection{A new variant: Multivariate Normal conditional expectation with reserved data}
 The principle of this imputation is inspired from R package \emph{Amelia} \cite{ref_amelia}, and a large part of the code is from the \emph{norm} package \cite{pkg_norm}. The idea is to assume that both $X_A$ and $X_V$ follow a normal distribution $\mathcal{N}(\mu, \Sigma)$ with unknown parameters.
 
 \paragraph{Parameter estimation}
@@ -256,18 +268,18 @@ $$X^{(t+1)} = \mathbb{E}(X \vert X^{\text{obs}} ; \mu^{(t)}, \Sigma^{(t)})$$
 The conditional expectation is easily derived using the Schur complement \cite{norm_schur}.
 \end{enumerate}
 
-Once this converges we have an estimated parameter $\hat{\phi} = (\hat{\mu}, \hat{\Sigma})$.
+Once this converges we have an estimated parameter $\hat{\alpha} = (\hat{\mu}, \hat{\Sigma})$.
 
 \paragraph{Imputation}
 Once we have the parameters, it is very straightforward to get an imputation of the missing data. There are two different ways of doing this:
 \begin{itemize}
 \item Replace missing values by their expectation conditional on the observed data: 
 $$\hat{X} = \mathbb{E}(X \vert X^{\text{obs}} ; \hat{\mu}, \hat{\Sigma})$$
-That is, pick the mode of the conditional distribution.
+That is, pick the mean of the conditional distribution.
 \item Draw the missing values from the conditional distribution
 \end{itemize}
 
-In the second case, the \emph{norm} package provides all that is needed. This is what would be used for multiple imputation. However, as we see in Chapter \ref{linreg}, the mode is the optimal choice if we want a single best imputation to use for a prediction model. We implemented this method. We use it below in order to compare the methods mentioned before.
+In the second case, the \emph{norm} package provides all that is needed. This is what would be used for multiple imputation. However, as we see in Chapter \ref{linreg}, the mean is the optimal choice if we want a single best imputation to use for a prediction model. We implemented this method. We use it below in order to compare the methods mentioned before.
 
 		\subsection{Comparison on simulated data}
 In order to compare the methods used for imputation
@@ -278,6 +290,12 @@ In order to compare the methods used for imputation
 
 		
 \chapter{Error sources and best imputation: the case of linear regression with missing data}
+\begin{figure}
+  \includestandalone[width=\textwidth]{imputation_flowchart}%     without .tex extension
+  \caption{Imputation framework}
+  \label{fig:tikz:imp}
+\end{figure}
+
 In order to make good decisions for imputation, it is important to understand how it impacts prediction. In order to get an idea on this issue, we solve a very simple case of cross-validated regression with missing data. We found no theoretical results whatsoever about the relationship between imputation and prediction. 
 \label{linreg}
 	\section{Problem set-up}
@@ -474,7 +492,7 @@ $$ (\tilde{X}_V (\hat{\beta} - \tilde{\beta}))^2$$
 \paragraph{Theoretical consequences}
 If the results above are any indication as to how things go in more complex settings, there are some interesting implications. 
 
-First, this confirms our intuition that using the conditional mode is the right thing to do to impute the validation data. This is important, especially as most imputation packages were made for multiple imputation and draw from the conditional distribution instead.
+First, this confirms our intuition that using the conditional mean is the right thing to do to impute the validation data. This is important, especially as most imputation packages were made for multiple imputation and draw from the conditional distribution instead.
 
 Second, there is a major asymmetry between the training and validation dataset: in the training set, every line works together with the others to help estimate some parameter. In particular, this means that even if all of the imputations are imperfect, with enough observations we can obtain a satisfactory estimate of the parameters (this is similar to the case of statistical inference with missing data, where under some assumptions the estimators are asymptotically consistent \cite{rubin_ignorability}). More data adds information, and even if it is incomplete it helps with the estimation.
 
