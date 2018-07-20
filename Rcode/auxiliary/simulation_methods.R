@@ -72,7 +72,7 @@ X.abalone = function(n.=n, p=NULL, rho=NULL){
   return(list(n=n.))
 }
 
-y.abalone = function(X){
+y.abalone = function(X, sigma_reg=NULL){
   dat_abalone = loader(dataset, max_rows=X$n)
   return(
     list(X=as.matrix(dat_abalone$X_numeric), y=dat_abalone$y)
