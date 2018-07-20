@@ -1,0 +1,146 @@
+---
+title: "With or withour y"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+
+library(pander)
+detach("package:pander", unload=TRUE)
+```
+
+```{r}
+aux.folder = '../../auxiliary/'
+source(paste(aux.folder,'MVN_imputation.R',sep=''), chdir = T)
+source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
+source(paste(aux.folder,'simulation_methods.R',sep=''), chdir = T)
+data_folder = '../../../Data/'
+dataset = 'abalone'
+
+seed = ceiling(runif(1,1e3,1e5))
+print(seed)
+```
+
+```{r}
+res.withY = c()
+res.withoutY = c()
+
+oneRun = function(args){
+  #n = args$n
+  #p=args$p
+  #rho=args$rho
+  #sigma_reg=args$sigma_reg
+  #train_prop=args$train_prop
+  #miss_prop=args$miss_prop
+  for(name in names(args)){
+    assign(name, args[[name]])
+  }
+  if(exists('rho')){
+    X = X.gen(n,p,rho)
+  }
+  else if(exists('p')){
+    X = X.gen(n,p)
+  }
+  else{
+    X = X.gen(n)
+  }
+  if(exists('sigma_reg')){
+    y.g = y.gen(X, sigma_reg) 
+  }
+  else{
+    y.g = y.gen(X) 
+  }
+  y = y.g$y
+  X = y.g$X
+  if(exists('p')){
+    if(ncol(X)>p){
+      X = X[,1:p]
+    }
+  }
+  spl = train_test_split(X, y, train_prop)
+  X.train = spl$X.train
+  X.test = spl$X.test
+  y.train = spl$y.train
+  y.test = spl$y.test
+  
+  X.train = MCAR.noEmptyLines(X.train, miss_prop)
+  
+  datasets = list()
+  imp.withY.train = imp.mvnorm.train(cbind(y.train,X.train))
+  datasets$withY = imp.mvnorm.estim(imp.withY.train, cbind(y.train,X.train))[,-1]
+  imp.withoutY.train = imp.mvnorm.train(X.train)
+  datasets$withoutY = imp.mvnorm.estim(imp.withoutY.train, X.train)
+  
+  regressors.fit = lapply(datasets,
+                          function(x) {pred.lin.train(x, y.train)})
+  
+  predictions = lapply(names(datasets), function(x){pred.lin.predict(regressors.fit[[x]], X.test)})
+  names(predictions) = names(datasets)
+  
+  imp.fulljoint.train = imp.withY.train
+  predictions$fullJoint = imp.mvnorm.estim(imp.fulljoint.train, cbind(rep(NA,nrow(X.test)), X.test))[,1]
+  
+  errors = lapply(predictions, function(x){mean((x-y.test)^2)})
+  
+  return(errors)
+}
+```
+```{r}
+X.gen = X.basic.MVN
+y.gen = y.regression
+argsL = list(n=800,
+            p=seq(2,100,2),
+            rho=0.5,
+            sigma_reg = 0.2,
+            train_prop=0.7,
+            miss_prop=0.3
+)
+
+S = 5
+res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+res.1 %>% mutate(ratio=withY/withoutY) %>%
+  ggplot() + aes(x=p,y=ratio) + geom_line() + geom_hline(yintercept = 1, color='red') + scale_y_log10()
+
+res.1 %>% gather('method','error', c(withY,withoutY,fullJoint)) %>% ggplot() + aes(x=p,y=error, color=method) + geom_line() + scale_y_log10()
+```
+
+```{r}
+argsL = list(n=800,
+            p=20,
+            rho=0.5,
+            sigma_reg = 0.2,
+            train_prop=0.7,
+            miss_prop=seq(0,0.95,0.05)
+)
+S = 20
+res.2 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
+res.2 %>% gather('method','error', c(withY,withoutY,fullJoint)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line() + scale_y_log10()
+```
+
+```{r}
+X.gen = X.abalone
+y.gen = y.abalone
+argsL = list(n=seq(300,2000,100),
+            train_prop=0.7,
+            miss_prop=0.3
+)
+
+S = 50
+res.3 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
+res.3 %>% gather('method','error', c(withY,withoutY)) %>% ggplot() + aes(x=n,y=error, color=method) + geom_line() + scale_y_log10()
+```
+
+```{r}
+X.gen = X.abalone
+y.gen = y.abalone
+argsL = list(n=c(1000),
+            train_prop=0.7,
+            miss_prop=seq(0,0.95,0.05)
+)
+
+S = 50
+res.4 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
+res.4 %>% gather('method','error', c(withY,withoutY)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line() + scale_y_log10()
+```
+
