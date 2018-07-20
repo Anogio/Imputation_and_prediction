@@ -1,0 +1,160 @@
+---
+title: "Imputation - The validation split problem"
+output: html_document
+---
+
+In this document we compare several ways of performing the split of the data to evaluate a prediction method. The idea is that current imputation methods are not designed to be fitted on some dataset and then applied to another one: being iterative methods, they can only be fitted and applied to the same dataset. As a result, when dividing a dataset into a training dataset and a validation dataset with missing data, we have two choices:
+
+- Use the *imputation* method on the whole dataset. *Then split* the observations in two subsets.
+- *Split* the observations in two subsets. *Then*, perform *imputation* independenlty on each subset.
+- *Train* an imputation method on the training data, then use it to impute the test data with the same parameters.
+
+In theory, the first two methods have severe pitfalls. In the first case, we are effectively using our validation dataset to learn a model, and the imputed values in the training set will depend on the validation data. This means that we are possibly *overfitting* without this reflecting in the testing error. But in the second case the imputation models used for each dataset are different. This means that we are not assured both datasets will be filled in the same way: this is important because the final goal is to fit a predictive model that will learn on the training dataset and perform prediction on the other one. If the imputation on both sets is performed too differently, this is likely to affect the prediction model negatively (as it assumes that the data are identically distributed in both sets).
+
+To evaluate the impact of those issues, we compare the performance of the methods on the abalone regression dataset. We first split the data in two: a *validation* dataset with no missing values and a second dataset where we artificially add missing values (40%, MCAR). Once this is done the second dataset is split into a *training* and a testing *dataset* as usual. The training and testing datasets are filled as previously described and a logistic regression is trained each time. For comparison, we also fit a regression on the same data with to added missing values.
+
+The final plot shows the compared prediction performances of the models. What we see is that, as expected, the 'clean' method (which corresponds to separate training and testing) performs similarly to one trained on the testing data, but very slightly better when it comes to validation: this seems to indicate that only this method keeps avoids both under- and overfitting
+
+Note, however, that we may be using a dataset that has too much redundancy or a missingness pattern that is too simple: we need to insert a large amount of missing values for any effect to show. When we add 20% of missing values, the prediction on the imputed data is just as good as on the full data. Even with 30%, the differences are quite small and one might wonder if they are really significant. Still, the negative effects described do seem to be present: this could justify the development of an imputation method able to perform separate fitting and imputation operations.
+
+NB: More investigation is needed as the differences are quite slight, although they seem to reproduce over multiple random seeds.
+
+## Miscellaneous setup
+Imports
+```{r, results="hide", message=FALSE}
+## Imports
+library(tidyverse)
+library(verification)
+library(mice)
+library(caret)
+
+# Custom imports
+aux.folder = '../../auxiliary/'
+source(paste(aux.folder,'dataloaders.R',sep=''), chdir = T)
+source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
+source(paste(aux.folder,'imputation_methods.R',sep=''), chdir = T)
+data_folder = '../../../Data/'
+```
+
+Parameters for this run
+```{r}
+#Global seed
+seed = 1e5 + 6
+#seed = seed + 1
+print(seed)
+# Dataset to use for the analysis
+dataset = 'abalone'
+# Proportion of MCAR mising data added to the dataset
+prop_added_missing = 0.3
+# Proportion of observations used to train the models (the rest is used for evaluation)
+train_size = 0.33
+test_size = 0.33
+val_size = 1 - (train_size + test_size)
+# Maximum number of rows to keep in the dataset. Keep all rows if NULL
+max_rows = NULL
+
+imputation = function(X){
+  return(mice::complete(mice(X, m=1, method='norm', printFlag = F)))
+}
+
+set.seed(seed)
+```
+
+## Data preparation
+Import and select columns
+
+```{r}
+# Load and format the dataset
+dat = loader(dataset, max_rows, seed)
+y = dat$y
+#X = cbind(dat$X_numeric, dat$X_category)
+#colnames(X)[8] = 'Sex'
+X = dat$X_numeric
+X_miss = MCAR(X, prop_added_missing)
+
+inVal = inVal = createDataPartition(y, p=val_size, list=F)
+y.val = y[inVal]
+y = y[-inVal]
+inTrain = createDataPartition(y, p=train_size/(1-val_size), list=F)
+
+X.val = X[inVal,]
+X_miss.val = MCAR(X.val, prop_added_missing)
+# X.val = X_miss[inVal,]
+X_miss = X_miss[-inVal,]
+X_full = X[-inVal,]
+
+rm(X)
+```
+
+##Now for the analysis
+```{r}
+rngseed(seed)
+
+y.train = y[inTrain]
+y.test = y[-inTrain]
+
+train.filled.before = train.MI_mvnorm(X_miss)
+X_filled_before = impute.MI_mvnorm(train.filled.before, X_miss, m=1)[[1]]
+X_filled_before.train = X_filled_before[inTrain,]
+X_filled_before.test = X_filled_before[-inTrain,]
+X_filled_before.val = impute.MI_mvnorm(train.filled.before, X_miss.val, m=1)[[1]]
+
+X.train = X_miss[inTrain,]
+X.test = X_miss[-inTrain,]
+train.filled.after.1 = train.MI_mvnorm(X.train)
+X_filled_after.train = impute.MI_mvnorm(train.filled.after.1, X.train, m=1)[[1]]
+train.filled.after.2 = train.MI_mvnorm(X.test)
+X_filled_after.test = impute.MI_mvnorm(train.filled.after.2, X.test, m=1)[[1]]
+train.filled.after.3 = train.MI_mvnorm(X_miss.val)
+X_filled_after.val = impute.MI_mvnorm(train.filled.after.3, X_miss.val, m=1)[[1]]
+
+train.imputation = train.MI_mvnorm(X.train)
+X_filled_correct.train = impute.MI_mvnorm(train.imputation, X.train, m=1)[[1]]
+X_filled_correct.test = impute.MI_mvnorm(train.imputation, X.test, m=1)[[1]]
+X_filled_correct.val = impute.MI_mvnorm(train.imputation, X_miss.val, m=1)[[1]]
+
+X_fulldata.train = X_full[inTrain,]
+X_fulldata.test = X_full[-inTrain,]
+
+#X_val_filled = imputation(X_val)
+```
+
+```{r}
+predictions.test = data.frame(Truth = y.test)
+predictions.val = data.frame(Truth = y.val)
+predictions.train = data.frame(Truth = y.train)
+
+filledBefore.fit = lm(y.train~., data=cbind(y.train, X_filled_before.train))
+filledAfter.fit  = lm(y.train~., data=cbind(y.train, X_filled_after.train))
+filledCorrect.fit     = lm(y.train~., data=cbind(y.train, X_filled_correct.train))
+fullData.fit     = lm(y.train~., data=cbind(y.train, X_fulldata.train))
+
+predictions.train$filledBefore = predict(filledBefore.fit, X_filled_before.train)
+predictions.train$filledAfter = predict(filledAfter.fit, X_filled_after.train)
+predictions.train$filledCorrect = predict(filledCorrect.fit, X_filled_correct.train)
+predictions.train$fullData = predict(fullData.fit, X_fulldata.train)
+
+predictions.test$filledBefore = predict(filledBefore.fit, X_filled_before.test)
+predictions.test$filledAfter = predict(filledAfter.fit, X_filled_after.test)
+predictions.test$filledCorrect = predict(filledCorrect.fit, X_filled_correct.test)
+predictions.test$fullData = predict(fullData.fit, X_fulldata.test)
+
+predictions.val$filledBefore = predict(filledBefore.fit, X_filled_before.val)
+predictions.val$filledAfter = predict(filledAfter.fit, X_filled_after.val)
+predictions.val$filledCorrect = predict(filledCorrect.fit, X_filled_correct.val)
+predictions.val$fullData = predict(fullData.fit, X.val)
+
+cor(predictions.test)
+```
+
+```{r}
+train.MSEs = sapply(predictions.train, function(x){RMSE(x, y.train)})
+test.MSEs = sapply(predictions.test, function(x){RMSE(x, y.test)})
+val.MSEs = sapply(predictions.val, function(x){RMSE(x, y.val)})
+
+results = data.frame(data=c('Filled.before.split', 'Filled.after.split', 'Filled.correct', 'Full.data'), train.RMSE=train.MSEs[-1], test.RMSE=test.MSEs[-1], val.RMSE=val.MSEs[-1])
+results %>% gather('Metric', 'Value', -data) %>% ggplot() + aes(fill=data, y=Value, x=factor(Metric, levels=c('train.RMSE', 'test.RMSE', 'val.RMSE')) ) + geom_bar(position='dodge', stat='identity') + 
+  xlab('')
+```
+
+
