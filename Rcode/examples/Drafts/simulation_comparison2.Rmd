@@ -112,6 +112,16 @@ y.abalone = function(X){
     list(X=as.matrix(dat_abalone$X_numeric), y=dat_abalone$y)
   )
 }
+
+X.hills = function(){
+  return(NA)
+}
+y.hills = function(X){
+  data(hills)
+  return(list(X = hills[,c(1,2)] %>% as.matrix(),
+              y = hills[,3] %>% as.numeric()
+  ))
+}
 ```
 
 ## y generator
@@ -405,14 +415,14 @@ evaluate.S.run = function(S, X.gen, y.gen, miss.gen, splitter, imputer, regresso
 ## One set of parameters
 ```{r}
 #X.gen = partial(X.basic.MVN_outliers, prop_outliers=0.01)
-X.gen = X.basic.MVN
-y.gen = y.regression
+X.gen = X.hills
+y.gen = y.hills
 miss.gen = list(train=MCAR.noEmptyLines, test=MCAR.noEmptyLines)
 #miss.gen = list(train=partial(MCAR.nVars,n_vars = 5), test=partial(MCAR.nVars,n_vars = 4))
 splitter = train_test_split
 imputer = imp.mvnorm
 regressor = reg.lin
-nSim = 128
+nSim = 500
 
 res = evaluate.S.run(nSim, X.gen, y.gen, miss.gen, splitter, imputer, regressor, do.parallel = T)
 res %>% as.data.frame() %>% gather('method', 'error', -trueBeta) %>%
