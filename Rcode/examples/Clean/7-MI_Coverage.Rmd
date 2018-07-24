@@ -79,10 +79,10 @@ oneRun = function(args){
   predictions.BS = lapply(1:m, function(i){(predictor$predict)(BS.regressors.fit[[i]], datasets.test.BS[[i]])}) %>% as.data.frame()
   predictions.SIBS = lapply(1:m, function(i){(predictor$predict)(single.imp.fit, datasets.test.BS[[i]])}) %>% as.data.frame()
   
-  MI.quantiles = t(apply(predictions.MI,1,function(x)quantile(x, probs=c(alpha,1-alpha)))) %>% as.data.frame()
-  SI.quantiles = t(apply(predictions.SI,1,function(x)quantile(x, probs=c(alpha,1-alpha)))) %>% as.data.frame()
-  BS.quantiles = t(apply(predictions.BS,1,function(x)quantile(x, probs=c(alpha,1-alpha)))) %>% as.data.frame()
-  SIBS.quantiles = t(apply(predictions.SIBS,1,function(x)quantile(x, probs=c(alpha,1-alpha)))) %>% as.data.frame()
+  MI.quantiles = t(apply(predictions.MI,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
+  SI.quantiles = t(apply(predictions.SI,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
+  BS.quantiles = t(apply(predictions.BS,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
+  SIBS.quantiles = t(apply(predictions.SIBS,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
   
   isCovered = list()
   isCovered$MI = y.test > MI.quantiles[,1] & y.test < MI.quantiles[,2]
@@ -111,7 +111,57 @@ argsL = list(n=800,
 S = 10
 res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
-res.1 %>% gather('method','error', c(MI, SI, BS, SIBS)) %>% ggplot() + aes(x=p,y=error, color=method) + geom_line()
+res.1 %>% gather('method','error', c(MI, SI, BS, SIBS)) %>% ggplot() + aes(x=p,y=error, color=method) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage'))
 ```
+
+```{r}
+X.gen = X.abalone
+y.gen = y.abalone
+argsL = list(n=seq(300,2000,200),
+            train_prop=0.6,
+            miss_prop=0.3,
+            alpha = 0.1,
+            m=30
+)
+
+res.2 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+
+res.2 %>% gather('method','error', c(MI, SI, BS, SIBS)) %>% ggplot() + aes(x=n,y=error, color=method) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage'))
+
+```
+
+```{r}
+X.gen = X.abalone
+y.gen = y.abalone
+argsL = list(n=1000,
+            train_prop=0.6,
+            miss_prop=seq(0,0.8,0.1),
+            alpha = 0.1,
+            m=30
+)
+
+res.3 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+
+res.3 %>% gather('method','error', c(MI, SI, BS, SIBS)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage'))
+
+```
+
+
+```{r}
+X.gen = X.abalone
+y.gen = y.abalone
+argsL = list(n=1000,
+            train_prop=0.6,
+            miss_prop=0.3,
+            alpha = seq(0.01,0.2, 0.03),
+            m=30
+)
+
+res.4 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+
+res.4 %>% gather('method','error', c(MI, SI, BS, SIBS)) %>% ggplot() + aes(x=alpha,y=error, color=method) + geom_line() + geom_line(aes(x=alpha, y=1-alpha, color='Nominal coverage'))
+
+```
+
 
 
