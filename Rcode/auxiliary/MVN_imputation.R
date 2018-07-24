@@ -5,7 +5,7 @@ imp.mvnorm.train = function(X){
   # Must run *rngseed* at least once before using
   pre <- prelim.norm(as.matrix(X))
   thetahat <- em.norm(pre)
-  return(thetahat)
+  return(list(thetahat=thetahat, sigma=getparam.norm(pre,thetahat)$sigma))
 }
 
 to_matrix = function(x, horiz){
@@ -41,6 +41,7 @@ estimate.1row = function(row, s, m){
 }
 
 imp.mvnorm.estim = function(thetahat, X){
+  thetahat = thetahat$thetahat
   #print(dim(X))
   pre <- prelim.norm(as.matrix(X))
   #thetahat <- em.norm(pre)
