@@ -21,8 +21,8 @@ oneRun = function(args){
     assign(name, args[[name]])
   }
   
-  X = X.gen(n,p,rho)
-  y.g = y.gen(X, sigma_reg)
+  X = X.gen(args)
+  y.g = y.gen(X,args)
   
   y = y.g$y
   X = y.g$X
@@ -48,19 +48,21 @@ oneRun = function(args){
   datasets$correct = list(train=imp.mvnorm.estim(imp.train, X.train), test=imp.mvnorm.estim(imp.train, X.test))
   
   regressors.fit = lapply(datasets,
-                          function(x) {pred.lin.train(x$train, y.train)})
+                          function(x) {(predictor$train)(x$train, y.train)})
   
-  predictions = lapply(names(datasets), function(x){pred.lin.predict(regressors.fit[[x]], datasets[[x]]$test)})
+  predictions = lapply(names(datasets), function(x){(predictor$predict)(regressors.fit[[x]], datasets[[x]]$test)})
   names(predictions) = names(datasets)
-  errors = lapply(predictions, function(x){mean((x-y.test)^2)})
-  
+  errors = lapply(predictions, function(x){errFun(x,y.test)})
   return(errors)
 }
 ```
 
+## Simulated  normal data
 ```{r}
 X.gen = X.basic.MVN
 y.gen = y.regression
+predictor = reg.lin
+errFun = function(y.pred,y.test){mean((y.pred-y.test)^2)}
 argsL = list(n=c(500),
             rho=c(0.5),
             sigma_reg = 0.3,
@@ -88,7 +90,7 @@ res.2 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
 res.2 %>% gather('method','error', c(grouped,separate,correct)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line()
 ```
 
-
+## Abalone data
 
 ```{r}
 X.gen = X.abalone
@@ -110,8 +112,27 @@ res.3 %>% gather('method','error',c(grouped,separate,correct)) %>%
 argsL = list(n=c(500),
             sigma_reg = 0.3,
             train_prop=0.7,
-            miss_prop = seq(0,0.95,0.05)
+            miss_prop = seq(0,0.85,0.05)
 )
 res.4 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
 res.4 %>% gather('method','error', c(grouped,separate,correct)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line()
 ```
+
+## Trauma data
+
+```{r}
+X.gen = X.trauma
+y.gen = y.trauma
+predictor = reg.logit
+
+#errFun = function(y.pred,y.true){metric_best_separation(y.pred,y.true, positive_weighting=10)$val}
+errFun = MLmetrics::AUC
+argsL = list(n=seq(100, 4000,100),
+            train_prop=0.7,
+            miss_prop=0
+)
+
+res.5 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
+res.5 %>% gather('method','AUC', c(grouped,separate,correct)) %>% ggplot() + aes(x=n,y=AUC, color=method) + geom_line()
+```
+
