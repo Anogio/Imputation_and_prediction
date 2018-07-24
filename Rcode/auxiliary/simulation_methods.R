@@ -3,26 +3,26 @@ library(parallel)
 library(tidyverse)
 library(pbapply)
 library(mvtnorm)
-
+library(caret)
+library(sn)
 #############################"
 # X generators
 
-X.basic.MVN = function(n., p., rho.){
+X.basic.MVN = function(args){
+  n. = args$n
+  rho. = args$rho
+  p. = args$p
   X = rmvnorm(n., sigma = (1-rho.)*diag(p.) + rho.)
-  return(X)
-}
-
-X.basic.MVN_outliers = function(n., p., rho., prop_outliers){
-  X = rmvnorm(n., sigma = (1-rho.)*diag(p.) + rho.)
-  n.outliers = ceiling(prop_outliers*n.)
-  outliers = sample(1:n., size=n.outliers)
-
-  X[outliers,] =  matrix(runif(p.*n.outliers,10,100), ncol=p.)
   return(X)
 }
 
 # mvtnorm with two groups of variables
-X.two.groups.MVN = function(n., p., rho., unif.noise=0){
+X.two.groups.MVN = function(args){
+  n. = args$n
+  p. = args$p
+  rho. = args$rho
+  unif.noise=args$unif.noise
+
   p2 = ceiling(p./3)
   p1 = p. - p2
   M1 = (1-rho.)*diag(p1) + rho.
@@ -38,7 +38,9 @@ X.two.groups.MVN = function(n., p., rho., unif.noise=0){
   return((X + matrix(runif(n.*p., -unif.noise/2, unif.noise/2), ncol=p.))*100)
 }
 
-X.random.mvn = function(n., p., rho=NULL){
+X.random.mvn = function(args){
+  n. = args$n
+  p. = args$p
   A <- matrix(runif(p.^2)*2-1, ncol=p.)
   s <- t(A) %*% A
   return(
@@ -46,15 +48,31 @@ X.random.mvn = function(n., p., rho=NULL){
   )
 }
 
+X.skew = function(args){
+  n = args$n
+  p = args$p
+  rho = args$rho
+  alpha = args$alpha
+  A <- matrix(runif(p^2)*2-1, ncol=p)
+  s <- (1-rho)*diag(p) + rho
+
+  return(
+    rmsn(n,Omega=s, alpha=alpha*(1+(1:p)/p), xi=rep(0,p))
+  )
+}
+
 #############################
 # y generators
-y.regression = function(X, sigma_n){
+y.regression = function(X, args){
+  sigma_reg = args$sigma_reg
   beta = seq(ncol(X))
-  X %*% beta
-  y = X %*% beta + rnorm(nrow(X), 0, sqrt(sigma_n))
+  y = X %*% beta + rnorm(nrow(X), 0, sqrt(sigma_reg))
   return(list(X=X, y=y))
 }
 
+y.firstCol = function(X, args){
+  return(list(X=X[,-1], y=X[,1]))
+}
 ###########################
 # Abalone Data
 if(exists(aux.folder)){
@@ -64,27 +82,39 @@ if(exists(aux.folder)){
 }
 aux.folder = './'
 source(paste(aux.folder,'dataloaders.R',sep=''), chdir = T)
-data_folder = '../../../Data/'
-dataset = 'abalone'
 aux.folder = old
 
-X.abalone = function(n.=n, p=NULL, rho=NULL){
-  return(list(n=n.))
+X.load = function(args){
+  dataset = args$dataset
+  n.= args$n
+  return(list(n=n., ds=dataset))
 }
 
-y.abalone = function(X, sigma_reg=NULL){
-  dat_abalone = loader(dataset, max_rows=X$n)
+y.load = function(X, args){
+  data_folder = '../../../Data/'
+  dat_load = loader(X$ds, max_rows=X$n)
   return(
-    list(X=as.matrix(dat_abalone$X_numeric), y=dat_abalone$y)
+    list(X=as.matrix(dat_load$X_numeric), y=dat_load$y)
   )
 }
 
+X.abalone = function(args){args$dataset='abalone'; X.load(args)}
+y.abalone = y.load
 
+X.trauma = function(args){args$dataset='trauma'; X.load(args)}
+y.trauma = function(X, args){
+  data_folder = '../../../Data/'
+  dat_load = loader(X$ds, max_rows=X$n)
+  return(
+    list(X=as.matrix(dat_load$X_numeric), y=as.numeric(dat_load$y)-1)
+  )
+}
 
 #########################
 # Split
 train_test_split = function(X,y, train_prop){
-  intrain = base::sample(nrow(X), ceiling(train_prop*nrow(X)))
+  #intrain = base::sample(nrow(X), ceiling(train_prop*nrow(X)))
+  intrain = createDataPartition(y, p=train_prop, list=FALSE)
   return(list(
     X.train = X[intrain,],
     X.test = X[-intrain,],
@@ -96,10 +126,10 @@ train_test_split = function(X,y, train_prop){
 
 #########################
 # Prediction
-pred.lin.train = function(X.train, y.train){
+pred.lin.train = function(X.train, y.train, weights=NULL){
   dat = data.frame(y=y.train, X=I(X.train))
   return(
-    lm(y~X, data = dat)
+    lm(y~X, data = dat, weights=weights)
   )
 }
 
@@ -109,6 +139,18 @@ pred.lin.predict = function(model, X.test){
 
 reg.lin = list(train=pred.lin.train, predict=pred.lin.predict)
 
+pred.logit.train = function(X.train, y.train, weights=NULL){
+  dat_train = data.frame(y=y.train, X=I(X.train))
+  return(
+    glm(y ~ .,family=binomial(link='logit'),data=dat_train, weights=weights)
+  )
+}
+
+pred.logit.predict = function(model, X.test){
+  return(predict(model,data.frame(X=I(X.test)), type='response'))
+}
+
+reg.logit = list(train=pred.logit.train, predict=pred.logit.predict)
 
 pred.rf.train = function(X.train, y.train){
   fitControl = trainControl(method = "none", classProbs = F)

@@ -5,15 +5,14 @@ output: html_document
 
 ```{r setup, include=FALSE}
 library(tidyverse)
-
-library(pander)
-detach("package:pander", unload=TRUE)
+library(MLmetrics)
 ```
 
 ```{r}
 aux.folder = '../../auxiliary/'
 source(paste(aux.folder,'MVN_imputation.R',sep=''), chdir = T)
 source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
+source(paste(aux.folder,'prediction_methods.R',sep=''), chdir = T)
 source(paste(aux.folder,'simulation_methods.R',sep=''), chdir = T)
 data_folder = '../../../Data/'
 dataset = 'abalone'
@@ -26,7 +25,7 @@ print(seed)
 res.withY = c()
 res.withoutY = c()
 
-oneRun = function(args){
+oneRun = function(args, missInTest=F){
   #n = args$n
   #p=args$p
   #rho=args$rho
@@ -36,21 +35,10 @@ oneRun = function(args){
   for(name in names(args)){
     assign(name, args[[name]])
   }
-  if(exists('rho')){
-    X = X.gen(n,p,rho)
-  }
-  else if(exists('p')){
-    X = X.gen(n,p)
-  }
-  else{
-    X = X.gen(n)
-  }
-  if(exists('sigma_reg')){
-    y.g = y.gen(X, sigma_reg) 
-  }
-  else{
-    y.g = y.gen(X) 
-  }
+  print('deb')
+  X = X.gen(args)
+  print('fin')
+  y.g = y.gen(X,args)
   y = y.g$y
   X = y.g$X
   if(exists('p')){
@@ -65,30 +53,71 @@ oneRun = function(args){
   y.test = spl$y.test
   
   X.train = MCAR.noEmptyLines(X.train, miss_prop)
+  if(missInTest){
+    X.test = MCAR.noEmptyLines(X.test, miss_prop)
+  }
   
   datasets = list()
+  print('a')
   imp.withY.train = imp.mvnorm.train(cbind(y.train,X.train))
   datasets$withY = imp.mvnorm.estim(imp.withY.train, cbind(y.train,X.train))[,-1]
+  print('b')
+  imp.withY.train2 = imp.mvnorm.train(datasets$withY)
+  datasets$withY = list(train=datasets$withY,
+                        test=imp.mvnorm.estim(imp.withY.train2,X.test))
+  print('c')
   imp.withoutY.train = imp.mvnorm.train(X.train)
-  datasets$withoutY = imp.mvnorm.estim(imp.withoutY.train, X.train)
-  
+  datasets$withoutY = list(train=imp.mvnorm.estim(imp.withoutY.train, X.train),
+                           test=imp.mvnorm.estim(imp.withoutY.train, X.test))
+  print('d')
   regressors.fit = lapply(datasets,
-                          function(x) {pred.lin.train(x, y.train)})
+                          function(x) {(predictor$train)(x$train, y.train)})
+  sigma = imp.withY.train$sigma
+  sigma_y_rest = sigma[1,1] - sigma[1,-1] %*% solve(sigma[-1,-1]) %*% sigma[-1,1]
+  sigma_y_observed = c()
+  for(i in 1:nrow(X.train)){
+    if(any(is.na(X.train[i,]))){
+      miss_col = which(is.na(X.train[i,]))
+      sigma11 = sigma[1,1]
+      sigma12 = sigma[1,-c(1,miss_col+1)]
+      sigma22 = sigma[-c(1,miss_col+1),-c(1,miss_col+1)]
+      sigma21 = sigma[-c(1,miss_col+1),1]
+      sigma_cond = sigma11 - sigma12 %*% solve(sigma22) %*% sigma21
+    }
+    else if(all(is.na(X.train[i,]))){
+      sigma_cond = sigma[1,1]
+    }
+    else{
+      sigma_cond = sigma_y_rest
+    }
+    sigma_y_observed = c(sigma_y_observed, sigma_cond)
+  }
+  weights = rep(sigma_y_rest, nrow(X.train))/sigma_y_observed
+
+  print('e')
+  regressors.fit$weighted.withY = (predictor$train)(datasets$withY$train, y.train, weights=weights)
+  regressors.fit$weighted.withoutY = (predictor$train)(datasets$withoutY$train, y.train, weights=weights)
+  datasets$weighted.withY = datasets$withY
+  datasets$weighted.withoutY = datasets$withoutY
   
-  predictions = lapply(names(datasets), function(x){pred.lin.predict(regressors.fit[[x]], X.test)})
-  names(predictions) = names(datasets)
-  
+  predictions = lapply(names(regressors.fit), function(x){(predictor$predict)(regressors.fit[[x]], datasets[[x]]$test)})
+  names(predictions) = names(regressors.fit)
+  print('f')
   imp.fulljoint.train = imp.withY.train
   predictions$fullJoint = imp.mvnorm.estim(imp.fulljoint.train, cbind(rep(NA,nrow(X.test)), X.test))[,1]
-  
-  errors = lapply(predictions, function(x){mean((x-y.test)^2)})
+  print('g')
+  errors = lapply(predictions, function(x){errFun(x,y.test)})
   
   return(errors)
 }
 ```
+
+## Simulated normal data
 ```{r}
 X.gen = X.basic.MVN
 y.gen = y.regression
+predictor = reg.lin
+errFun = function(y.pred,y.test){mean((y.pred-y.test)^2)}
 argsL = list(n=800,
             p=seq(2,100,2),
             rho=0.5,
@@ -102,10 +131,11 @@ res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
 res.1 %>% mutate(ratio=withY/withoutY) %>%
   ggplot() + aes(x=p,y=ratio) + geom_line() + geom_hline(yintercept = 1, color='red') + scale_y_log10()
 
-res.1 %>% gather('method','error', c(withY,withoutY,fullJoint)) %>% ggplot() + aes(x=p,y=error, color=method) + geom_line() + scale_y_log10()
+res.1 %>% gather('method','error', c(withY,withoutY,fullJoint, weighted.withY, weighted.withoutY)) %>% ggplot() + aes(x=p,y=error, color=method) + geom_line() + scale_y_log10()
 ```
 
 ```{r}
+
 argsL = list(n=800,
             p=20,
             rho=0.5,
@@ -113,12 +143,38 @@ argsL = list(n=800,
             train_prop=0.7,
             miss_prop=seq(0,0.95,0.05)
 )
-S = 20
+S = 5
 res.2 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
-res.2 %>% gather('method','error', c(withY,withoutY,fullJoint)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line() + scale_y_log10()
+res.2 %>% gather('method','error', c(withY,withoutY,fullJoint, weighted.withY, weighted.withoutY)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line() + scale_y_log10()
 ```
 
+
+
 ```{r}
+X.gen = X.basic.MVN
+y.gen = y.firstCol
+predictor = reg.lin
+errFun = function(y.pred,y.test){mean((y.pred-y.test)^2)}
+argsL = list(n=800,
+            p=seq(3,50,3),
+            rho=0.5,
+            sigma_reg = 0.2,
+            train_prop=0.4,
+            miss_prop=0.6,
+            alpha = 1e6
+)
+
+S = 5
+res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+res.1 %>% mutate(ratio=withY/withoutY) %>%
+  ggplot() + aes(x=p,y=ratio) + geom_line() + geom_hline(yintercept = 1, color='red') + scale_y_log10()
+
+res.1 %>% gather('method','error', c(withY,withoutY, weighted.withY, weighted.withoutY)) %>% ggplot() + aes(x=p,y=error, color=method) + geom_line() + scale_y_log10()
+```
+
+## Abalone data
+```{r}
+S = 5
 X.gen = X.abalone
 y.gen = y.abalone
 argsL = list(n=seq(300,2000,100),
@@ -126,9 +182,9 @@ argsL = list(n=seq(300,2000,100),
             miss_prop=0.3
 )
 
-S = 50
+S = 5
 res.3 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
-res.3 %>% gather('method','error', c(withY,withoutY)) %>% ggplot() + aes(x=n,y=error, color=method) + geom_line() + scale_y_log10()
+res.3 %>% gather('method','error', c(withY,withoutY, weighted.withY, weighted.withoutY)) %>% ggplot() + aes(x=n,y=error, color=method) + geom_line() + scale_y_log10()
 ```
 
 ```{r}
@@ -139,8 +195,27 @@ argsL = list(n=c(1000),
             miss_prop=seq(0,0.95,0.05)
 )
 
-S = 50
+S = 5
 res.4 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
-res.4 %>% gather('method','error', c(withY,withoutY)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line() + scale_y_log10()
+res.4 %>% gather('method','error', c(withY,withoutY, weighted.withY, weighted.withoutY)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line() + scale_y_log10()
 ```
 
+## Trauma data
+```{r}
+X.gen = X.trauma
+y.gen = y.trauma
+predictor = reg.logit
+#errFun = function(y.pred,y.true){metric_best_separation(y.pred,y.true, positive_weighting=10)$val}
+errFun = MLmetrics::AUC
+argsL = list(n=seq(1000, 4000,100),
+            train_prop=0.7,
+            miss_prop=0
+)
+
+S = 5
+res.5 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+res.5 %>% mutate(ratio=withY/withoutY) %>%
+  ggplot() + aes(x=n,y=ratio) + geom_line() + geom_hline(yintercept = 1, color='red')
+
+res.5 %>% gather('method','AUC', c(withY,withoutY,fullJoint, weighted.withY, weighted.withoutY)) %>% ggplot() + aes(x=n,y=AUC, color=method) + geom_line()
+```
