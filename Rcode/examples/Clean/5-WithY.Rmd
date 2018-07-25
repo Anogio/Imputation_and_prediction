@@ -41,11 +41,7 @@ oneRun = function(args, missInTest=F){
   y.g = y.gen(X,args)
   y = y.g$y
   X = y.g$X
-  if(exists('p')){
-    if(ncol(X)>p){
-      X = X[,1:p]
-    }
-  }
+
   spl = train_test_split(X, y, train_prop)
   X.train = spl$X.train
   X.test = spl$X.test
@@ -58,21 +54,21 @@ oneRun = function(args, missInTest=F){
   }
   
   datasets = list()
-  print('a')
+
   imp.withY.train = imp.mvnorm.train(cbind(y.train,X.train))
   datasets$withY = imp.mvnorm.estim(imp.withY.train, cbind(y.train,X.train))[,-1]
-  print('b')
+
   imp.withY.train2 = imp.mvnorm.train(datasets$withY)
   datasets$withY = list(train=datasets$withY,
                         test=imp.mvnorm.estim(imp.withY.train2,X.test))
-  print('c')
+  
   imp.withoutY.train = imp.mvnorm.train(X.train)
   datasets$withoutY = list(train=imp.mvnorm.estim(imp.withoutY.train, X.train),
                            test=imp.mvnorm.estim(imp.withoutY.train, X.test))
-  print('d')
+
   regressors.fit = lapply(datasets,
                           function(x) {(predictor$train)(x$train, y.train)})
-  sigma = imp.withY.train$sigma
+  sigma = imp.withY.train$params$sigma
   sigma_y_rest = sigma[1,1] - sigma[1,-1] %*% solve(sigma[-1,-1]) %*% sigma[-1,1]
   sigma_y_observed = c()
   for(i in 1:nrow(X.train)){
@@ -94,7 +90,6 @@ oneRun = function(args, missInTest=F){
   }
   weights = rep(sigma_y_rest, nrow(X.train))/sigma_y_observed
 
-  print('e')
   regressors.fit$weighted.withY = (predictor$train)(datasets$withY$train, y.train, weights=weights)
   regressors.fit$weighted.withoutY = (predictor$train)(datasets$withoutY$train, y.train, weights=weights)
   datasets$weighted.withY = datasets$withY
@@ -102,10 +97,10 @@ oneRun = function(args, missInTest=F){
   
   predictions = lapply(names(regressors.fit), function(x){(predictor$predict)(regressors.fit[[x]], datasets[[x]]$test)})
   names(predictions) = names(regressors.fit)
-  print('f')
+  
   imp.fulljoint.train = imp.withY.train
   predictions$fullJoint = imp.mvnorm.estim(imp.fulljoint.train, cbind(rep(NA,nrow(X.test)), X.test))[,1]
-  print('g')
+
   errors = lapply(predictions, function(x){errFun(x,y.test)})
   
   return(errors)
@@ -120,7 +115,7 @@ predictor = reg.lin
 errFun = function(y.pred,y.test){mean((y.pred-y.test)^2)}
 argsL = list(n=800,
             p=seq(2,100,2),
-            rho=0.5,
+            rho=0,
             sigma_reg = 0.2,
             train_prop=0.7,
             miss_prop=0.3
@@ -169,7 +164,7 @@ res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
 res.1 %>% mutate(ratio=withY/withoutY) %>%
   ggplot() + aes(x=p,y=ratio) + geom_line() + geom_hline(yintercept = 1, color='red') + scale_y_log10()
 
-res.1 %>% gather('method','error', c(withY,withoutY, weighted.withY, weighted.withoutY)) %>% ggplot() + aes(x=p,y=error, color=method) + geom_line() + scale_y_log10()
+res.1 %>% gather('method','error', c(withY,withoutY, weighted.withY, weighted.withoutY, fullJoint)) %>% ggplot() + aes(x=p,y=error, color=method) + geom_line() + scale_y_log10()
 ```
 
 ## Abalone data
@@ -184,7 +179,7 @@ argsL = list(n=seq(300,2000,100),
 
 S = 5
 res.3 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
-res.3 %>% gather('method','error', c(withY,withoutY, weighted.withY, weighted.withoutY)) %>% ggplot() + aes(x=n,y=error, color=method) + geom_line() + scale_y_log10()
+res.3 %>% gather('method','error', c(withY,withoutY, weighted.withY, weighted.withoutY, fullJoint)) %>% ggplot() + aes(x=n,y=error, color=method) + geom_line() + scale_y_log10()
 ```
 
 ```{r}
@@ -197,7 +192,7 @@ argsL = list(n=c(1000),
 
 S = 5
 res.4 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
-res.4 %>% gather('method','error', c(withY,withoutY, weighted.withY, weighted.withoutY)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line() + scale_y_log10()
+res.4 %>% gather('method','error', c(withY,withoutY, weighted.withY, weighted.withoutY, fullJoint)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line() + scale_y_log10()
 ```
 
 ## Trauma data
