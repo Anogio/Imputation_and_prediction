@@ -26,9 +26,7 @@ oneRun = function(args){
   y.g = y.gen(X,args)
   
   y = y.g$y
-  X = y.g$X
-  
-
+  X = y.g$
   
   spl = train_test_split(X, y, train_prop)
   X.train = spl$X.train
@@ -121,12 +119,12 @@ title('Prediction error (mean imputation)')
 
 ## Abalone data
 ```{r}
-grid = seq(0,0.7,0.05)
+grid = seq(0,0.7,0.1)
 predictor = reg.lin
 errFun = function(y.pred,y.test){mean((y.pred-y.test)^2)}
 X.gen = X.abalone
 y.gen = y.abalone
-argsL = list(n=800,
+argsL = list(n=4000,
           #  rho=0.5,
             sigma_reg = 0.3,
             train_prop=0.7,
@@ -136,7 +134,7 @@ argsL = list(n=800,
 )
 
 
-S = 5
+S = 15
 res = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
 res.grid = matrix(NA, nrow=length(grid), ncol=length(grid))
@@ -189,13 +187,12 @@ predictor = reg.logit
 errFun = errFun = MLmetrics::AUC
 X.gen = X.trauma
 y.gen = y.trauma
-argsL = list(n=800,
+argsL = list(n=4000,
           #  rho=0.5,
             sigma_reg = 0.3,
             train_prop=0.7,
             miss_prop.train=grid,
-            miss_prop.test=grid,
-            p = 5
+            miss_prop.test=grid
 )
 
 res = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
