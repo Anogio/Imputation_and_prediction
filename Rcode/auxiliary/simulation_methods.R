@@ -65,9 +65,10 @@ X.skew = function(args){
 # y generators
 y.regression = function(X, args){
   sigma_reg = args$sigma_reg
-  beta = seq(ncol(X))
+  beta = runif(ncol(X), 0.5, 1.5)
+  #beta = beta/sum(beta)
   y = X %*% beta + rnorm(nrow(X), 0, sqrt(sigma_reg))
-  return(list(X=X, y=y))
+  return(list(X=X, y=y, beta=beta))
 }
 
 y.firstCol = function(X, args){
