@@ -23,7 +23,7 @@ response_type_categorical = list(
 y_columns = list(
   iris = 5,
   titanic = 2,
-  trauma = 38,
+  trauma = 40,
   trauma_new = 19,
   abalone = 9
 )
@@ -37,7 +37,7 @@ cat_columns = list(
 num_columns = list(
   iris = 1:4,
   titanic = c(6:8, 10),
-  trauma = c(1, 3:5, 22:27, 31, 32, 36, 37),
+  trauma = c(1, 3:5, 22:27, 31, 32, 36:39),
   trauma_new = c(1, 3:5, 7:12, 14, 15, 17, 18),
   abalone = 2:8
 )
@@ -123,7 +123,7 @@ clean_trauma <- function(){
                   "ACR.1", "Hemocue.init", "SpO2.min", "Mydriase", "Mannitol.SSH",
                   "Regression.mydriase.sous.osmotherapie", "Remplissage.total.cristalloides",
                   "Remplissage.total.colloides", "Catecholamines", "IOT.SMUR",
-                  "Origine")
+                  "Origine",'Temperature', 'Temperature.min')
   SAMU = traumdata[, hemo_columns]
   SAMU$BMI[3302]=SAMU$Poids[3302]/(SAMU$Taille[3302]^2)
   SAMU=SAMU[-which(SAMU$ACR.1==1 | is.na(SAMU$ACR.1)) ,]
