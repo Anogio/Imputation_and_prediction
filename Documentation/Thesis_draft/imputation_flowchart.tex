@@ -15,25 +15,28 @@ mynode/.style={
 ]
   \node[mynode] (imp) {Imputer};
   \node[mynode,right=3cm of imp] (an) {Analyst};
-  \node[ellipse,draw,above left=1.5cm and -0.5cm of an] (md) {Missing data};
-  \node[mynode,above=2cm of md] (gt) {Ground truth};
-  \node[ellipse,draw,right=of an] (loss) {Loss};
+  \node[mynode,right=3cm of an] (prac) {Practitioner};
+  \node[ellipse,draw,above=2cm of an] (md) {Missing data};
+  \node[diamond,draw,above=2cm of md] (gt) {Ground truth};
+  \node[ellipse,draw,right=of prac] (loss) {Loss};
   \node[right=of loss] (res) {$L(y_V, \hat{y}_V)$};
   
   \draw[ar] 
   (gt) -- node {$\tilde{X}_A\ \tilde{X}_V$} (md);
   \draw[ar] 
-  (gt) -- node[left] {$y_A$} (imp);
+  (gt) -- node[left,auto] {$y_A$} (imp);
   \draw[ar] 
   (gt) -- node[above,auto] {$y_V$} (loss);
   \draw[ar] 
-  (md) -- node[above] {$X_A$} (imp);
+  (md) -- node[above,auto] {$X_A$} (imp);
   \draw[ar] 
-  (md) -- node[right] {$X_V$} (an);
+  (md) -- node[right,auto] {$X_V$} (prac);
   \draw[ar] 
-  (imp) -- node[left,auto] {$\hat{\alpha}, \hat{\beta}$} (an);
+  (imp) -- node[left,auto] {$\hat{\alpha}, X_A, y_A$} (an);
   \draw[ar] 
-  (an) -- node[above,auto] {$\hat{y}_V$} (loss);
+  (an) -- node[left,auto] {$\hat{\alpha}, \hat{\beta}$} (prac);
+  \draw[ar] 
+  (prac) -- node[above,auto] {$\hat{y}_V$} (loss);
   \draw[ar] 
   (loss) -- node[left,auto] {} (res);
 \end{tikzpicture}
