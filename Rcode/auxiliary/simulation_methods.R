@@ -293,6 +293,9 @@ evaluate.S.run = function(S, X.gen, y.gen, miss.gen, splitter, imputer, regresso
 evaluate.S.run.general = function(S, args, evaluator=evaluate.one.run, do.parallel=T, no_cores=4){
   f= function(i){
     rngseed(seed+i)
+    if(exists('seed.run')){
+      args$seed.run = seed.run + i
+    }
     evaluator(args)
   }
   if(do.parallel){
@@ -318,13 +321,20 @@ expand_args = function(argsList){
   )
 }
 
-evaluate.S.run.multiArg = function(S, argsList, evaluator=evaluate.one.run, do.parallel=T, no_cores=4){
+evaluate.S.run.multiArg = function(S, argsList, evaluator=evaluate.one.run, do.parallel=T, stackAll=F, no_cores=4){
   args.df = expand.grid(argsList)
   argsList = expand_args(argsList)
 
-  f= function(args){
-    rngseed(seed)
-    evaluate.S.run.general(S, args, evaluator, do.parallel=F) %>% lapply(mean)
+  if(!stackAll){
+    f= function(args){
+      rngseed(seed)
+      evaluate.S.run.general(S, args, evaluator, do.parallel=F) %>% lapply(mean)
+    }
+  }else{
+    f= function(args){
+      rngseed(seed)
+      evaluate.S.run.general(S, args, evaluator, do.parallel=F)
+    }
   }
   if(do.parallel){
     cl <- makeCluster(no_cores, type='FORK')
