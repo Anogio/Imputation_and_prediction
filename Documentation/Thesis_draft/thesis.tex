@@ -127,12 +127,27 @@ We present the data (Chapter \ref{data}), then present the state of the art in i
 
 \chapter{Goal and data}
 \label{data}
-	\section{The problem of haemorrhagic shock}
+	\section{Haemorrhagic shock: a lethal but preventable condition}
 	\label{shock}
-		\subsection{Importance as a medical condition}
-Descibe HS + hospital context
-		\subsection{Need for an assistance tool}
-Prediction is very hard, as described in \cite{doctors_prediction} + possible to treat if taken early
+		\subsection{Description}
+Post-traumatic bleeding is the primary cause of preventable deaths among injured patients around the world \cite{WHO}\cite{urban}. When a person sustains a severe injury (e.g. due to a car accident or violent assault), she may present serious internal or external bleeding. When the injury is serious enough, the natural coagulation process is not sufficient to stop the blood loss. If too much blood is lost, the patient enters a state called haemorrhagic shock (HS): the body is no longer able to provide vital organs with enough dioxygen to sustain them. At this point, it becomes very difficult to save the patient, even by stopping the haemorrhage and transfusing them with enough blood \cite{??}.
+
+When an individual sustains an injury, she is usually first taken in charge by first responders who evaluate the situation and the patient's state, before transporting her to a trauma center when the patient will be treated.
+To prevent patients from falling into haemorrhagic shock, procedures have been established in most hospitals to trigger a fast response to suspected haemorhhage \cite{gestalt}: massive transfusion (MT) protocols can be activated even before the patient enters the hospital if first response teams deem it necessary. When this happens, the hospital gets ready to transfuse the patient with large amounts of blood as soon as she arrives This way, the time interval between the injury and the transfusion in minimal. Studies \cite{death_in_the_operating_room} \cite{modern_combat_support} show that early transfusion, followed by surgical bleeding control if necessary, can greatly improve the survival odds of patients that are at risk of entering haemorrhagic shock.
+
+This means that it is essential to activate the procedure as early as possible if a patient's condition requires it. Unfortunately, it quite hard to evaluate whether a patient is at risk of haemorrhagic shock. While external bleeding (e.g. from a knife wound) is obvious, internal bleeding (usually from blunt trauma) on the other hand is not easily diagnosed visually or using physiological parameters (heart rate, bood pressure, \ldots) \cite{estimation_of_blood_loss}. A full-body scan or at least an ultrasound examination \cite{FAST?} may be needed. This results in a significant delay in the activation of the procedure --- in particular, in those cases the procedure cannot be activated prior to the patient's arrival in the hospital.
+
+		\subsection{Motivation for an assistance tool}
+%Prediction is very hard, as described in \cite{doctors_prediction} + possible to treat if taken early
+
+As we mentioned, it is both far from obvious and very important to diagnose a risk of HS early, and doctors often fail to do so without advanced tests: a study \cite{AUC_doctors} showed doctors to have quite limited performance when trying to predict a patient's risk of HS even after 10 minutes in the hospital. This highlights the difficulty of evaluating the need for the MT procedure before arrival, even when a doctor is present in the ambulance.
+
+This combination of factors means that it makes sense to try to provide tools that would assist a doctor in detecting possible HS. To that end, a number of scoring systems have been developed to evaluate the risk of HS for a patient \cite{Score1} \cite{Score2} \cite{...}: the idea is to determine a set of conditions on physiological measurements that determine a numeric score for the patient. The idea is that with well-chosen criteria, the score gives an objective assessment of a patient's condition that can supplement a doctor's expertise, or be used directly as a prediction (e.g. if the score is higher than some threshold, then then patient is at risk). However, the same study that evaluated the performance of doctors' prediction \cite{AUC_doctors} showed that numeric criteria perform no better than doctors in predicting HS.
+
+This might mean that it is simply impossible to accurately predict HS before advanced examinations are performed. However, it is also possible, that the relations between HS and physiological measurements are complex enough that a simple hand-made criterion is not enough to capture them. In that case, it would be useful to build a statistical model that would 
+
+
+
 	\section{The Traumabase data}
 	\section{Exploratory data analysis}
 		\subsection{Variables}
