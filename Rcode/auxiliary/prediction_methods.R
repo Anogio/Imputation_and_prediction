@@ -197,7 +197,7 @@ pool_MI_binary <- function(preds, spl=NULL, method='mean', y_true=NULL, quantile
   return(res)
 }
 
-train_test_split <-  function(X,y, train_size=0.5, spl=NULL, seed=42){
+train_test_split_MI <-  function(X,y, train_size=0.5, spl=NULL, seed=42){
   set.seed(seed)
   if(is.null(spl)){
     inTraining = createDataPartition(y, p=train_size, list=FALSE)
