@@ -43,19 +43,19 @@ oneRun = function(args){
   X.train = MCAR.noEmptyLines(X.train, miss_prop)
   X.test = MCAR.noEmptyLines(X.test, miss_prop)
   
-  pre.train = prelim.norm(X.train) 
-  pre.test = prelim.norm(X.test)
+  pre.train = prelim.norm2(X.train) 
+  pre.test = prelim.norm2(X.test)
   imp.train = em.norm(pre.train)
   
   imp.train.BS = list()
   for(i in 1:m){
     in.BS = base::sample(1:nrow(X.train), nrow(X.train), replace=T)
     X.train.BS = X.train[in.BS,]
-    pre.BS = prelim.norm(X.train.BS)
+    pre.BS = prelim.norm2(X.train.BS)
     imp.train.BS[[i]] = em.norm(pre.BS)
   }
   
-  X.train.single.imp = imp.mvnorm.estim(list(thetahat=imp.train),X.train)
+  X.train.single.imp = imp.mvnorm.estim(list(thetahat=imp.train,params=getparam.norm(pre.train,imp.train)),X.train)
   
   datasets.train = list()
   datasets.test = list()
@@ -109,7 +109,7 @@ argsL = list(n=800,
 )
 
 S = 10
-res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = F) 
 
 res.1 %>% gather('method','error', c(MI, SI, BS, SIBS)) %>% ggplot() + aes(x=p,y=error, color=method) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage'))
 ```
