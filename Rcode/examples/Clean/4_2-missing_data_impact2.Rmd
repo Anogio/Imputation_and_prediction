@@ -9,30 +9,44 @@ library(plotrix)
 aux.folder = '../../auxiliary/'
 source(paste(aux.folder,'MVN_imputation.R',sep=''), chdir = T)
 source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
+source(paste(aux.folder,'prediction_methods.R',sep=''), chdir = T)
 source(paste(aux.folder,'simulation_methods.R',sep=''), chdir = T)
 data_folder = '../../../Data/'
 dataset = 'abalone'
 
 seed = ceiling(runif(1,1e3,1e5))
 print(seed)
+
+seed.run = 123 # if this is set, we generate the same data every time when we do repeated runs
 ```
+
+Here we try to see how different amounts of missing data in the training and validation sets impact prediction performance. In particular, we are interested in seeing where missing data has the strongest impact.
 
 ```{r}
 oneRun = function(args){
   for(name in names(args)){
     assign(name, args[[name]])
   }
+  if(exists('seed.run')){
+    set.seed(seed.run)
+    print('seeded')
+    print(seed.run)
+  }
   X = X.gen(args)
   y.g = y.gen(X,args)
   
   y = y.g$y
-  X = y.g$
+  X = y.g$X
+  
+
   
   spl = train_test_split(X, y, train_prop)
   X.train = spl$X.train
   X.test = spl$X.test
   y.train = spl$y.train
   y.test = spl$y.test
+  
+    print(y.train[1:10])
   
   X.train = MCAR.noEmptyLines(X.train, miss_prop.train)
   X.test = MCAR.noEmptyLines(X.test, miss_prop.test)
@@ -54,15 +68,21 @@ oneRun = function(args){
 }
 ```
 
+## Simulated data
+
+We simulate data drawn from a normal distribution (with unit variance and the same covariance rho=0.5 for all variables) of dimension n=800 by p=5. A response variable y is generated as a linear combination of X plus some noise. 30% of the data is reserved for validation while the rest is kept for training. Some variable proportion of missing values (0 to 70%) is added to the training data, and a different proportion to the validation data.
+Once this is done, both datasets are imputed using a normal approximation or imputation by the mean, and a linear regression is fitted on the training data. The final score is the mean square prediction error on the validation data.
+
+The results are shown in the table below for both imputation methods.
 
 ```{r}
-grid = seq(0,0.7,0.05)
+grid = seq(0,0.9,0.1)
 predictor = reg.lin
 errFun = function(y.pred,y.test){mean((y.pred-y.test)^2)}
-X.gen = X.random.mvn
+X.gen = X.basic.MVN
 y.gen = y.regression
 argsL = list(n=800,
-          #  rho=0.5,
+            rho=0.5,
             sigma_reg = 0.3,
             train_prop=0.7,
             miss_prop.train=grid,
@@ -71,7 +91,7 @@ argsL = list(n=800,
 )
 
 
-S = 50
+S = 10
 res = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
 res.grid = matrix(NA, nrow=length(grid), ncol=length(grid))
@@ -85,7 +105,7 @@ for(i in 1:nrow(res)){
 
 tlab = 0.5:(length(grid)-0.5)
 lab = grid
-res.grid %>% as.data.frame() %>%color2D.matplot(show.values=1, axes=F, xlab='Missing test values', ylab='Missing train values')
+res.grid %>% as.data.frame() %>%color2D.matplot(show.values=2, axes=F, xlab='Missing test values', ylab='Missing train values')
 axis(1, at=tlab, labels=F)
 text(x=tlab, y=par()$usr[3]-0.1*(par()$usr[4]-par()$usr[3]), 
      labels=lab, srt=45, adj=1, xpd=T)
@@ -93,6 +113,24 @@ axis(2, at=tlab, labels=F)
 text(y=tlab, x=par()$usr[1] -0.02*(par()$usr[2]-par()$usr[1]), 
      labels=rev(lab), srt=0, adj=1, xpd=T)
 title('Prediction error (MVN imputation)')
+```
+
+```{r}
+colnames(res.grid)=grid
+res.grid %>% as.data.frame() %>% mutate(misstrain=grid) %>% gather('misstest', 'error', -misstrain) %>%
+  ggplot() + aes(x=misstrain, y=error, color=misstest) + geom_line() + ggtitle('Evolution of the prediction error for fixed proportion of missing test values \n depending on the proportion of missing train values') + xlab('Missing training data') + ylab('Validation error')
+```
+
+```{r}
+colnames(res.grid)=grid
+res.grid %>% as.data.frame() %>% mutate(misstrain=grid) %>% gather('misstest', 'error', -misstrain) %>%
+  ggplot() + aes(x=misstest, y=error, group=misstrain, color=misstrain) + geom_line() + 
+   ggtitle('Evolution of the prediction error for fixed proportion of missing train values \n depending on the proportion of missing test values')+ 
+    xlab('Missing validation data') + ylab('Validation error')
+```
+```{r}
+ggplot() + aes(x=grid, y=res.grid[4,]) + geom_point() + ggtitle('Evolution of the prediction error for fixed proportion of missing train values(0.4) \n depending on the proportion of missing test values') + xlab('Missing validation data') + ylab('Validation error') +
+  geom_smooth(method='lm')
 ```
 
 ```{r}
@@ -107,7 +145,7 @@ for(i in 1:nrow(res)){
 
 tlab = 0.5:(length(grid)-0.5)
 lab = grid
-res.grid %>% as.data.frame() %>%color2D.matplot(show.values=1, axes=F, xlab='Missing test values', ylab='Missing train values')
+res.grid %>% as.data.frame() %>% color2D.matplot(show.values=1, axes=F, xlab='Missing test values', ylab='Missing train values')
 axis(1, at=tlab, labels=F)
 text(x=tlab, y=par()$usr[3]-0.1*(par()$usr[4]-par()$usr[3]), 
      labels=lab, srt=45, adj=1, xpd=T)
@@ -116,10 +154,35 @@ text(y=tlab, x=par()$usr[1] -0.02*(par()$usr[2]-par()$usr[1]),
      labels=rev(lab), srt=0, adj=1, xpd=T)
 title('Prediction error (mean imputation)')
 ```
+```{r}
+colnames(res.grid)=grid
+res.grid %>% as.data.frame() %>% mutate(misstrain=grid) %>% gather('misstest', 'error', -misstrain) %>%
+  ggplot() + aes(x=misstrain, y=error, color=misstest) + geom_line() + ggtitle('Evolution of the prediction error for fixed proportion of missing test values \n depending on the proportion of missing train values') + xlab('Missing training data') + ylab('Validation error')
+```
+
+```{r}
+colnames(res.grid)=grid
+res.grid %>% as.data.frame() %>% mutate(misstrain=grid) %>% gather('misstest', 'error', -misstrain) %>%
+  ggplot() + aes(x=misstest, y=error, group=misstrain, color=misstrain) + geom_line() + 
+   ggtitle('Evolution of the prediction error for fixed proportion of missing train values \n depending on the proportion of missing test values')+ 
+    xlab('Missing validation data') + ylab('Validation error')
+```
+
+We can see that missing data in the testing set has a significantly greater impact on the prediction error than in the training data. 
+
+```{r}
+S = 100
+args = list(n=800, rho=0.5, train_prop=0.7, miss_prop.train=0.9, miss_prop.test=0,p=5, sigma_reg=0.3)
+res = evaluate.S.run.general(S,args,oneRun)
+res %>% as.data.frame() %>% gather('method','error', -mean) %>% ggplot() + aes(x=method, y=error) + geom_boxplot()
+```
 
 ## Abalone data
+
+Here we do the same with the real-world Abalone data, where the goal is to determine the age of a shell based on physical measurements. The data has n=4000 observations with p=7 variables, and the columns are very correlated with one another.
+
 ```{r}
-grid = seq(0,0.7,0.1)
+grid = seq(0,0.9,0.1)
 predictor = reg.lin
 errFun = function(y.pred,y.test){mean((y.pred-y.test)^2)}
 X.gen = X.abalone
@@ -129,12 +192,10 @@ argsL = list(n=4000,
             sigma_reg = 0.3,
             train_prop=0.7,
             miss_prop.train=grid,
-            miss_prop.test=grid,
-            p = 5
+            miss_prop.test=grid
 )
 
-
-S = 15
+S = 10
 res = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
 res.grid = matrix(NA, nrow=length(grid), ncol=length(grid))
@@ -148,7 +209,7 @@ for(i in 1:nrow(res)){
 
 tlab = 0.5:(length(grid)-0.5)
 lab = grid
-res.grid %>% as.data.frame() %>%color2D.matplot(show.values=1, axes=F, xlab='Missing test values', ylab='Missing train values')
+res.grid %>% as.data.frame() %>%color2D.matplot(show.values=2, axes=F, xlab='Missing test values', ylab='Missing train values')
 axis(1, at=tlab, labels=F)
 text(x=tlab, y=par()$usr[3]-0.1*(par()$usr[4]-par()$usr[3]), 
      labels=lab, srt=45, adj=1, xpd=T)
@@ -157,6 +218,22 @@ text(y=tlab, x=par()$usr[1] -0.02*(par()$usr[2]-par()$usr[1]),
      labels=rev(lab), srt=0, adj=1, xpd=T)
 title('Prediction error (MVN imputation)')
 ```
+
+```{r}
+colnames(res.grid)=grid
+res.grid %>% as.data.frame() %>% mutate(misstrain=grid) %>% gather('misstest', 'error', -misstrain) %>%
+  ggplot() + aes(x=misstrain, y=error, color=misstest) + geom_line() + ggtitle('Evolution of the prediction error for fixed proportion of missing test values \n depending on the proportion of missing train values') + xlab('Missing training data') + ylab('Validation error')
+```
+
+```{r}
+colnames(res.grid)=grid
+res.grid %>% as.data.frame() %>% mutate(misstrain=grid) %>% gather('misstest', 'error', -misstrain) %>%
+  ggplot() + aes(x=misstest, y=error, group=misstrain, color=misstrain) + geom_line() + 
+   ggtitle('Evolution of the prediction error for fixed proportion of missing train values \n depending on the proportion of missing test values')+ 
+    xlab('Missing validation data') + ylab('Validation error')
+```
+
+The effect is smaller, but missing validation data still has much more impact on the error than missing training data. This is no longer true, though, when almost all of the training data is missing. In this case, the error is much higher than with less missing train, even with lots of missing values in the validation.
 
 ```{r}
 res.grid = matrix(NA, nrow=length(grid), ncol=length(grid))
@@ -179,12 +256,37 @@ text(y=tlab, x=par()$usr[1] -0.02*(par()$usr[2]-par()$usr[1]),
      labels=rev(lab), srt=0, adj=1, xpd=T)
 title('Prediction error (mean imputation)')
 ```
+```{r}
+colnames(res.grid)=grid
+res.grid %>% as.data.frame() %>% mutate(misstrain=grid) %>% gather('misstest', 'error', -misstrain) %>%
+  ggplot() + aes(x=misstrain, y=error, color=misstest) + geom_line() + ggtitle('Evolution of the prediction error for fixed proportion of missing test values \n depending on the proportion of missing train values') + xlab('Missing training data') + ylab('Validation error')
+```
+
+```{r}
+colnames(res.grid)=grid
+res.grid %>% as.data.frame() %>% mutate(misstrain=grid) %>% gather('misstest', 'error', -misstrain) %>%
+  ggplot() + aes(x=misstest, y=error, group=misstrain, color=misstrain) + geom_line() + 
+   ggtitle('Evolution of the prediction error for fixed proportion of missing train values \n depending on the proportion of missing test values')+ 
+    xlab('Missing validation data') + ylab('Validation error')
+```
+
+```{r}
+S = 100
+args = list(n=800, rho=0.5, train_prop=0.7, miss_prop.train=0.9, miss_prop.test=0,p=5, sigma_reg=0.3)
+res = evaluate.S.run.general(S,args,oneRun)
+res %>% as.data.frame() %>% gather('method','error',-mean) %>% ggplot() + aes(x=method, y=error) + geom_boxplot()
+```
 
 ## Trauma data
+
+Lastly, we do the same with the Traumabase data. Here the data has 4000 observations and 16 variables.
+
 ```{r}
+S= 10
 grid = seq(0,0.3,0.05)
 predictor = reg.logit
-errFun = errFun = MLmetrics::AUC
+#errFun = errFun = MLmetrics::AUC
+errFun = function(y.pred,y.true){metric_best_separation(y.pred,y.true, positive_weighting=10)$val}
 X.gen = X.trauma
 y.gen = y.trauma
 argsL = list(n=4000,
@@ -215,8 +317,108 @@ text(x=tlab, y=par()$usr[3]-0.1*(par()$usr[4]-par()$usr[3]),
 axis(2, at=tlab, labels=F)
 text(y=tlab, x=par()$usr[1] -0.02*(par()$usr[2]-par()$usr[1]), 
      labels=rev(lab), srt=0, adj=1, xpd=T)
+title('Error (MVN imputation)')
+
+```
+```{r}
+colnames(res.grid)=grid
+res.grid %>% as.data.frame() %>% mutate(misstrain=grid) %>% gather('misstest', 'error', -misstrain) %>%
+  ggplot() + aes(x=misstrain, y=error, color=misstest) + geom_line() + ggtitle('Evolution of the prediction error for fixed proportion of missing test values \n depending on the proportion of missing train values') + xlab('Missing training data') + ylab('Validation error')
+```
+
+```{r}
+colnames(res.grid)=grid
+res.grid %>% as.data.frame() %>% mutate(misstrain=grid) %>% gather('misstest', 'error', -misstrain) %>%
+  ggplot() + aes(x=misstest, y=error, group=misstrain, color=misstrain) + geom_line() + 
+   ggtitle('Evolution of the prediction error for fixed proportion of missing train values \n depending on the proportion of missing test values')+ 
+    xlab('Missing validation data') + ylab('Validation error')
+```
+
+
+
+```{r}
+res.grid = matrix(NA, nrow=length(grid), ncol=length(grid))
+for(i in 1:nrow(res)){
+  missTr = res$miss_prop.train[i]
+  missTe = res$miss_prop.test[i]
+  iTr = which(grid==missTr)
+  iTe = which(grid==missTe)
+  res.grid[iTr,iTe] = res$mean[i]
+}
+
+tlab = 0.5:(length(grid)-0.5)
+lab = grid
+res.grid %>% as.data.frame() %>%color2D.matplot(show.values=3, axes=F, xlab='Missing test values', ylab='Missing train values')
+axis(1, at=tlab, labels=F)
+text(x=tlab, y=par()$usr[3]-0.1*(par()$usr[4]-par()$usr[3]), 
+     labels=lab, srt=45, adj=1, xpd=T)
+axis(2, at=tlab, labels=F)
+text(y=tlab, x=par()$usr[1] -0.02*(par()$usr[2]-par()$usr[1]), 
+     labels=rev(lab), srt=0, adj=1, xpd=T)
+title('Error (mean imputation)')
+```
+```{r}
+colnames(res.grid)=grid
+res.grid %>% as.data.frame() %>% mutate(misstrain=grid) %>% gather('misstest', 'error', -misstrain) %>%
+  ggplot() + aes(x=misstrain, y=error, color=misstest) + geom_line() + ggtitle('Evolution of the prediction error for fixed proportion of missing test values \n depending on the proportion of missing train values') + xlab('Missing training data') + ylab('Validation error')
+```
+
+```{r}
+colnames(res.grid)=grid
+res.grid %>% as.data.frame() %>% mutate(misstrain=grid) %>% gather('misstest', 'error', -misstrain) %>%
+  ggplot() + aes(x=misstest, y=error, group=misstrain, color=misstrain) + geom_line() + 
+   ggtitle('Evolution of the prediction error for fixed proportion of missing train values \n depending on the proportion of missing test values')+ 
+    xlab('Missing validation data') + ylab('Validation error')
+```
+
+## Trauma data - Small sample
+
+We do the same as before but with just 1000 observations to see if it impacts the results.
+
+```{r}
+argsL = list(n=1000,
+          #  rho=0.5,
+            sigma_reg = 0.3,
+            train_prop=0.7,
+            miss_prop.train=grid,
+            miss_prop.test=grid
+)
+
+res = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+
+res.grid = matrix(NA, nrow=length(grid), ncol=length(grid))
+for(i in 1:nrow(res)){
+  missTr = res$miss_prop.train[i]
+  missTe = res$miss_prop.test[i]
+  iTr = which(grid==missTr)
+  iTe = which(grid==missTe)
+  res.grid[iTr,iTe] = res$norm[i]
+}
+
+tlab = 0.5:(length(grid)-0.5)
+lab = grid
+res.grid %>% as.data.frame() %>%color2D.matplot(show.values=3, axes=F, xlab='Missing test values', ylab='Missing train values')
+axis(1, at=tlab, labels=F)
+text(x=tlab, y=par()$usr[3]-0.1*(par()$usr[4]-par()$usr[3]), 
+     labels=lab, srt=45, adj=1, xpd=T)
+axis(2, at=tlab, labels=F)
+text(y=tlab, x=par()$usr[1] -0.02*(par()$usr[2]-par()$usr[1]), 
+     labels=rev(lab), srt=0, adj=1, xpd=T)
 title('AUC (MVN imputation)')
 
+```
+```{r}
+colnames(res.grid)=grid
+res.grid %>% as.data.frame() %>% mutate(misstrain=grid) %>% gather('misstest', 'error', -misstrain) %>%
+  ggplot() + aes(x=misstrain, y=error, color=misstest) + geom_line() + ggtitle('Evolution of the prediction error for fixed proportion of missing test values \n depending on the proportion of missing train values') + xlab('Missing training data') + ylab('Validation error')
+```
+
+```{r}
+colnames(res.grid)=grid
+res.grid %>% as.data.frame() %>% mutate(misstrain=grid) %>% gather('misstest', 'error', -misstrain) %>%
+  ggplot() + aes(x=misstest, y=error, group=misstrain, color=misstrain) + geom_line() + 
+   ggtitle('Evolution of the prediction error for fixed proportion of missing train values \n depending on the proportion of missing test values')+ 
+    xlab('Missing validation data') + ylab('Validation error')
 ```
 
 
