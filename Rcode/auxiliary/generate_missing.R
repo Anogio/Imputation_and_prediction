@@ -17,8 +17,6 @@ MCAR <- function(X, miss_prop){
 
 # Add a proportion of missing data but never empty a ful line
 MCAR.noEmptyLines <- function(X, miss_prop.){
-  print(dim(X))
-  print(miss_prop.)
   n = nrow(X)
   m = ncol(X)
   missing = matrix(runif(n*m), nrow=n, ncol=m) <= miss_prop.
