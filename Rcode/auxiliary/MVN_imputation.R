@@ -64,10 +64,10 @@ prelim.norm2 = function (x)
 }
 
 # MVN fit
-imp.mvnorm.train = function(X){
+imp.mvnorm.train = function(X, verbose=F){
   # Must run *rngseed* at least once before using
   pre <- prelim.norm2(as.matrix(X))
-  thetahat <- em.norm(pre)
+  thetahat <- em.norm(pre, showits=verbose)
   params = getparam.norm(pre,thetahat)
   return(list(params=params, thetahat=thetahat))
 }
