@@ -290,9 +290,11 @@ evaluate.S.run = function(S, X.gen, y.gen, miss.gen, splitter, imputer, regresso
   return(lapply(res, unlist))
 }
 
-evaluate.S.run.general = function(S, args, evaluator=evaluate.one.run, do.parallel=T, no_cores=4){
+evaluate.S.run.general = function(S, args, evaluator=evaluate.one.run, do.parallel=T, no_cores=4, seed=NULL){
   f= function(i){
-    rngseed(seed+i)
+    if(!is.null(seed)){
+      rngseed(seed+i)
+    }
     if(exists('seed.run')){
       args$seed.run = seed.run + i
     }
@@ -300,7 +302,9 @@ evaluate.S.run.general = function(S, args, evaluator=evaluate.one.run, do.parall
   }
   if(do.parallel){
     cl <- makeCluster(no_cores, type='FORK')
-    clusterSetRNGStream(cl, seed)
+    if(!is.null(seed)){
+      clusterSetRNGStream(cl, seed)
+    }
     z = pblapply(cl=cl, X=1:S, FUN=f)
     stopCluster(cl)
   }
