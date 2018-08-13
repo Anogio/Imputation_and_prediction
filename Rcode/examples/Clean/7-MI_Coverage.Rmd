@@ -109,7 +109,7 @@ argsL = list(n=800,
 )
 
 S = 10
-res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = F) 
+res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
 res.1 %>% gather('method','error', c(MI, SI, BS, SIBS)) %>% ggplot() + aes(x=p,y=error, color=method) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage'))
 ```
