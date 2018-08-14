@@ -58,8 +58,8 @@ missing.props = seq(0,0.99,0.05)
 for(missing.prop in missing.props){
   X_miss = MCAR(X, missing.prop)
   
-  X_fill_mice = complete(mice(X_miss, m=1, method='pmm', printFlag = F))
-  X_fill_mean = complete(mice(X_miss, m=1, method='mean', printFlag = F))
+  X_fill_mice = mice::complete(mice(X_miss, m=1, method='pmm', printFlag = F))
+  X_fill_mean = mice::complete(mice(X_miss, m=1, method='mean', printFlag = F))
   
   fitted.mice = lm(y~., data=cbind(X_fill_mice,y)[inTraining,])
   fitted.mean = lm(y~., data=cbind(X_fill_mean,y)[inTraining,])
