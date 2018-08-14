@@ -95,7 +95,7 @@ print(paste('X is of dimension', toString(dim(X))))
 ```
 
 ```{r}
-splitted = train_test_split(X,y,train_size,seed=seed)
+splitted = train_test_split_MI(X,y,train_size,seed=seed)
 spl = splitted$spl
 
 X_fill_MI = impute(X, 'mice', m=n_imputations)
