@@ -19,7 +19,23 @@ dataset = 'abalone'
 
 seed = ceiling(runif(1,1e3,1e5))
 print(seed)
+``` 
+
+```{r}
+lm.predVar = function(X.new, X.fit, fittedM){
+  sigma2 = (summary(fittedM)$sigma)**2
+  print(sigma2)
+  inv.cov = solve(t(X.fit) %*% X.fit)
+  z = X.new %*% inv.cov
+  res = rowSums(X.new*z)
+  print(res)
+  return(res * sigma2)
+}
 ```
+
+MI: multiple imputation on train and test
+SI: Single imputation on train, multiple on test
+MIBS, SIBS: same as before, but the imputation parameters are estimated from bootstrap samples 
 
 ```{r}
 oneRun = function(args){
@@ -79,10 +95,36 @@ oneRun = function(args){
   predictions.BS = lapply(1:m, function(i){(predictor$predict)(BS.regressors.fit[[i]], datasets.test.BS[[i]])}) %>% as.data.frame()
   predictions.SIBS = lapply(1:m, function(i){(predictor$predict)(single.imp.fit, datasets.test.BS[[i]])}) %>% as.data.frame()
   
-  MI.quantiles = t(apply(predictions.MI,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
-  SI.quantiles = t(apply(predictions.SI,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
-  BS.quantiles = t(apply(predictions.BS,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
-  SIBS.quantiles = t(apply(predictions.SIBS,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
+  #MI.quantiles = t(apply(predictions.MI,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
+  #SI.quantiles = t(apply(predictions.SI,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
+  #BS.quantiles = t(apply(predictions.BS,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
+  #SIBS.quantiles = t(apply(predictions.SIBS,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
+
+  MI.var_b = apply(predictions.MI,1,var)
+  SI.var_b = apply(predictions.SI,1,var)
+  BS.var_b = apply(predictions.BS,1,var)
+  SIBS.var_b = apply(predictions.SIBS,1,var)
+  
+  MI.var_w = lapply(1:m, function(i) lm.predVar(datasets.test[[i]], datasets.train[[i]], MI.regressors.fit[[i]])) %>% as.data.frame() %>% rowMeans()
+  SI.var_w = lapply(1:m, function(i) lm.predVar(datasets.test[[i]], X.train.single.imp, single.imp.fit)) %>% as.data.frame() %>% rowMeans()
+  BS.var_w = lapply(1:m, function(i) lm.predVar(datasets.test.BS[[i]], datasets.train.BS[[i]], BS.regressors.fit[[i]])) %>% as.data.frame() %>% rowMeans()
+  SIBS.var_w = lapply(1:m, function(i) lm.predVar(datasets.test.BS[[i]], X.train.single.imp, single.imp.fit)) %>% as.data.frame() %>% rowMeans()
+  
+  MI.var_tot = MI.var_w + (1 + 1/m) * MI.var_b
+  MI.df = (m-1) * (1 + MI.var_w / ((1+1/m)*MI.var_b))**2
+  MI.quantiles = t(sapply(MI.df, function(x) qt(c(alpha/2,1-alpha/2), df=x))) * sqrt(MI.var_tot) + rowMeans(predictions.MI)
+  
+  SI.var_tot = SI.var_w + (1 + 1/m) * SI.var_b
+  SI.df = (m-1) * (1 + SI.var_w / ((1+1/m)*SI.var_b))**2
+  SI.quantiles = t(sapply(SI.df, function(x) qt(c(alpha/2,1-alpha/2), df=x))) * sqrt(SI.var_tot) + rowMeans(predictions.SI)
+  
+  BS.var_tot = BS.var_w + (1 + 1/m) * BS.var_b
+  BS.df = (m-1) * (1 + BS.var_w / ((1+1/m)*BS.var_b))**2
+  BS.quantiles = t(sapply(BS.df, function(x) qt(c(alpha/2,1-alpha/2), df=x))) * sqrt(BS.var_tot) + rowMeans(predictions.BS)
+  
+  SIBS.var_tot = SIBS.var_w + (1 + 1/m) * SIBS.var_b
+  SIBS.df = (m-1) * (1 + SIBS.var_w / ((1+1/m)*SIBS.var_b))**2
+  SIBS.quantiles = t(sapply(SIBS.df, function(x) qt(c(alpha/2,1-alpha/2), df=x))) * sqrt(SIBS.var_tot) + rowMeans(predictions.SIBS)
   
   isCovered = list()
   isCovered$MI = y.test > MI.quantiles[,1] & y.test < MI.quantiles[,2]
@@ -104,7 +146,7 @@ argsL = list(n=800,
             sigma_reg = 0.2,
             train_prop=0.6,
             miss_prop=0.3,
-            alpha = 0.1,
+            alpha = 0.3,
             m=30
 )
 
@@ -120,7 +162,7 @@ y.gen = y.abalone
 argsL = list(n=seq(300,2000,200),
             train_prop=0.6,
             miss_prop=0.3,
-            alpha = 0.1,
+            alpha = 0.3,
             m=30
 )
 
@@ -136,7 +178,7 @@ y.gen = y.abalone
 argsL = list(n=1000,
             train_prop=0.6,
             miss_prop=seq(0,0.8,0.1),
-            alpha = 0.1,
+            alpha = 0.3,
             m=30
 )
 
@@ -153,7 +195,7 @@ y.gen = y.abalone
 argsL = list(n=1000,
             train_prop=0.6,
             miss_prop=0.3,
-            alpha = seq(0.01,0.2, 0.03),
+            alpha = seq(0.01,0.3, 0.03),
             m=30
 )
 
