@@ -130,7 +130,7 @@ We present the data (Chapter \ref{data}), then present the state of the art in i
 	\section{Haemorrhagic shock: a lethal but preventable condition}
 	\label{shock}
 		\subsection{Description}
-Post-traumatic bleeding is the primary cause of preventable deaths among injured patients around the world \cite{WHO}\cite{urban}. When a person sustains a severe injury (e.g. due to a car accident or violent assault), she may present serious internal or external bleeding. When the injury is serious enough, the natural coagulation process is not sufficient to stop the blood loss. If too much blood is lost, the patient enters a state called haemorrhagic shock (HS): the body is no longer able to provide vital organs with enough dioxygen to sustain them. At this point, it becomes very difficult to save the patient, even by stopping the haemorrhage and transfusing them with enough blood \cite{??}.
+Post-traumatic bleeding is the primary cause of preventable deaths among injured patients around the world \cite{WHO}\cite{urban}. When a person sustains a severe injury (e.g. due to a car accident or violent assault), she may present serious internal or external bleeding. If the injury is serious enough, the natural coagulation process is not sufficient to stop the blood loss. In that case, if too much blood is lost, the patient enters a state called haemorrhagic shock (HS): the body is no longer able to provide vital organs with enough dioxygen to sustain them \cite{HS_def}. At this point, it becomes very difficult to save the patient, even by stopping the haemorrhage and transfusing them with enough blood \cite{??}.
 
 When an individual sustains an injury, she is usually first taken in charge by first responders who evaluate the situation and the patient's state, before transporting her to a trauma center when the patient will be treated.
 To prevent patients from falling into haemorrhagic shock, procedures have been established in most hospitals to trigger a fast response to suspected haemorhhage \cite{gestalt}: massive transfusion (MT) protocols can be activated even before the patient enters the hospital if first response teams deem it necessary. When this happens, the hospital gets ready to transfuse the patient with large amounts of blood as soon as she arrives This way, the time interval between the injury and the transfusion in minimal. Studies \cite{death_in_the_operating_room} \cite{modern_combat_support} show that early transfusion, followed by surgical bleeding control if necessary, can greatly improve the survival odds of patients that are at risk of entering haemorrhagic shock.
@@ -144,15 +144,23 @@ As we mentioned, it is both far from obvious and very important to diagnose a ri
 
 This combination of factors means that it makes sense to try to provide tools that would assist a doctor in detecting possible HS. To that end, a number of scoring systems have been developed to evaluate the risk of HS for a patient \cite{Score1} \cite{Score2} \cite{...}: the idea is to determine a set of conditions on physiological measurements that determine a numeric score for the patient. The idea is that with well-chosen criteria, the score gives an objective assessment of a patient's condition that can supplement a doctor's expertise, or be used directly as a prediction (e.g. if the score is higher than some threshold, then then patient is at risk). However, the same study that evaluated the performance of doctors' prediction \cite{AUC_doctors} showed that numeric criteria perform no better than doctors in predicting HS.
 
-This might mean that it is simply impossible to accurately predict HS before advanced examinations are performed. However, it is also possible, that the relations between HS and physiological measurements are complex enough that a simple hand-made criterion is not enough to capture them. In that case, it would be useful to build a statistical model that would 
+This might mean that it is simply impossible to accurately predict HS before advanced examinations are performed. However, it is also possible, that the relations between HS and physiological measurements are complex enough that a simple hand-made criterion is not enough to capture them. In that case, it would be useful to build a statistical model capable of representing this relationship and of providing hospitals with early estimates of a patient's level of risk. 
+
+This is why a team of researchers is trying to develop a tool that would leverage machine learning techniques to predict hemorrhagic shock, using a database of patient records (cf Section \ref{traumabase}). Our paper is part of that effort, with a specific focus on missing data imputation.
 
 
 
 	\section{The Traumabase data}
-	\section{Exploratory data analysis}
-		\subsection{Variables}
-		\subsection{Missing data}
-	\section{Objective of this work}
+	\label{traumabase}
+		\subsection{The Traumabase project}
+	
+		\subsection{Exploratory data analysis}
+			\subsubsection{Variables}
+			\subsubsection{Missing data}
+	\section{Objective and formalization}
+		\subsection{Objective of this work}
+		\subsection{The Imputer/Analyst/Practitioner framework}
+	
 As explained in Section \ref{shock}, we want to enable the conception of a tool that would detect haemorrhagic shock in trauma patients. In this work, we focus more specifically on handling the missing data
 
 ... explain the specificity: patient by patient predicition, analyst has no access to the training data
@@ -567,6 +575,12 @@ The trends are less visible in the Abalone data, most likely because the base er
 
 Throughout the spectrum of $n$, we also see that the imputation with missing data everywhere tends to match whichever is worse between the full training data and the full validation data. These values act as lower bounds for the quality of prediction. 
 
+\chapter{Empirical evaluation of some methods}
+	\section{Using $y$ in the imputation}
+	\section{Multiple imputation}
+		\subsection{Prediction intervals}
+		\subsection{Point estimate}
+
 \chapter{Analysis: imputing the Traumabase data for prediction}
 \label{analysis}
 	\section{Criteria for evaluation}
@@ -574,7 +588,7 @@ Throughout the spectrum of $n$, we also see that the imputation with missing dat
 		Mention the fact that most methods have the same performance (even mean)
 		
 		Imputation done before model selection (cf congeniality)
-	\section{Multiple imputation}
+	\section{Methodology}
 	
 \chapter{Results}
 \label{results}
