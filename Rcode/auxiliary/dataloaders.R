@@ -23,7 +23,7 @@ response_type_categorical = list(
 y_columns = list(
   iris = 5,
   titanic = 2,
-  trauma = 40,
+  trauma = 39,
   trauma_new = 19,
   abalone = 9
 )
@@ -37,7 +37,7 @@ cat_columns = list(
 num_columns = list(
   iris = 1:4,
   titanic = c(6:8, 10),
-  trauma = c(1, 3:5, 22:27, 31, 32, 36:39),
+  trauma = c(1, 3:5, 22:27, 31, 32, 36:38),
   trauma_new = c(1, 3:5, 7:12, 14, 15, 17, 18),
   abalone = 2:8
 )
@@ -65,7 +65,6 @@ loader <- function(dataset, max_rows=NULL, seed=NULL){
   print(paste('Loading ',  dataset, ' data...', sep=''))
 
   dat = read.csv(paste(data_folder,files[dataset], sep=''))
-
   ycol = y_columns[[dataset]]
   numcols = num_columns[[dataset]]
   catcols = cat_columns[[dataset]]
@@ -111,7 +110,7 @@ loader <- function(dataset, max_rows=NULL, seed=NULL){
 
 clean_trauma <- function(){
   traumdata <- read.csv(file=paste(data_folder,'data_trauma.csv', sep=''), header = TRUE,na.strings = c("","NR","IMP","NA","NF"),encoding = "UTF-8")
-
+  traumdata = traumdata %>% filter(!is.na(Sexe))
   hemo_columns =c("Age", "Sexe", "Poids", "Taille", "BMI",
                   "Ante.ASA.PS", "Ante.grossesse", "Traitement.anticoagulant",
                   "Mecanisme", "Discordance",
@@ -125,7 +124,7 @@ clean_trauma <- function(){
                   "ACR.1", "Hemocue.init", "SpO2.min", "Mydriase", "Mannitol.SSH",
                   "Regression.mydriase.sous.osmotherapie", "Remplissage.total.cristalloides",
                   "Remplissage.total.colloides", "Catecholamines", "IOT.SMUR",
-                  "Origine",'Temperature', 'Temperature.min')
+                  "Origine",'Temperature')
   SAMU = traumdata[, hemo_columns]
   SAMU$BMI[3302]=SAMU$Poids[3302]/(SAMU$Taille[3302]^2)
   SAMU=SAMU[-which(SAMU$ACR.1==1 | is.na(SAMU$ACR.1)) ,]
@@ -142,7 +141,6 @@ clean_trauma <- function(){
   SAMU$SD.SMUR=SAMU$PAS.SMUR-SAMU$PAD.SMUR
 
   SAMU = SAMU %>% dplyr::select(-one_of(c("PAS.min", "PAD.min", "PAS.SMUR", "PAD.SMUR", 'ACR.1')))
-
   write.csv(cbind(SAMU, Choc.hemorragique), paste(data_folder,'hemo_shock.csv', sep=''), row.names = F)
   }
 clean_trauma()
