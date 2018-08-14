@@ -36,7 +36,7 @@ themer = function(sizeAxis = 10, sizeAxisTitle=13,
 
 
 res.graph = res.varN[c('fullTrain', 'fullTest', 'fullData', 'mean', 'correct')] %>% as.data.frame()
-colnames(res.graph) = c('Missing validation data', 'Missing training data', 'Full data', 'Mean imputation', 'Normal imputation')
+colnames(res.graph) = c('Missing validation data', 'Missing training data', 'Full data', 'Both (mean imputation)', 'Both (normal imputation)')
 
 p1 = res.graph %>% mutate(nList=nList) %>%
   gather('method', 'error', -c(nList, `Full data`, `Missing validation data`, `Missing training data`)) %>%
