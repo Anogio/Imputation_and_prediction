@@ -9,7 +9,7 @@ multiple_prediction <- function(X_MI, y, pred_method, train_size=0.5, seed=42, s
   y_pred = list()
   trained_predictors = list()
 
-  splitted = train_test_split(X_MI,y, train_size=train_size, spl=spl, seed=seed)
+  splitted = train_test_split_MI(X_MI,y, train_size=train_size, spl=spl, seed=seed)
   y_train = splitted$y_train
   y_test = splitted$y_test
 
@@ -51,7 +51,7 @@ saem_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, printevery=
 
   y = as.numeric(y) - 1 # Convert back to vector of 0 and 1s for saem
 
-  splitted = train_test_split(X,y, train_size=train_size, spl=spl, seed=seed)
+  splitted = train_test_split_MI(X,y, train_size=train_size, spl=spl, seed=seed)
   y_train = splitted$y_train
   y_test = splitted$y_test
   X_train = splitted$X_train
@@ -96,7 +96,7 @@ xgboost_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, nrounds=
   X = as.matrix(X)
   y = as.numeric(y) - 1 # Convert back to vector of 0 and 1s for saem
 
-  splitted = train_test_split(X,y, train_size=train_size, spl=spl, seed=seed)
+  splitted = train_test_split_MI(X,y, train_size=train_size, spl=spl, seed=seed)
   y_train = splitted$y_train
   y_test = splitted$y_test
   X_train = splitted$X_train
