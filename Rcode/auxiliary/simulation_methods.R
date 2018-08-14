@@ -21,9 +21,8 @@ X.two.groups.MVN = function(args){
   n. = args$n
   p. = args$p
   rho. = args$rho
-  unif.noise=args$unif.noise
 
-  p2 = ceiling(p./3)
+  p2 = ceiling(p./2)
   p1 = p. - p2
   M1 = (1-rho.)*diag(p1) + rho.
   M2 = (1-rho.)*diag(p2) + rho.
@@ -34,8 +33,7 @@ X.two.groups.MVN = function(args){
     rbind(z12, M2)
   )
   X = rmvnorm(n., sigma=s)
-  colnames(X) = paste('V', 1:p., sep='')
-  return((X + matrix(runif(n.*p., -unif.noise/2, unif.noise/2), ncol=p.))*100)
+  return(X)
 }
 
 X.random.mvn = function(args){
