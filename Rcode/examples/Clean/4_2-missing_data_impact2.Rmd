@@ -78,10 +78,10 @@ The results are shown in the tables below for both imputation methods.
 grid = seq(0,0.9,0.1)
 predictor = reg.lin
 errFun = function(y.pred,y.test){mean((y.pred-y.test)^2)}
-X.gen = X.basic.MVN
+X.gen = X.two.groups.MVN
 y.gen = y.regression
 argsL = list(n=800,
-            rho=0.7,
+            rho=0.3,
             sigma_reg = 0.3,
             train_prop=0.7,
             miss_prop.train=grid,
@@ -183,14 +183,16 @@ res = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
 ```{r}
 res.fullTrain = res %>% filter(miss_prop.train ==0) %>% mutate(type='missInTest', miss_prop=miss_prop.test)
 res.fullTest = res %>% filter(miss_prop.test == 0) %>% mutate(type='missInTrain', miss_prop=miss_prop.train)
-res.stack = rbind(res.fullTest, res.fullTrain)
+res.both = res %>% filter(miss_prop.test == miss_prop.train) %>% mutate(type='missInBoth', miss_prop=miss_prop.train)
+res.stack = rbind(res.fullTest, res.fullTrain,res.both)
 ggplot(res.stack) + aes(x=miss_prop, y=norm, color=type) + geom_line() + facet_wrap(~n, scale='free') + scale_y_log10() +
   ggtitle('Evolution fo the error when we add missing values to one of the datasets \n Normal imputation')
 ```
 ```{r}
 res.fullTrain = res %>% filter(miss_prop.train ==0) %>% mutate(type='missInTest', miss_prop=miss_prop.test)
 res.fullTest = res   %>% filter(miss_prop.test == 0) %>% mutate(type='missInTrain', miss_prop=miss_prop.train)
-res.stack = rbind(res.fullTest, res.fullTrain)
+res.both = res %>% filter(miss_prop.test == miss_prop.train) %>% mutate(type='missInBoth', miss_prop=miss_prop.train)
+res.stack = rbind(res.fullTest, res.fullTrain,res.both)
 ggplot(res.stack) + aes(x=miss_prop, y=mean, color=type) + geom_line() + facet_wrap(~n, scale='free') + scale_y_log10() +
   ggtitle('Evolution fo the error when we add missing values to one of the datasets \n Mean imputation')
 ```
@@ -306,7 +308,8 @@ res = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
 ```{r}
 res.fullTrain = res %>% filter(miss_prop.train ==0) %>% mutate(type='fullTrain', miss_prop=miss_prop.test)
 res.fullTest = res %>% filter(miss_prop.test == 0) %>% mutate(type='fullTest', miss_prop=miss_prop.train)
-res.stack = rbind(res.fullTest, res.fullTrain)
+res.both = res %>% filter(miss_prop.test == miss_prop.train) %>% mutate(type='missInBoth', miss_prop=miss_prop.train)
+res.stack = rbind(res.fullTest, res.fullTrain,res.both)
 ggplot(res.stack) + aes(x=miss_prop, y=norm, color=type) + geom_line() + facet_wrap(~n, scale='free') + scale_y_log10() +
   ggtitle('Evolution fo the error when we add missing values to one of the datasets \n Normal imputation')
 ```
@@ -314,7 +317,8 @@ ggplot(res.stack) + aes(x=miss_prop, y=norm, color=type) + geom_line() + facet_w
 ```{r}
 res.fullTrain = res %>% filter(miss_prop.train ==0) %>% mutate(type='fullTrain', miss_prop=miss_prop.test)
 res.fullTest = res %>% filter(miss_prop.test == 0) %>% mutate(type='fullTest', miss_prop=miss_prop.train)
-res.stack = rbind(res.fullTest, res.fullTrain)
+res.both = res %>% filter(miss_prop.test == miss_prop.train) %>% mutate(type='missInBoth', miss_prop=miss_prop.train)
+res.stack = rbind(res.fullTest, res.fullTrain,res.both)
 ggplot(res.stack) + aes(x=miss_prop, y=mean, color=type) + geom_line() + facet_wrap(~n, scale='free') + scale_y_log10() +
   ggtitle('Evolution fo the error when we add missing values to one of the datasets \n Mean imputation')
 ```
@@ -419,14 +423,16 @@ res = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
 ```{r}
 res.fullTrain = res  %>% filter(miss_prop.train ==0) %>% mutate(type='fullTrain', miss_prop=miss_prop.test)
 res.fullTest = res %>% filter(miss_prop.test == 0) %>% mutate(type='fullTest', miss_prop=miss_prop.train)
-res.stack = rbind(res.fullTest, res.fullTrain)
+res.both = res %>% filter(miss_prop.test == miss_prop.train) %>% mutate(type='missInBoth', miss_prop=miss_prop.train)
+res.stack = rbind(res.fullTest, res.fullTrain,res.both)
 ggplot(res.stack) + aes(x=miss_prop, y=norm, color=type) + geom_line() + facet_wrap(~n, scale='free') + scale_y_log10() +
   ggtitle('Evolution fo the error when we add missing values to one of the datasets \n Normal imputation')
 ```
 ```{r}
 res.fullTrain = res  %>% filter(miss_prop.train ==0) %>% mutate(type='fullTrain', miss_prop=miss_prop.test)
 res.fullTest = res %>% filter(miss_prop.test == 0) %>% mutate(type='fullTest', miss_prop=miss_prop.train)
-res.stack = rbind(res.fullTest, res.fullTrain)
+res.both = res %>% filter(miss_prop.test == miss_prop.train) %>% mutate(type='missInBoth', miss_prop=miss_prop.train)
+res.stack = rbind(res.fullTest, res.fullTrain,res.both)
 ggplot(res.stack) + aes(x=miss_prop, y=mean, color=type) + geom_line() + facet_wrap(~n, scale='free') + scale_y_log10() +
   ggtitle('Evolution fo the error when we add missing values to one of the datasets \n Mean imputation')
 ```
