@@ -1,0 +1,6 @@
+\begin{figure}[h]
+	\centering
+   \includegraphics[scale=0.7]{Resources/eda_continuous}
+   \caption{Distribution of the continuous variables depending on patient outcome}
+   \label{fig.eda_continuous}
+\end{figure}

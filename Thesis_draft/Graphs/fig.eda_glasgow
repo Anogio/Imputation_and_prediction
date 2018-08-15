@@ -1,0 +1,6 @@
+\begin{figure}[h]
+	\centering
+   \includegraphics[scale=0.7]{Resources/eda_glasgow}
+   \caption{Distribution of Glasgow Coma Scale score depending on patient outcome}
+   \label{fig.eda_glasgow}
+\end{figure}

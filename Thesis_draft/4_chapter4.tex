@@ -1,0 +1,243 @@
+In order to make good decisions for imputation, it is important to understand how it impacts prediction. In order to get an idea on this issue, we solve a very simple case of cross-validated regression with missing data. We found no theoretical results whatsoever about the relationship between imputation and prediction. 
+	\section{Problem set-up}
+We place ourselves in a simple linear regression context with two covariates, where one observation is missing in the training dataset, and one in the validation dataset.
+
+		\subsection{Notations}
+			\subsubsection{True data}
+The true, unobserved data is a standard regression setup, with the exception that one line of the data is reserved as 'validation data'
+\footnote{For this calculation we only need one line of validation data since we will be using expected values.}
+, with the rest called 'training data' --- as is standard in predictive contexts (cf Chapter \ref{validation}). The response variable $y$ is a noised linear combination of the covariates in $X$:
+\begin{equation*}
+\tilde{X}_A = 
+\begin{pmatrix}
+x_{11} & x_{12} \\
+\vdots & \vdots \\
+x_{n1} & x_{n2}
+\end{pmatrix}
+\quad \mathrm{and} \quad
+y_A = X_A \beta + \epsilon_A
+\quad \mathrm{with} \quad
+\epsilon_A \sim \mathcal{N}(0, \sigma^2)
+\end{equation*}
+\begin{equation*}
+\tilde{X_V} = 
+\begin{pmatrix}
+x_{1}^V & x_{2}^V
+\end{pmatrix}
+\quad \mathrm{and} \quad
+y_V = X_V \beta + \epsilon_V
+\quad \mathrm{with} \quad
+\epsilon_V \sim \mathcal{N}(0, \sigma^2)
+\end{equation*}
+
+The end goal is to learn an estimator on the training set that minimizes the expected loss on the validation set:
+$$
+L(y_V, \hat{y}_V) = (y_V - \hat{y_V})^2
+$$
+
+This is a well known problem with a simple solution. The regression estimator can be expressed as:
+$$ \tilde{\beta} = (\tilde{X}_A^T \tilde{X}_A)^{-1} \tilde{X}_A^T y_A $$
+
+with and estimated response
+$$ \tilde{y}_V = \tilde{X}_V \tilde{\beta} $$
+
+But there is one caveat: the data is actually not fully observed.
+
+			\subsubsection{Observed data}
+What we actually have access to is slightly different: one observation is missing in the training set, as is one of the entries in the testing set. We observe the full $y^A$, but the covariate matrices we actually have access to are:
+\begin{equation*}
+X^A = 
+\begin{pmatrix}
+? & x_{12} \\
+\vdots & \vdots \\
+x_{n1} & x_{n2}
+\end{pmatrix}
+\quad \mathrm{and} \quad
+X^V = 
+\begin{pmatrix}
+? & x_{2}^V
+\end{pmatrix}
+\end{equation*}
+
+		\subsection{Imputed data and regression}
+			\subsubsection{Principle}
+To perform a linear regression similarly to what we did previously, we first have to fill in the blanks: we impute the missing data by replacing them with chosen values $\phi$ and $\psi$ (which we choose using the value of what we observe).
+\begin{equation*}
+\hat{X}^A = 
+\begin{pmatrix}
+\phi & x_{12} \\
+\vdots & \vdots \\
+x_{n1} & x_{n2}
+\end{pmatrix}
+\quad \mathrm{and} \quad
+\hat{X}^V = 
+\begin{pmatrix}
+\psi & x_{2}^V
+\end{pmatrix}
+\end{equation*}
+
+This in turn allows us to perform the regression just like before:
+$$
+\hat{\beta} = (\hat{X}_A^T \hat{X}_A)^{-1} \hat{X}_A^T y_A 
+\quad \mathrm{and} \quad
+\hat{y}_V (\phi, \psi) = \hat{X}_V \hat{\beta} 
+$$
+
+This means that what we really want to minimize is the following risk function:
+
+$$R(\phi, \psi) = \mathbb{E}[(y_V - \hat{y}_V(\phi,\psi))^2 \vert X_A, X_V]$$
+
+where the only thing we choose is our decision rule for $\phi$ and $\psi$.
+			\subsubsection{Distribution hypotheses}
+Lastly, for this last expression to have any meaning, we need to make some assumption on the distribution of $X$.
+
+We make a very simple hypotheses of a multivariate normal distribution for the covariates --- the parameters are assumed to be known, in real life they would be estimates.
+$$
+\tilde{X}_A \sim \mathcal{N}(\mu, \Sigma) \quad \tilde{X}_V \sim \mathcal{N}(\mu, \Sigma)
+$$
+
+With these, we know the distribution of the missing observations $x_{11}$ and $X_1^V$ conditional of the observed ones and we can try to find the $\phi$ and $\psi$ values that give us the best expected loss.
+
+Now that we have these notations and hypotheses, it is possible to solve the problem of the choice of imputation. Here we give a full expression of the loss and partial resolution.
+
+	\section{Partial resolution}
+		\subsection{General loss}
+To be able to estimate the expected loss, we break it up into several components
+\begin{align*}
+L(y_V, \hat{y}_V) &= (y_V - \hat{y_V})^2 &\\
+				   &= (\tilde{X}_V \beta + \epsilon_V - \hat{X}_V \hat{\beta})^2 &\\
+				   &= (\tilde{X}_V(\beta - \tilde{\beta}) + \tilde{X}_V (\tilde{\beta} - \hat{\beta}) + (\tilde{X}_V - \hat{X}_V) \hat{\beta} + \epsilon_V)^2 & \\
+				   &= (\tilde{X}_V (\beta - \tilde{\beta}))^2 & (1) \\
+				   & \quad + (\tilde{X}_V (\tilde{\beta}-\hat{\beta}))^2 &(2) \\
+				   & \quad + ((\tilde{X}_V - \hat{X}_V) \hat{\beta})^2 &(3) \\
+				   & \quad + \tilde{X}_V (\beta - \tilde{\beta}) \tilde{X}_V (\tilde{\beta} - \hat{\beta}) & (4) \\
+				   & \quad + \tilde{X}_V (\beta - \tilde{\beta}) (\tilde{X}_V - \hat{X}_V )\hat{\beta} & (5) \\
+				   & \quad + \tilde{X}_V (\tilde{\beta} - \hat{\beta}) (\tilde{X}_V - \hat{X}_V) \hat{\beta} & (6)\\
+				   & + \epsilon_V^2 &\\
+				   & + \epsilon_V K
+\end{align*}
+Where $K$ is some term that will not matter (because when we take the expectation it will be zero). The risk we want to minimize is the expectation of this loss.
+		\subsection{When the validation set is fully observed}
+			\subsubsection{Imputation}
+The first thing we can easily do is to study the situation where the only missing data is in the validation set. In that case, $\tilde{X}_A = \hat{X}_A$ and so $\tilde{\beta} = \hat{\beta}$, and all we have to choose is $\psi$. In the previously computed loss, it means that terms $(2)$, $(4)$ and $(6)$ are zero.
+
+Furthermore, Cochran's theorem ensures that $(\beta - \tilde{\beta})$ and $\tilde{\beta}$ are independent so term $(5)$ can be factorized and will have zero expectation (since $(\beta - \tilde{\beta})$ has zero expectation).
+
+Term $(1)$ depends only on the true values of $X_V$, independent of $psi$, so the choice of $\psi$  is not impacted by this term.
+
+This leaves us with only term $(3)$, with expectation:
+\begin{align*}
+\mathbb{E}[((\tilde{X}_V-\hat{X}_V)\tilde{\beta})^2 \vert x^V_2, X_A] &= \mathbb{E}[(x_1^V - \psi)^2 \tilde{\beta}_1^2 \vert x^V_2, X_A] \\
+													&= \mathbb{E}[\tilde{\beta}_1^2 \vert x^V_2, X_A] (\mathbb{E}[(x_1^V)^2\vert x^V_2, X_A] \\
+													& \quad - 2\psi \mathbb{E}[x_1^V\vert x^V_2, X_A] + \psi^2)
+\end{align*}
+Once we are there, we can differentiate this expression to easily derive the optimal expression for $\psi$: $\hat{\psi} = \mathbb{E}[x_1^V\vert x^V_2]$, the conditional expectation of the missing value.
+
+Incidentally, this does not use any assumption on the distribution of $X$: this would be true for any joint distribution we choose for the covariates.
+
+			\subsubsection{Expected loss}
+First note:
+\begin{align*}
+\eta = \beta - \tilde{\beta} &= \beta - (\tilde{X}_A^T \tilde{X}_A)^{-1} \tilde{X}_A^T y_A \\
+		&= (\tilde{X}_A^T \tilde{X}_A)^{-1} \tilde{X}_A^T (\tilde{X}_A \beta + \epsilon_A) \\
+		&= (\tilde{X}_A^T \tilde{X}_A)^{-1} \tilde{X}_A^T \epsilon_A
+\end{align*}
+
+That is, the difference between the estimated and real parameter is distributed following some centred normal distribution. Let us denote its covariance matrix by $S = \sigma^2 (\tilde{X}_A^T \tilde{X}_A)^{-1} $.
+
+Now, term $(1)$ can be expressed as :
+\begin{align*}
+\mathbb{E}[(\tilde{X}_V \eta)^2 \vert x^V_2] &= \mathbb{E}[(x^V_1 \eta_1 + x^V_2 \eta_2)^2\vert x^V_2] \\
+											&= S_{11} \mathbb{E}[(x^V_1)^2 \vert x^V_2]  + 2x^V_2 S_{12} \mathbb{E}[x^V_1 \vert x^V_2] + S_{22} (x^V_2)^2
+\end{align*}
+
+Term $(3)$ can be expressed as:
+\begin{align*}
+\mathbb{E}[((\tilde{X}_V - \hat{X}_V) \hat{\beta})^2 \vert x^V_2]&= \mathbb{E}[((x^V_1 - \hat{\psi})\tilde{\beta}_1)^2 \vert x^V_2] \\
+									 &= \mathbb{E}[((x^V_1 - \hat{\psi})(\beta_1 + \eta_1))^2 \vert x^V_2] \\
+									&= \beta_1^2 \text{Var}[x^V_1 \vert x^V_2] + S_{11}^2 \text{Var}[x^V_1 \vert x^V_2] 
+\end{align*}
+
+The terms from $(1)$ would be more or less the same if the test data were fully observed. They represent the impact on the prediction of the error made when estimating $\beta$.
+
+ On the other hand, those from $(3)$ are both positive and unique to the incomplete case. They do not depend on the test data at all. The first term reflects how an error in the imputation of $X_V$ is amplified by the regression coefficient when predicting $y$. The second one shows how errors in the estimation of $\beta$ and of $X_V$ combine when predicting $y$.
+ 
+ Most importantly, the least squares estimator is a strongly consistent one\cite{consistency_linreg}, which implies that the only error terms that matter with large $n$ are those that remain when $\eta$ is set to zero:
+ $$ \beta_1^2 \text{Var}[x^V_1 \vert x^V_2] + \sigma^2 $$
+ 
+ The missing data in the validation set adds a term that does not vanish for large $n$.
+ 
+ \paragraph*{When there are more than two covariates}
+ An important point is that in a context with more than two covariates, the conditional variance of an observation increases when the number of unobserved variables increases: this means that when the dimension increases, not only do new error terms appear, but the existing ones also increase.
+ 
+ For $X_V$ with $p>2$ covariates, we denote $X_V^{\text{miss}}$ and $X_V^{\text{obs}}$ the missing and observed values in $X_V$. We can now write $(3)$ again:
+ \begin{align*}
+ \mathbb{E}[((\tilde{X}_V - \hat{X}_V)\beta)^2 \vert X_V^{\text{obs}}] &= 
+ 		\mathbb{E}[ (\sum \limits_{\substack{i=1 \\i \in X_V^{\text{miss}}}}^{p} (x_i^V - \hat{x}_i^V)\beta_i)^2 \vert X_V^{\text{obs}}] \\
+ 		&= \mathbb{E}[\sum \limits_{\substack{i=1 \\i \in X_V^{\text{miss}}}}^{p} \sum \limits_{\substack{j=1 \\j \in X_V^{\text{miss}}}}^{p}
+ 			(x^V_i - \hat{x}^V_i)(x^V_j - \hat{x}^V_j)\beta_i \beta_j \vert X_V^{\text{obs}}]
+ \end{align*}
+ 
+ If, as previously, we choose $\hat{x}^V_i = \mathbb{E}[x^V_i \vert X_V^{\text{obs}}]$, we end up with:
+ \begin{align*}
+ \mathbb{E}[((\tilde{X}_V - \hat{X}_V)\beta)^2 \vert X_V^{\text{obs}}] &= 
+ 	\sum \limits_{\substack{i,j=1 \\i,j \in X_V^{\text{miss}}}}^{p} \beta_i \beta_j Cov(x^V_i, x^V_j \vert X_V^{\text{obs}})
+ \end{align*}
+
+		\subsection{When the data is large and the training data is fully observed}
+We can suppose that $n$ is large and that we know $\tilde{X_V}$. In that case, we can take the approximation that $\beta = \tilde{\beta}$, that is, the only error in the estimation of $\beta$ comes from the missing data in the training set. Then, the only error term that is nonzero is $(2)$:
+$$ (\tilde{X}_V (\hat{\beta} - \tilde{\beta}))^2$$
+\todo{To complete}
+	\section{Analysis}
+		\subsection{Implications}
+\paragraph{Theoretical consequences}
+If the results above are any indication as to how things go in more complex settings, there are some interesting implications. 
+
+First, this confirms our intuition that using the conditional mean is the right thing to do to impute the validation data. This is important, especially as most imputation packages were made for multiple imputation and draw from the conditional distribution instead.
+
+Second, there is a major asymmetry between the training and validation dataset: in the training set, every line works together with the others to help estimate some parameter. In particular, this means that even if all of the imputations are imperfect, with enough observations we can obtain a satisfactory estimate of the parameters (this is similar to the case of statistical inference with missing data, where under some assumptions the estimators are asymptotically consistent \cite{rubin_ignorability}). More data adds information, and even if it is incomplete it helps with the estimation.
+
+The validation data is in a completely different situation. Missing data in the validation dataset adds error terms to the data that can be very large and do not vanish asymptotically. Intuitively, even if we have exactly the right $\beta$ for regression, any error in the estimation of the data will be directly reflected as a prediction error proportional to the regression coefficient, while in the training set this effect is much more indirect. Such errors are inevitable, even if we know the exact distribution of the data, because it is random. The expected loss will be the same for every line on the validation set (with the same missingness pattern), so adding more validation lines will do nothing to reduce the mean error if they also have missing data. This is important not only from the standpoint of model selection, but also because the validation error gives us an idea of how our model will perform on real-world data: missing data in the data we use for prediction can be a much more severe issue than missing data in our training database.
+
+\paragraph{Implications for our data}
+
+This could actually be a positive find. Take the example of Traumabase and haemorrhagic shock prediction: part of what our results mean is that the Traumabase can indeed be used to build a prediction tool, even if it has a significant amount of missing data. If the missing data is mostly due to errors of recording, this may mean that it is available in the real world when a doctor uses the tool: if the data used to make important predictions (that is, not a posteriori from the base but in a hospital when a patient needs care) can be kept full, then our estimates will have a chance of being very good, as long as we built our model with a large enough database.
+
+The flip size, of course, is that when data is indeed missing from the validation dataset, there is little we can do to offset the resulting penalty. The missing value has a natural variability, even when controlling for every other observed variable, so even our best guess could have a high error. 
+
+\subsection{Partial multiple imputation}
+This suggests an idea that could help mitigate this drawback while keeping the computational cost rather low. Using $X_A$ the training data, we can estimate parameters $\phi, \psi, \beta$ as usual. Then, keeping these parameters constant, we can make draws from the conditional distribution of $X_V$ and make predictions on the datasets generated this way. Using the quantiles of these predictions, we can build intervals that approximate the possible location of the true value of $y$ and account for uncertainty. The idea behind this is that it is not necessary to multiply impute $X_A$ because with lare $n$ the estimated parameters will not really vary. It is also computationally intensive because it means we have to fit a new model for every imputed dataset. With our method, just one fit is needed and we only perform multiple predictions, which are usually cheaper.
+
+To illustrate these results, we perform an analysis on some very simple simulated data, and check if the properties we derived are visible.
+		\subsection{Verification on real and simulated data}
+We ran an analysis on two sets of data:
+\begin{enumerate}
+\item A simulated dataset designed to respect the assumptions of our model: the $X$ data is generated as a multivariate normal for some random covariance matrix (with $p=10$ variables), and the response are obtained linearly by scalar product with some parameter $\beta$ (plus some noise)
+\item A very simple real world dataset: the Abalone dataset. It is a regression dataset where the goal is to predict the age of a shell based on 7 measurements. It has no missing data and the covariates have high correlation.There are more that 4000 observations.
+\end{enumerate}
+
+On both dataset, we ran the following procedure:
+\begin{itemize}
+\item Split the data in a training and a validation datasets.
+\item Perform one linear regression on the complete dataset.
+\item Add some (30\%) missing data completely at random.
+\item Impute the data by the mean, perform a regression.
+\item Using the complete training data and the validation data with missing values, impute the data as a multivariate normal and perform a regression.
+\item Using the training data data with missing values and the complete validation, impute the data as a multivariate normal and perform a regression.
+\item Using both datasets with missing values, impute the data as a multivariate normal and perform a regression.
+\item Compute the mean squared prediction error for each of the five regressions on the validation data.
+\end{itemize}
+		
+This is repeated multiple times to smooth out the variability of the results. We do this for a broad range of $n$ values (for Abalone we select $n$ rows at random for the analysis, for the simulated data we generate $n$ rows each time).
+
+The results are shown in Figure \ref{fig.linreg}. 
+
+\input{Graphs/fig_linreg}
+
+The trends are less visible in the Abalone data, most likely because the base error from model misspecification is higher so the relative variations are smaller. However, we can see some general trends emerge.
+
+\textbf{For large $n$}, the results match our expectations. The error is much lower when the validation data is known, while there is almost no difference with and without knowing the real training data: with enough information we make up for the missing data when estimating the parameters. Even on the Abalone data (which is not really normally distributed), the normal imputation performs much better than imputation by the mean.
+
+\textbf{For small $n$}, everything is very different. The first striking result is that the main error term comes from the missing data in the training set, this time. This makes sense, as for such a small $n$ it is very difficult to accurately estimate the covariance of the data, so missing values in the training data can seriously impact parameter estimation for the imputation. For the same reason, it is understandable that imputation by the mean works better than normal imputation in this context: with less parameters to estimate, we can at least have a fairly good estimation of the mean rather than a very bad estimation of both the mean and covariance. 
+
+Throughout the spectrum of $n$, we also see that the imputation with missing data everywhere tends to match whichever is worse between the full training data and the full validation data. These values act as lower bounds for the quality of prediction.

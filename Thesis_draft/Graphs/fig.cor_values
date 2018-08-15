@@ -1,0 +1,6 @@
+\begin{figure}[H]
+	\centering
+   \includegraphics[scale=0.7]{Resources/cor_values}
+   \caption{Correlation between the measurements (based on complete cases)}
+   \label{fig.cor_values}
+\end{figure}

@@ -1,0 +1,6 @@
+\begin{figure}[H]
+	\centering
+   \includegraphics[scale=0.6]{Resources/n_miss}
+   \caption{Distribution of the number of missing values}
+   \label{fig.n_miss}
+\end{figure}

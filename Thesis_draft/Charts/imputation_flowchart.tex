@@ -5,6 +5,7 @@
 \begin{document}
 \begin{tikzpicture}[
 node distance=1.5cm and 1.5cm,
+scale=0.5,
 ar/.style={->,>=latex},
 mynode/.style={
   draw,
@@ -22,22 +23,26 @@ mynode/.style={
   \node[right=of loss] (res) {$L(y_V, \hat{y}_V)$};
   
   \draw[ar] 
-  (gt) -- node {$\tilde{X}_A\ \tilde{X}_V$} (md);
+  (gt) -- node[right] {$\tilde{X},\tilde{X}_{new}$} (md);
   \draw[ar] 
-  (gt) -- node[left,auto] {$y_A$} (imp);
+  (gt) -- node[left,auto] {$y$} (imp);
   \draw[ar] 
-  (gt) -- node[above,auto] {$y_V$} (loss);
+  (gt) -- node[above,auto] {$y_{new}$} (loss);
   \draw[ar] 
-  (md) -- node[above,auto] {$X_A$} (imp);
+  (md) -- node[above,auto] {$X$} (imp);
   \draw[ar] 
-  (md) -- node[right,auto] {$X_V$} (prac);
+  (md) -- node[right,auto] {$X_{new}$} (prac);
   \draw[ar] 
-  (imp) -- node[left,auto] {$\hat{\alpha}, X_A, y_A$} (an);
+  (imp) -- node[left,auto] {$X^{imp}, y$} (an);
   \draw[ar] 
-  (an) -- node[left,auto] {$\hat{\alpha}, \hat{\beta}$} (prac);
+  (an) -- node[left,auto] {$g(\cdot,\hat{\beta})$} (prac);
   \draw[ar] 
-  (prac) -- node[above,auto] {$\hat{y}_V$} (loss);
+  (prac) -- node[above,auto] {$\hat{y}_{new}$} (loss);
   \draw[ar] 
   (loss) -- node[left,auto] {} (res);
+  \draw[ar]
+  (imp.south) to[out=-30, in=-120,edge node={node[above,auto] {$f(\cdot,\hat{\alpha})$}}] (prac.south);
+  \draw[ar]
+  (prac.north) to[loop,in=160,out=30,above,min distance=20mm,edge node={node[above] {$X_{new}^{imp}$}}] (prac.north);
 \end{tikzpicture}
 \end{document}
