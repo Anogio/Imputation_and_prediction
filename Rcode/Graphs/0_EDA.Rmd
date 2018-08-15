@@ -40,10 +40,11 @@ themer = function(sizeAxis = 10, sizeAxisTitle=13,
                                    angle=a, hjust=h, face=xface),
           axis.title = element_text(size=sizeAxisTitle),
           legend.text=element_text(size=sizeLegend),
-          legend.title=element_text(size=0,
+          legend.title=element_text(size=sizeLegend,
                                     face='bold'),
           strip.text.x = element_text(size=sizeStrip,
-                                      face='bold'))
+                                      face='bold')
+          )
   )
 }
 
@@ -184,7 +185,7 @@ y=factor(c('No shock','Sock')[as.numeric(y)])
 
 X = X[c('Sexe', "Age", "BMI","Glasgow.initial", 'FC.max', "SD.min", "Hemocue.init", "SpO2.min", "Remplissage.total.cristalloides", 
 "Remplissage.total.colloides")]
-colnames(X) = c('Sex', 'Age', "BMI", 'Glasgow', 'Heart.rate', 'Pulse.pressure', 'Hb.level', 'Oxygen.pulse', 'Cristalloids.IV', 'Colloids.IV')
+colnames(X) = c('Sex', 'Age', "BMI", 'Glasgow', 'Heart.rate', 'Pulse.pressure', 'Hb.level', 'O2.saturation', 'Cristalloids.IV', 'Colloids.IV')
 
 X$Expander = X$Cristalloids.IV + X$Colloids.IV
 X$Colloids.IV = NULL
@@ -198,6 +199,10 @@ colMeans(is.na(X))*100
 ```
 
 ```{r}
+colSums(is.na(X))
+```
+
+```{r}
 summary(dat)
 ```
 
@@ -208,8 +213,8 @@ missmap(X, margins = c(5,1), y.labels = rep('',nrow(X)), rank.order=F)
 ```{r}
 ggplot(dat) + aes(x=Glasgow, fill=y) + geom_bar(position='dodge', aes(y =..prop..)) + 
   themer(angle=F) + scale_fill_manual(labels = c("No shock", "Shock"), values=c('darkblue', 'red')) +
-  xlab('Initial Glasgow score') + ylab('Proportion of occurences') + 
-  scale_x_continuous(breaks=3:15)
+  xlab('GCS score') + ylab('Proportion of occurences') + 
+  scale_x_continuous(breaks=3:15) + labs(fill='Outcome')
 ```
 
 ```{r}
@@ -223,8 +228,9 @@ ggplot(dat) + aes(x=Expander, fill=y) + geom_histogram(position='dodge', aes(y=.
 ```
 
 ```{r}
-dat %>% gather('variable','value', c('Age','BMI','Heart.rate','Pulse.pressure', 'Hb.level', 'Oxygen.pulse')) %>%
-  ggplot() + aes(x=value, color=y) + geom_density() + facet_wrap(~variable, scales = 'free') + themer() + xlab('Density') + ylab('Value')
+dat %>% gather('variable','value', c('Age','BMI','Heart.rate','Pulse.pressure', 'Hb.level', 'O2.saturation', 'Expander')) %>%
+  ggplot() + aes(x=value, fill=y) + geom_histogram(aes(y=..density..), bins=30) + facet_wrap(~variable, scales = 'free') + themer() + xlab('') + ylab('') +
+  labs(fill = "Outcome") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
 ```
 
 ```{r}
@@ -274,9 +280,14 @@ dat$Shock = as.numeric(dat$y)
 dat$Sex = as.numeric(dat$Sex)
 dat$y=NULL
 print('Correlation between missingness of covariates and Hemo shock')
-cor(cbind(is.na(dat[,-c(1,10)]), dat$Shock)) %>% as.data.frame() %>% dplyr::select(9) %>% rename(Shock=V9) 
+cor(cbind(is.na(dat[,-c(1,10)]), dat$Shock)) %>% as.data.frame() %>% dplyr::select(9) %>% rename(Shock=V9)
 
 dat$Shock = NULL
 dat$y = y.bk
 dat$Sex = sex.bk
 ```
+
+```{r}
+ggplot() + aes(x=rowSums(is.na(X))) + geom_bar() + themer(angle=F) + ylab('Number of occurences') + xlab('Number of missing values')
+```
+
