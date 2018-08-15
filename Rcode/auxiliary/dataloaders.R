@@ -137,8 +137,11 @@ clean_trauma <- function(){
   Choc.hemorragique = Choc.hemorragique[SAMU$Origine=='Primaire']
   SAMU = SAMU[SAMU$Origine=='Primaire',]
 
-  SAMU$SD.min=SAMU$PAS.min-SAMU$PAD.min
-  SAMU$SD.SMUR=SAMU$PAS.SMUR-SAMU$PAD.SMUR
+  SAMU$SD.min=abs(SAMU$PAS.min-SAMU$PAD.min)
+  SAMU$SD.SMUR=abs(SAMU$PAS.SMUR-SAMU$PAD.SMUR)
+
+  Choc.hemorragique = Choc.hemorragique[-which(SAMU$FC.max==0)]
+  SAMU = SAMU[-which(SAMU$FC.max==0),]
 
   SAMU = SAMU %>% dplyr::select(-one_of(c("PAS.min", "PAD.min", "PAS.SMUR", "PAD.SMUR", 'ACR.1')))
   write.csv(cbind(SAMU, Choc.hemorragique), paste(data_folder,'hemo_shock.csv', sep=''), row.names = F)
