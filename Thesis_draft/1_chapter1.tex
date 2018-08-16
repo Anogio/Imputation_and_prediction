@@ -114,8 +114,10 @@ In this work, we will address the particular issue of missing data, and more pre
 Comparatively, once the dataset is imputed, it can be used with any existing complete-data prediction method. Additionally, it allows a separation of the tasks: the person or team performing the imputation is not necessarily the same as the one performing the subsequent analysis. Of course, this approach has drawbacks as well. In particular, once the dataset is imputed, any method used to perform a prediction with this dataset will use the observed and imputed values indiscriminately, which may lead to errors if the imputation is not correct.
 
  In the following chapters, we investigate the possibility of performing imputation in a predictive context, and how it should be done. Below we present the formal setting of the problem we investigate.
+ 
 		\subsection{The God/Imputer/Analyst/Practitioner framework}
-Let us remind the issue we are trying to address: imputing the data in the Traumabase, then applying a complete-data procedure to learn a model for the outcome. Finally, for new  incoming patients, use the new measurements (possibly with missing data) to evalute whether they are at risk of HS. 
+		\label{framework}
+Let us recall the tasks at hand: imputing the data in the Traumabase, then applying a complete-data procedure to learn a model for the outcome. Finally, for new  incoming patients, use the new measurements (possibly with missing data) to evaluate whether or not they are at risk of HS. 
 
 It is clear that form the point of view of the end user (the hospital or medical practitioner), the performance of this procedure should be judged by its predictive performance on new patients. This separation between historical data and new patients is central to our problem and we investigate it further in chapters \ref{validation} and \ref{linreg}.
 
@@ -126,8 +128,8 @@ To formalize this setting, we draw inspiration from the framework proposed by Xi
  \item  The Imputer transfers $X_{imp}$ to an Analyst, along with $y$. The Analyst does not know which observations were initially missing.
  \item The Analyst uses $X_{imp}$ and $y$ to learn a predictive model with parameter $\beta$. Her estimation for this parameter is $\hat{\beta}$
  \item God generates a new pair of data and outcome $\tilde{X}_{new}, y_{new}$. Some missing data are added to  $\tilde{X}_{new}$ to generate $X_{new}$.
- \item The Practitioner receives $X_{new}$. She has no access to the data used for training. The Imputer and Analyst provide the Practitioner with black-box functions that allow her to perform imputation and prediction on the new data. They are derived from their model and parameter estimate; we call them $f(\cdot,\hat{\alpha}),g(\cdot,\hat{\beta})$.
- \item The Practitioner uses those functions to compute $X_{new}^{imp} = f(X_{new},\hat{\alpha})$ and $\hat{y}_{new}= g(X_{new}^{imp},\hat{\beta})$.
+ \item The Practitioner receives $X_{new}$. She has no access to the data used for training. The Analyst and Imputer provide the Practitioner with black-box functions that allow her to perform imputation and prediction on the new data. They are derived from their model and parameter estimate; we call them $f(\cdot,\hat{\alpha}),g(\cdot,\hat{\beta})$.
+ \item The Practitioner uses those functions to compute $X_{new}^{imp} = g(X_{new},\hat{\alpha})$ and $\hat{y}_{new}= f(X_{new}^{imp},\hat{\beta})$.
  \item $\hat{y}_{new}$ is finally compared to $y_{new}$ and the loss $L(y_V, \hat{y}_V)$ is computed. This gives the final performance evaluation of the process.
 \end{itemize}
 
@@ -139,4 +141,8 @@ This process is illustrated in Figure \ref{fig.tikz_imp}
   \label{fig.tikz_imp}
 \end{figure}
 
-The purpose of this formalization is to clarify the separation between the different phases of the inference, and show how the information is divided. In particular, the Practitioner only knows the 
+The purpose of this formalization is to clarify the separation between the different phases of the inference, and show how the information is divided. Note that the separation between the Imputer and the Analyst is artificial ---we choose it because we are interested in performing imputation separately--- while the distinction between the Practitioner and the Analyst is imposed by the problem we are trying to solve: during an intervention, the users need a black-box tool that takes in the available data and outputs a prediction more or less instantly. Even if they had access to the training data, it would be impractical to learn a model all over again every time a new patient comes up. Additionally, the data we are using to learn the model cannot be widely shared since it contains patient records, so the Practitioner will not have access to it.
+
+In a setting where all three roles are regrouped, the sensible way to proceed would be to define a joint model on the full data (including the response) and use it find the maximum likelihood estimatorfor the unknown outcomes. However, the segmentation of the roles makes it necessary for each agent to work with partial information. In the rest of this work, we investigate the implications of this division, both in terms of theory and of practical implementation.
+
+In Chapter \ref{imputation}, we present an overview of methods used for imputation. Chapter \ref{validation} considers the practical difficulties encountered when trying to impute new data with a previously learned model. Chapter \ref{linreg} explores the asymmetry that exists between missing values present in the training set and in the new data. Then, Chapter \ref{analysis} goes back to the Traumabase data to explore the best way to perform imputation in this particular case and Chapter \ref{results} presents our final results and compares the performance to that of doctors and criteria-based scores.
