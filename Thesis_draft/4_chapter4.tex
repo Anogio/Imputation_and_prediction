@@ -1,12 +1,10 @@
-In order to make good decisions for imputation, it is important to understand how it impacts prediction. In order to get an idea on this issue, we solve a very simple case of cross-validated regression with missing data. We found no theoretical results whatsoever about the relationship between imputation and prediction. 
-	\section{Problem set-up}
-We place ourselves in a simple linear regression context with two covariates, where one observation is missing in the training dataset, and one in the validation dataset.
+In order to make good decisions for imputation, it is important to understand how it impacts prediction. To gain a better understanding of this issue, we solve a very simple case of cross-validated regression with missing data. Although quite restrictive, this situation provides some insights into the way that missing data impacts prediction performance.
 
+	\section{Problem set-up}
+We place ourselves in a linerar regression setup with cross-validation (cf Chapter \ref{validation}). The data is split between a training dataset $X_A, y_A$ and validation dataset $X_V, y_V$. We use the multi-agent framework described in \ref{framework}.
 		\subsection{Notations}
-			\subsubsection{True data}
-The true, unobserved data is a standard regression setup, with the exception that one line of the data is reserved as 'validation data'
-\footnote{For this calculation we only need one line of validation data since we will be using expected values.}
-, with the rest called 'training data' --- as is standard in predictive contexts (cf Chapter \ref{validation}). The response variable $y$ is a noised linear combination of the covariates in $X$:
+			\subsubsection{God's data}
+The response variable is a noisy linear combination of the covariates in $X$:
 \begin{equation*}
 \tilde{X}_A = 
 \begin{pmatrix}
@@ -22,7 +20,9 @@ y_A = X_A \beta + \epsilon_A
 \begin{equation*}
 \tilde{X_V} = 
 \begin{pmatrix}
-x_{1}^V & x_{2}^V
+x_{11}^V & x_{12}^V \\
+\vdots & \vdots \\
+x_{n_V1} & x_{n_V2}
 \end{pmatrix}
 \quad \mathrm{and} \quad
 y_V = X_V \beta + \epsilon_V
@@ -30,96 +30,127 @@ y_V = X_V \beta + \epsilon_V
 \epsilon_V \sim \mathcal{N}(0, \sigma^2)
 \end{equation*}
 
+			\subsubsection{Observed data}
+The observed data is God's data with some missing values. Specifically, some observations are missing from the first column of each dataset.  We observe the full $y^A$, but the covariate matrices we actually have access to are:
+\begin{equation*}
+X_A = 
+\begin{pmatrix}
+? & x_{12} \\
+\vdots & \vdots \\
+? & x_{k_A2} \\
+x_{(k_A+1)1} & x_{(k_A+1)2}\\
+\vdots & \vdots \\
+x_{n1} & x_{n2}
+\end{pmatrix}
+\end{equation*}
+
+which is sent to the Imputer, and
+
+\begin{equation*}
+X_V = 
+\begin{pmatrix}
+? & x_{12} \\
+\vdots & \vdots \\
+? & x_{k_V 2} \\
+x_{(k_V+1)1} & x_{(k_V+1)2}\\
+\vdots & \vdots \\
+x_{n_V 1} & x_{n_V 2}
+\end{pmatrix}
+\end{equation*}
+
+which is sent to the Practitioner. That is, there are $k_A$ and $k_v$ missing values in the datasets.
+
+		\subsection{Imputed data and regression}
+			\subsubsection{Principle}
+The imputer fills in $X_A$ with imputed values, and instructs the Practitioner as to how to fill in $X_V$. The resulting filled in datasets are:
+
+\begin{equation*}
+\hat{X}_A = 
+\begin{pmatrix}
+\phi_1 & x_{12} \\
+\vdots & \vdots \\
+\phi_{k_A} & x_{k_A 2} \\
+x_{(k_A+1)1} & x_{(k_A+1)2}\\
+\vdots & \vdots \\
+x_{n 1} & x_{n 2}
+\end{pmatrix}
+\quad \mathrm{and} \quad
+\hat{X}_V = 
+\begin{pmatrix}
+\psi_1 & x_{12} \\
+\vdots & \vdots \\
+\psi_{k_V} & x_{k_V 2} \\
+x_{(k_V+1)1} & x_{(k_V+1)2}\\
+\vdots & \vdots \\
+x_{n_V 1} & x_{n_V 2}
+\end{pmatrix}
+\end{equation*}
+
+The $\phi$ values should depend only on the observed $X_A$, and the $\psi$ values on both $X_V$ and the imputer's indications. Then, $\hat{X}_A$ is sent by the imputer to the Analyst. The Analyst only has access to $\hat{X}_A$ and $y_A$. 
 The end goal is to learn an estimator on the training set that minimizes the expected loss on the validation set:
 $$
 L(y_V, \hat{y}_V) = (y_V - \hat{y_V})^2
 $$
 
-This is a well known problem with a simple solution. The regression estimator can be expressed as:
-$$ \tilde{\beta} = (\tilde{X}_A^T \tilde{X}_A)^{-1} \tilde{X}_A^T y_A $$
-
-with and estimated response
-$$ \tilde{y}_V = \tilde{X}_V \tilde{\beta} $$
-
-But there is one caveat: the data is actually not fully observed.
-
-			\subsubsection{Observed data}
-What we actually have access to is slightly different: one observation is missing in the training set, as is one of the entries in the testing set. We observe the full $y^A$, but the covariate matrices we actually have access to are:
-\begin{equation*}
-X^A = 
-\begin{pmatrix}
-? & x_{12} \\
-\vdots & \vdots \\
-x_{n1} & x_{n2}
-\end{pmatrix}
-\quad \mathrm{and} \quad
-X^V = 
-\begin{pmatrix}
-? & x_{2}^V
-\end{pmatrix}
-\end{equation*}
-
-		\subsection{Imputed data and regression}
-			\subsubsection{Principle}
-To perform a linear regression similarly to what we did previously, we first have to fill in the blanks: we impute the missing data by replacing them with chosen values $\phi$ and $\psi$ (which we choose using the value of what we observe).
-\begin{equation*}
-\hat{X}^A = 
-\begin{pmatrix}
-\phi & x_{12} \\
-\vdots & \vdots \\
-x_{n1} & x_{n2}
-\end{pmatrix}
-\quad \mathrm{and} \quad
-\hat{X}^V = 
-\begin{pmatrix}
-\psi & x_{2}^V
-\end{pmatrix}
-\end{equation*}
-
-This in turn allows us to perform the regression just like before:
+In line with the principles of ERM and CV (cf \ref{validation}), the Analyst minimizes the equivalent quantity in the training set. Assuming a linear relationship between the covariantes and response, the least-squares estimate for $\beta$ is standard \cite{linear_regression}
 $$
-\hat{\beta} = (\hat{X}_A^T \hat{X}_A)^{-1} \hat{X}_A^T y_A 
-\quad \mathrm{and} \quad
-\hat{y}_V (\phi, \psi) = \hat{X}_V \hat{\beta} 
+\hat{\beta}_n = (\hat{X}_A^T \hat{X}_A)^{-1} \hat{X}_A^T y_A 
 $$
 
-This means that what we really want to minimize is the following risk function:
+$\hat{\beta}$ is then transferred to the Practitioner who can use it to compute a prediction
+$$\hat{y}_V (= \hat{X}_V \hat{\beta}_n $$
 
-$$R(\phi, \psi) = \mathbb{E}[(y_V - \hat{y}_V(\phi,\psi))^2 \vert X_A, X_V]$$
+which will be compared to $y_V$:
 
-where the only thing we choose is our decision rule for $\phi$ and $\psi$.
+$$L(\hat{y}_V, y_V) = \sum\limits_{i=1}^{n_V} (y_V^{(i)} - \hat{y}_V^{(i)})^2$$
+Our end goal is to optimize this metric. 
+
+In what we described above, the actions of the Analyst and the Practitioner are completely determined. On the other hand, we have not specified how the Imputer proceeds to the imputation. We want to investigate the effect of the choice of imputation on the expected loss:
+
+$$R(\phi, \psi) = \mathbb{E}_{X_V^{miss}, X_A^{miss}, \epsilon_A, \epsilon_V}[(y_V^{(i)} - \hat{y}_V^{(i)})^2 \vert X_A, X_V, \phi, \psi]$$\footnote{Even though what we ultimately want is a decision rule for $\phi$ and $\psi$, they are only a function of the observed data $X_A$, $X_V$, which is fixed here. For simplicity of notation, we write $\phi$ and $\psi$ as constant values}
+
+
 			\subsubsection{Distribution hypotheses}
-Lastly, for this last expression to have any meaning, we need to make some assumption on the distribution of $X$.
+Lastly, for this last expression to have any meaning, fix the distribution of $\tilde{X}$ the true data.
 
-We make a very simple hypotheses of a multivariate normal distribution for the covariates --- the parameters are assumed to be known, in real life they would be estimates.
-$$
-\tilde{X}_A \sim \mathcal{N}(\mu, \Sigma) \quad \tilde{X}_V \sim \mathcal{N}(\mu, \Sigma)
-$$
-
-With these, we know the distribution of the missing observations $x_{11}$ and $X_1^V$ conditional of the observed ones and we can try to find the $\phi$ and $\psi$ values that give us the best expected loss.
-
-Now that we have these notations and hypotheses, it is possible to solve the problem of the choice of imputation. Here we give a full expression of the loss and partial resolution.
+We assume $X \sim \pi$ where the lines of $X$ are independent and identically distributed, and that $\pi$ is known to the Imputer. This is unlikely in a real setting, but we explore the best-case scenario where we have all the necessary information to perform the imputation in order to isolate the error terms that are specific to the presence of missing data ---as opposed to bad imputation.
 
 	\section{Partial resolution}
 		\subsection{General loss}
-To be able to estimate the expected loss, we break it up into several components
+To be able to estimate the expected loss, we break it up into several components. We first denote 
+$$
+\tilde{\beta}_n = (\tilde{X}_A^T \tilde{X}_A)^{-1} \tilde{X}_A^T y_A 
+$$
+
+the estimated parameter we would obtain if the training data were complete. We consider the loss for one given line of validation data $x_V = (x_V^1, x_V^2)$
+
 \begin{align*}
 L(y_V, \hat{y}_V) &= (y_V - \hat{y_V})^2 &\\
-				   &= (\tilde{X}_V \beta + \epsilon_V - \hat{X}_V \hat{\beta})^2 &\\
-				   &= (\tilde{X}_V(\beta - \tilde{\beta}) + \tilde{X}_V (\tilde{\beta} - \hat{\beta}) + (\tilde{X}_V - \hat{X}_V) \hat{\beta} + \epsilon_V)^2 & \\
-				   &= (\tilde{X}_V (\beta - \tilde{\beta}))^2 & (1) \\
-				   & \quad + (\tilde{X}_V (\tilde{\beta}-\hat{\beta}))^2 &(2) \\
-				   & \quad + ((\tilde{X}_V - \hat{X}_V) \hat{\beta})^2 &(3) \\
-				   & \quad + \tilde{X}_V (\beta - \tilde{\beta}) \tilde{X}_V (\tilde{\beta} - \hat{\beta}) & (4) \\
-				   & \quad + \tilde{X}_V (\beta - \tilde{\beta}) (\tilde{X}_V - \hat{X}_V )\hat{\beta} & (5) \\
-				   & \quad + \tilde{X}_V (\tilde{\beta} - \hat{\beta}) (\tilde{X}_V - \hat{X}_V) \hat{\beta} & (6)\\
+				   &= (\tilde{x}_V \beta + \epsilon_V - \hat{x}_V \hat{\beta}_n)^2 &\\
+				   &= (\tilde{x}_V(\beta - \tilde{\beta}_n) + \tilde{x}_V (\tilde{\beta}_n - \hat{\beta}_n) + (\tilde{x}_V - \hat{x}_V) \hat{\beta}_n + \epsilon_V)^2 & \\
+				   &= (\tilde{x}_V (\beta - \tilde{\beta}_n))^2 & (1) \\
+				   & \quad + (\tilde{x}_V (\tilde{\beta}_n-\hat{\beta}_n))^2 &(2) \\
+				   & \quad + ((\tilde{x}_V - \hat{x}_V) \hat{\beta}_n)^2 &(3) \\
+				   & \quad + \tilde{x}_V (\beta - \tilde{\beta}_n) \tilde{x}_V (\tilde{\beta}_n - \hat{\beta}_n) & (4) \\
+				   & \quad + \tilde{x}_V (\beta - \tilde{\beta}_n) (\tilde{x}_V - \hat{x}_V )\hat{\beta}_n & (5) \\
+				   & \quad + \tilde{X}_V (\tilde{\beta}_n - \hat{\beta}_n) (\tilde{x}_V - \hat{x}_V) \hat{\beta}_n & (6)\\
 				   & + \epsilon_V^2 &\\
 				   & + \epsilon_V K
 \end{align*}
-Where $K$ is some term that will not matter (because when we take the expectation it will be zero). The risk we want to minimize is the expectation of this loss.
-		\subsection{When the validation set is fully observed}
+Where $C$ is some term that will not matter (since it has zero expectation ---$\epsilon_V$ has zero expectation and is independent from the other terms). The risk we want to minimize is the expectation of this loss.
+		\subsection{When the training set is fully observed}
 			\subsubsection{Imputation}
-The first thing we can easily do is to study the situation where the only missing data is in the validation set. In that case, $\tilde{X}_A = \hat{X}_A$ and so $\tilde{\beta} = \hat{\beta}$, and all we have to choose is $\psi$. In the previously computed loss, it means that terms $(2)$, $(4)$ and $(6)$ are zero.
+The first thing we can do is to study the situation where the only missing data is in the validation set. In that case, $\tilde{X}_A = \hat{X}_A$ and so $\tilde{\beta}_n = \hat{\beta}_n$, and all we have to choose is $\psi$. In the previously computed loss, it means that terms $(2)$, $(4)$ and $(6)$ are zero.
+
+Furthermore, 
+\begin{align*}
+\beta -\tilde{beta}_n &= \beta - (\tilde{X}_A^T \tilde{X}_A)-1 \tilde{X}_A^T (\tilde{X}_A \beta + \epsilon_A)\\
+					&= (\tilde{X}_A^T \tilde{X}_A)-1 \tilde{X}_A^T \epsilon_A
+\end{align*}
+And 
+\begin{align*}
+(5) =  
+\end{align*}
 
 Furthermore, Cochran's theorem ensures that $(\beta - \tilde{\beta})$ and $\tilde{\beta}$ are independent so term $(5)$ can be factorized and will have zero expectation (since $(\beta - \tilde{\beta})$ has zero expectation).
 
