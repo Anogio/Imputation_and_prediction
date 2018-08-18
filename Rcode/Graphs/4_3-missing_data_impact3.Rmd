@@ -1,0 +1,181 @@
+---
+title: "Can imputation improve with more missing data"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(MASS)
+library(scales)
+
+aux.folder = '../../auxiliary/'
+source(paste(aux.folder,'MVN_imputation.R',sep=''), chdir = T)
+source(paste(aux.folder,'simulation_methods.R',sep=''), chdir = T)
+```
+
+In document 4_2 we noticed a surprising discrepancy in the reliationship between missing data and performance, especially with mean imputation. Usually, when there is more missing data prediction is worse. However, it seems that when there is missing data is the validation set and none in the training set, prediction is improved by adding some missing data to the training set -- if the imputation is performed by mean imputation. 
+
+We try to illustrate this phenomenon and understand it. To that end, we perform some tests on the Abalone dataset.
+
+```{r}
+train_prop = 0.7
+miss_prop_test = 0.3
+nLine = 4000
+
+setwd('~/thesis_repo/Data/')
+#dat = read.csv('abalone.csv')
+#dat = dat[1:nLine,]
+
+#X = dat[c("LongestShell", "ShellWeight")]
+#X = dat %>% dplyr::select(-c(Rings,Type))
+#y = dat$Rings
+X = X.basic.MVN(list(n=4000,p=5,rho=0.9))
+y.g = y.regression(X,list(sigma_reg=10))
+X = y.g$X %>% as.data.frame()
+y=y.g$y
+
+MCAR.noEmptyLines <- function(X, miss_prop.){
+  n = nrow(X)
+  m = ncol(X)
+  missing = matrix(runif(n*m), nrow=n, ncol=m) <= miss_prop.
+  missing[rowSums(missing)==ncol(X), 1] = F
+  X[missing] = NA
+  return(X)
+}
+```
+
+Once the data is loaded, we split it into a training set and a validation set as usual. Then, some fixed amount of missing data is added to the validation data. 
+
+```{r}
+errs.miss = c()
+betas.err = c()
+errs.mvn = c()
+
+  set.seed(123)
+
+inTrain = sample(1:length(y), ceiling(train_prop*length(y)))
+X.train = X[inTrain,]
+X.test = X[-inTrain,]
+y.train = y[inTrain]
+y.test = y[-inTrain]
+X.test.true = X.test
+miss.train.l = seq(0,0.8,0.01)
+X.test = MCAR.noEmptyLines(X.test,miss_prop_test)
+
+#miss.train.l = c(0.01)
+for(miss_train in miss.train.l){
+  X.train.miss = MCAR.noEmptyLines(X.train, miss_train)
+  mu.miss = colMeans(X.train.miss, na.rm = T)
+
+  imp.mvn.train = imp.mvnorm.train(X.train.miss)
+  X.train.filled.MVN = imp.mvnorm.estim(imp.mvn.train,X.train.miss)
+  X.test.filled.MVN = imp.mvnorm.estim(imp.mvn.train,X.test)
+
+  X.test.filled.mean = X.test
+  X.train.filled.mean = X.train.miss
+  for(i in 1:ncol(X)){
+    miss.pos = is.na(X.test[,i])
+    X.test.filled.mean[miss.pos,i] = mu.miss[i]
+
+    miss.pos = is.na(X.train.miss[,i])
+    X.train.filled.mean[miss.pos,i] = mu.miss[i]
+  }
+
+  dat.true = cbind(as.data.frame(X.train), y.train)
+  dat.mean = cbind(as.data.frame(X.train.filled.mean), y.train)
+  dat.mvn = cbind(as.data.frame(X.train.filled.MVN), y.train)
+
+  lm.miss = lm(y.train~., data = dat.mean)
+  lm.mvn  = lm(y.train~., data = dat.mvn)
+
+  pred.miss = predict(lm.miss, X.test.filled.mean)
+  pred.mvn = predict(lm.mvn, as.data.frame(X.test.filled.MVN))
+
+  err.miss = mean((y.test-pred.miss)^2)
+  err.mvn = mean((y.test-pred.mvn)^2)
+
+  betas.err = c(betas.err, mean((c(0,y.g$beta)-lm.miss$coefficients)^2))
+  errs.miss = c(errs.miss,err.miss)
+  errs.mvn = c(errs.mvn,err.mvn)
+}
+
+ggplot() +aes(x=miss.train.l) +
+  geom_line(aes(y=errs.miss, color='mean'))  + geom_line(aes(y=errs.mvn, color='mvn'))  +
+  geom_vline(xintercept = miss_prop_test) + xlab('Missing data in train') + ylab('Error') + geom_vline(xintercept = miss.train.l[which.min(errs.miss)],color='red')
+
+ggplot() + aes(x=miss.train.l, y=errs.mvn) + geom_line(color=seq_gradient_pal('blue','cyan')(0.75)) + geom_vline(xintercept = miss_prop_test) 
+```
+
+```{r}
+miss_prop_test = 0.5
+
+errs.miss = c()
+errs.mvn = c()
+betas.err = c()
+betas = list()
+
+  set.seed(123)
+
+inTrain = sample(1:length(y), ceiling(train_prop*length(y)))
+X.train = X[inTrain,]
+X.test = X[-inTrain,]
+y.train = y[inTrain]
+y.test = y[-inTrain]
+X.test.true = X.test
+miss.train.l = seq(0,0.8,0.01)
+X.test = MCAR.noEmptyLines(X.test,miss_prop_test)
+
+#miss.train.l = c(0.01)
+i = 0
+for(miss_train in miss.train.l){
+  i = i +1
+  X.train.miss = MCAR.noEmptyLines(X.train, miss_train)
+  mu.miss = colMeans(X.train.miss, na.rm = T)
+
+  imp.mvn.train = imp.mvnorm.train(X.train.miss)
+  X.train.filled.MVN = imp.mvnorm.estim(imp.mvn.train,X.train.miss)
+  X.test.filled.MVN = imp.mvnorm.estim(imp.mvn.train,X.test)
+
+  X.test.filled.mean = X.test
+  X.train.filled.mean = X.train.miss
+  for(i in 1:ncol(X)){
+    miss.pos = is.na(X.test[,i])
+    X.test.filled.mean[miss.pos,i] = mu.miss[i]
+
+    miss.pos = is.na(X.train.miss[,i])
+    X.train.filled.mean[miss.pos,i] = mu.miss[i]
+  }
+
+  dat.true = cbind(as.data.frame(X.train), y.train)
+  dat.mean = cbind(as.data.frame(X.train.filled.mean), y.train)
+  dat.mvn = cbind(as.data.frame(X.train.filled.MVN), y.train)
+
+  lm.miss = lm(y.train~., data = dat.mean)
+  lm.mvn  = lm(y.train~., data = dat.mvn)
+
+  pred.miss = predict(lm.miss, X.test.filled.mean)
+  pred.mvn = predict(lm.mvn, as.data.frame(X.test.filled.MVN))
+
+  err.miss = mean((y.test-pred.miss)^2)
+  err.mvn = mean((y.test-pred.mvn)^2)
+
+  betas = c(betas, list(lm.miss$coefficients))
+  betas.err = c(betas.err, mean((c(0,y.g$beta)-lm.miss$coefficients)^2))
+  errs.miss = c(errs.miss,err.miss)
+  errs.mvn = c(errs.mvn,err.mvn)
+}
+```
+
+```{r}
+res.betas = as.data.frame(betas) %>% t()
+rownames(res.betas) = miss.train.l
+```
+
+```{r}
+ggplot() +aes(x=miss.train.l) +
+  geom_line(aes(y=errs.miss, color='mean'))  + geom_line(aes(y=errs.mvn, color='mvn'))  +
+  geom_vline(xintercept = miss_prop_test) + xlab('Missing data in train') + ylab('Error') + geom_vline(xintercept = miss.train.l[which.min(errs.miss)],color='red')
+
+#ggplot() + aes(x=miss.train.l, y=errs.mvn) + geom_line(color=seq_gradient_pal('blue','cyan')(0.75)) + geom_vline(xintercept = miss_prop_test) 
+```
+
