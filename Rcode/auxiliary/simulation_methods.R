@@ -13,6 +13,10 @@ X.basic.MVN = function(args){
   rho. = args$rho
   p. = args$p
   X = rmvnorm(n., sigma = (1-rho.)*diag(p.) + rho.)
+  colnames(X) = 1:ncol(X)
+  for(i in 1:ncol(X)){
+    colnames(X)[i] = paste('V',i, sep='')
+  }
   return(X)
 }
 
@@ -62,10 +66,11 @@ X.skew = function(args){
 #############################
 # y generators
 y.regression = function(X, args){
-  sigma_reg = args$sigma_reg
-  beta = runif(ncol(X), 0.5, 1.5)
+  #sigma_reg = args$sigma_reg
+  #beta = runif(ncol(X), 0.5, 1.5)
+  beta = rep(1, ncol(X))
   #beta = beta/sum(beta)
-  y = X %*% beta + rnorm(nrow(X), 0, sqrt(sigma_reg))
+  y = X %*% beta + rnorm(nrow(X), 0, sqrt(args$sigma_reg))
   return(list(X=X, y=y, beta=beta))
 }
 
