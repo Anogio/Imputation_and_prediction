@@ -10,6 +10,7 @@ library(scales)
 
 aux.folder = '../../auxiliary/'
 source(paste(aux.folder,'MVN_imputation.R',sep=''), chdir = T)
+source(paste(aux.folder,'simulation_methods.R',sep=''), chdir = T)
 ```
 
 In document 4_2 we noticed a surprising discrepancy in the reliationship between missing data and performance, especially with mean imputation. Usually, when there is more missing data prediction is worse. However, it seems that when there is missing data is the validation set and none in the training set, prediction is improved by adding some missing data to the training set -- if the imputation is performed by mean imputation. 
@@ -22,12 +23,16 @@ miss_prop_test = 0.3
 nLine = 4000
 
 setwd('~/thesis_repo/Data/')
-dat = read.csv('abalone.csv')
-dat = dat[1:nLine,]
+#dat = read.csv('abalone.csv')
+#dat = dat[1:nLine,]
 
 #X = dat[c("LongestShell", "ShellWeight")]
-X = dat %>% dplyr::select(-c(Rings,Type))
-y = dat$Rings
+#X = dat %>% dplyr::select(-c(Rings,Type))
+#y = dat$Rings
+X = X.basic.MVN(list(n=4000,p=5,rho=0.9))
+y.g = y.regression(X,list(sigma_reg=10))
+X = y.g$X %>% as.data.frame()
+y=y.g$y
 
 MCAR.noEmptyLines <- function(X, miss_prop.){
   n = nrow(X)
@@ -43,6 +48,7 @@ Once the data is loaded, we split it into a training set and a validation set as
 
 ```{r}
 errs.miss = c()
+betas.err = c()
 errs.mvn = c()
 
   set.seed(123)
@@ -53,7 +59,7 @@ X.test = X[-inTrain,]
 y.train = y[inTrain]
 y.test = y[-inTrain]
 X.test.true = X.test
-miss.train.l = seq(0,0.8,0.005)
+miss.train.l = seq(0,0.8,0.01)
 X.test = MCAR.noEmptyLines(X.test,miss_prop_test)
 
 #miss.train.l = c(0.01)
@@ -88,15 +94,16 @@ for(miss_train in miss.train.l){
   err.miss = mean((y.test-pred.miss)^2)
   err.mvn = mean((y.test-pred.mvn)^2)
 
+  betas.err = c(betas.err, mean((c(0,y.g$beta)-lm.miss$coefficients)^2))
   errs.miss = c(errs.miss,err.miss)
   errs.mvn = c(errs.mvn,err.mvn)
 }
 
 ggplot() +aes(x=miss.train.l) +
   geom_line(aes(y=errs.miss, color='mean'))  + geom_line(aes(y=errs.mvn, color='mvn'))  +
-  geom_vline(xintercept = miss_prop_test) + xlab('Missing data in train') + ylab('Error')
+  geom_vline(xintercept = miss_prop_test) + xlab('Missing data in train') + ylab('Error') + geom_vline(xintercept = miss.train.l[which.min(errs.miss)],color='red')
 
-ggplot() + aes(x=miss.train.l, y=errs.mvn) + geom_line(color=seq_gradient_pal('blue','cyan')(0.75)) + geom_vline(xintercept = miss_prop_test)
+ggplot() + aes(x=miss.train.l, y=errs.mvn) + geom_line(color=seq_gradient_pal('blue','cyan')(0.75)) + geom_vline(xintercept = miss_prop_test) 
 ```
 
 ```{r}
@@ -104,6 +111,8 @@ miss_prop_test = 0.5
 
 errs.miss = c()
 errs.mvn = c()
+betas.err = c()
+betas = list()
 
   set.seed(123)
 
@@ -113,11 +122,13 @@ X.test = X[-inTrain,]
 y.train = y[inTrain]
 y.test = y[-inTrain]
 X.test.true = X.test
-miss.train.l = seq(0,0.8,0.005)
+miss.train.l = seq(0,0.8,0.01)
 X.test = MCAR.noEmptyLines(X.test,miss_prop_test)
 
 #miss.train.l = c(0.01)
+i = 0
 for(miss_train in miss.train.l){
+  i = i +1
   X.train.miss = MCAR.noEmptyLines(X.train, miss_train)
   mu.miss = colMeans(X.train.miss, na.rm = T)
 
@@ -148,14 +159,23 @@ for(miss_train in miss.train.l){
   err.miss = mean((y.test-pred.miss)^2)
   err.mvn = mean((y.test-pred.mvn)^2)
 
+  betas = c(betas, list(lm.miss$coefficients))
+  betas.err = c(betas.err, mean((c(0,y.g$beta)-lm.miss$coefficients)^2))
   errs.miss = c(errs.miss,err.miss)
   errs.mvn = c(errs.mvn,err.mvn)
 }
+```
 
+```{r}
+res.betas = as.data.frame(betas) %>% t()
+rownames(res.betas) = miss.train.l
+```
+
+```{r}
 ggplot() +aes(x=miss.train.l) +
   geom_line(aes(y=errs.miss, color='mean'))  + geom_line(aes(y=errs.mvn, color='mvn'))  +
-  geom_vline(xintercept = miss_prop_test) + xlab('Missing data in train') + ylab('Error')
+  geom_vline(xintercept = miss_prop_test) + xlab('Missing data in train') + ylab('Error') + geom_vline(xintercept = miss.train.l[which.min(errs.miss)],color='red')
 
-ggplot() + aes(x=miss.train.l, y=errs.mvn) + geom_line(color=seq_gradient_pal('blue','cyan')(0.75)) + geom_vline(xintercept = miss_prop_test)
+#ggplot() + aes(x=miss.train.l, y=errs.mvn) + geom_line(color=seq_gradient_pal('blue','cyan')(0.75)) + geom_vline(xintercept = miss_prop_test) 
 ```
 
