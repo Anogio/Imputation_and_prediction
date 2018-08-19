@@ -8,9 +8,51 @@ library(tidyverse)
 library(MASS)
 library(scales)
 
-aux.folder = '../../auxiliary/'
+aux.folder = '../auxiliary/'
 source(paste(aux.folder,'MVN_imputation.R',sep=''), chdir = T)
 source(paste(aux.folder,'simulation_methods.R',sep=''), chdir = T)
+
+
+library(tidyverse)
+library(verification)
+library(pander)
+library(Amelia)
+library(gridExtra)
+library(grid)
+library(GGally)
+library(plotrix)
+
+themer = function(sizeAxis = 10, sizeAxisTitle=13,
+                  sizeLegend=15, sizeStrip = 15, angle=T, boldX=F){
+  if(angle){
+    a=45
+    h=1
+  }
+  else{
+    a=0
+    h=0.5
+  }
+  if(boldX){
+    xface = 'bold'
+  }
+  else{
+    xface=NULL
+  }
+  return(
+    theme(axis.text.y= element_text(size=sizeAxis),
+          axis.text.x=element_text(size=sizeAxis,
+                                   angle=a, hjust=h, face=xface),
+          axis.title = element_text(size=sizeAxisTitle),
+          legend.text=element_text(size=sizeLegend),
+          legend.title=element_text(size=sizeLegend,
+                                    face='bold'),
+          strip.text.x = element_text(size=sizeStrip,
+                                      face='bold')
+          )
+  )
+}
+
+set.seed(123)
 ```
 
 In document 4_2 we noticed a surprising discrepancy in the reliationship between missing data and performance, especially with mean imputation. Usually, when there is more missing data prediction is worse. However, it seems that when there is missing data is the validation set and none in the training set, prediction is improved by adding some missing data to the training set -- if the imputation is performed by mean imputation. 
@@ -19,20 +61,8 @@ We try to illustrate this phenomenon and understand it. To that end, we perform 
 
 ```{r}
 train_prop = 0.7
-miss_prop_test = 0.3
-nLine = 4000
 
-setwd('~/thesis_repo/Data/')
-#dat = read.csv('abalone.csv')
-#dat = dat[1:nLine,]
 
-#X = dat[c("LongestShell", "ShellWeight")]
-#X = dat %>% dplyr::select(-c(Rings,Type))
-#y = dat$Rings
-X = X.basic.MVN(list(n=4000,p=5,rho=0.9))
-y.g = y.regression(X,list(sigma_reg=10))
-X = y.g$X %>% as.data.frame()
-y=y.g$y
 
 MCAR.noEmptyLines <- function(X, miss_prop.){
   n = nrow(X)
@@ -47,11 +77,21 @@ MCAR.noEmptyLines <- function(X, miss_prop.){
 Once the data is loaded, we split it into a training set and a validation set as usual. Then, some fixed amount of missing data is added to the validation data. 
 
 ```{r}
-errs.miss = c()
-betas.err = c()
-errs.mvn = c()
+miss_prop_test = 0.3
+nLine = 4000
+miss.train.l = seq(0,0.6,0.001)
 
-  set.seed(123)
+setwd('~/thesis_repo/Data/')
+dat = read.csv('abalone.csv')
+dat = dat[1:nLine,]
+
+X = dat[c("LongestShell", "ShellWeight")]
+X = dat %>% dplyr::select(-c(Rings,Type))
+y = dat$Rings
+
+
+errs.miss = c()
+errs.mvn = c()
 
 inTrain = sample(1:length(y), ceiling(train_prop*length(y)))
 X.train = X[inTrain,]
@@ -59,7 +99,7 @@ X.test = X[-inTrain,]
 y.train = y[inTrain]
 y.test = y[-inTrain]
 X.test.true = X.test
-miss.train.l = seq(0,0.8,0.01)
+
 X.test = MCAR.noEmptyLines(X.test,miss_prop_test)
 
 #miss.train.l = c(0.01)
@@ -94,20 +134,31 @@ for(miss_train in miss.train.l){
   err.miss = mean((y.test-pred.miss)^2)
   err.mvn = mean((y.test-pred.mvn)^2)
 
-  betas.err = c(betas.err, mean((c(0,y.g$beta)-lm.miss$coefficients)^2))
+  #betas.err = c(betas.err, mean((c(0,y.g$beta)-lm.miss$coefficients)^2))
   errs.miss = c(errs.miss,err.miss)
   errs.mvn = c(errs.mvn,err.mvn)
 }
 
-ggplot() +aes(x=miss.train.l) +
-  geom_line(aes(y=errs.miss, color='mean'))  + geom_line(aes(y=errs.mvn, color='mvn'))  +
-  geom_vline(xintercept = miss_prop_test) + xlab('Missing data in train') + ylab('Error') + geom_vline(xintercept = miss.train.l[which.min(errs.miss)],color='red')
-
-ggplot() + aes(x=miss.train.l, y=errs.mvn) + geom_line(color=seq_gradient_pal('blue','cyan')(0.75)) + geom_vline(xintercept = miss_prop_test) 
+errs.aba.mean = errs.miss
+errs.aba.mvn = errs.mvn
+remove(errs.miss, errs.mvn)
 ```
 
 ```{r}
-miss_prop_test = 0.5
+ggplot() +aes(x=miss.train.l) +
+    geom_line(aes(y=errs.aba.mean))  + #geom_line(aes(y=errs.aba.mvn, color='mvn'))  +
+    geom_vline(xintercept = miss_prop_test) + xlab(expression(pi[A])) + ylab('Error') + geom_vline(xintercept = miss.train.l[which.min(errs.aba.mean)],color='red') + themer(angle=F, sizeAxisTitle = 20) +
+    annotate('text',x=0.27, y=12, label='pi[V]', parse=T, size=8) +
+    annotate('text',x=0.37, y=12, label='pi[min]', parse=T, size=8, color='red')
+
+#ggplot() + aes(x=miss.train.l, y=errs.aba.mvn) + geom_line(color=seq_gradient_pal('blue','cyan')(0.75)) + geom_vline(xintercept = miss_prop_test) 
+```
+
+```{r}
+X = X.basic.MVN(list(n=4000,p=5,rho=0.9))
+y.g = y.regression(X,list(sigma_reg=10))
+X = y.g$X %>% as.data.frame()
+y=y.g$y
 
 errs.miss = c()
 errs.mvn = c()
@@ -122,7 +173,6 @@ X.test = X[-inTrain,]
 y.train = y[inTrain]
 y.test = y[-inTrain]
 X.test.true = X.test
-miss.train.l = seq(0,0.8,0.01)
 X.test = MCAR.noEmptyLines(X.test,miss_prop_test)
 
 #miss.train.l = c(0.01)
@@ -172,10 +222,22 @@ rownames(res.betas) = miss.train.l
 ```
 
 ```{r}
-ggplot() +aes(x=miss.train.l) +
-  geom_line(aes(y=errs.miss, color='mean'))  + geom_line(aes(y=errs.mvn, color='mvn'))  +
-  geom_vline(xintercept = miss_prop_test) + xlab('Missing data in train') + ylab('Error') + geom_vline(xintercept = miss.train.l[which.min(errs.miss)],color='red')
+#ggplot() +aes(x=miss.train.l) +
+#  geom_line(aes(y=errs.miss, color='mean'))  + geom_line(aes(y=errs.mvn, color='mvn'))  +
+#  geom_vline(xintercept = miss_prop_test) + xlab('Missing data in train') + ylab('Error') + geom_vline(xintercept = miss.train.l[which.min(errs.miss)],color='red') + themer()
 
+p1 = ggplot() +aes(x=miss.train.l) +
+    geom_line(aes(y=errs.miss))  + #geom_line(aes(y=errs.aba.mvn, color='mvn'))  +
+    geom_vline(xintercept = miss_prop_test) + #xlab(expression(pi[A])) +
+    xlab('') + ylab('Prediction error') + geom_vline(xintercept = miss.train.l[which.min(errs.miss)],color='red') + themer(angle=F, sizeAxisTitle = 20) +
+    annotate('text',x=0.28, y=15, label='pi[V]', parse=T, size=8) +
+    annotate('text',x=0.35, y=15, label='pi[min]', parse=T, size=8, color='red') 
+
+p2 = ggplot() + aes(x=miss.train.l,y=betas.err) + geom_line() + themer(angle=F, sizeAxisTitle = 20) + 
+    xlab(expression(pi[A])) + ylab(expression(paste(beta, ' estimation error'))) +
+   geom_vline(xintercept = miss.train.l[which.min(errs.miss)],color='red') + geom_vline(xintercept = miss_prop_test)
+
+grid.arrange(p1,p2)
 #ggplot() + aes(x=miss.train.l, y=errs.mvn) + geom_line(color=seq_gradient_pal('blue','cyan')(0.75)) + geom_vline(xintercept = miss_prop_test) 
 ```
 
