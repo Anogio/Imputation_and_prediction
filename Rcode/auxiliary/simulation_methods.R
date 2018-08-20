@@ -110,7 +110,7 @@ y.trauma = function(X, args){
   data_folder = '../../../Data/'
   dat_load = loader(X$ds, max_rows=X$n)
   return(
-    list(X=as.matrix(dat_load$X_numeric), y=as.numeric(dat_load$y)-1)
+    list(X=as.matrix(dat_load$X_numeric), y=as.numeric(dat_load$y)-1, X.aux=dat_load$X_category)
   )
 }
 
