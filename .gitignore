@@ -10,3 +10,5 @@ Data/hemo_shock*
 *.bak
 *.bbl
 *.blg
+*.bcf
+*.run.xml
