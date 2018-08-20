@@ -9,13 +9,20 @@ library(stringr)
 library(FactoMineR)
 
 data_folder = '../../Data/'
-newdata = T
+newdata = F
 if(newdata){
   traumdata <- read.csv(file=paste(data_folder,'data_trauma2_oldnames.csv', sep=''),
                         header = TRUE,na.strings = c("","NR","IMP","NA","NF"),encoding = "UTF-8")
 }else{
  traumdata <- read.csv(file=paste(data_folder,'data_trauma.csv', sep=''),
                         header = TRUE,na.strings = c("","NR","IMP","NA","NF"),encoding = "UTF-8") 
+ traumdata = traumdata %>% filter(!is.na(Sexe))
+ traumdata$BMI[3302]=traumdata$Poids[3302]/(traumdata$Taille[3302]^2)
+  traumdata=traumdata[-which(traumdata$ACR.1==1 | is.na(traumdata$ACR.1)) ,]
+  traumdata=traumdata[-which(traumdata$Mecanisme=="Arme blanche" | traumdata$Mecanisme=="Arme à feu"),]
+  traumdata$Origine[is.na(traumdata$Origine)] = 'Secondaire'
+  traumdata = traumdata[traumdata$Origine=='Primaire',]
+  traumdata= traumdata[-which(traumdata$FC.max==0),]
 }
 
 ##traumdata.keep.IMP <- read.csv(file=paste(data_folder,'data_trauma.csv', sep=''),
@@ -108,7 +115,11 @@ crit5 = physiological.crit & pragmatic.crit
 
 ```{r}
 criteria = data.frame(c1=crit1, c3=crit3, c4=crit4, c5=crit5)
-HS.procedure = !is.na(traumdata$procedureCH)&(traumdata$procedureCH==1)
+if(newdata){
+  HS.procedure = !is.na(traumdata$procedureCH)&(traumdata$procedureCH==1)
+}else{
+  HS.procedure = !is.na(traumdata$Activation.procedure.CH)&(traumdata$Activation.procedure.CH==1)
+}
 criteria$HS.procedure = HS.procedure
 
 traumdata = cbind(traumdata, criteria)
@@ -129,6 +140,20 @@ rownames(causation) = colnames(criteria)
 print('Correlation structure (row i, column j is the proportion of times that criterion j is also true when criterion i is true)')
 causation
 ```
+
+```{r}
+discordance = traumdata$Discordance
+pred.doctor = as.character(discordance)
+pred.doctor[discordance %in% c('PDSC','PGA')] = F
+pred.doctor[discordance %in% c('PDAC', 'MGA')] = T
+pred.doctor[is.na(discordance)] = F
+
+criteria$doctor = pred.doctor
+
+criteria[criteria==T] = 0.9
+criteria[criteria==F] = 0.05
+```
+
 
 ## Evaluation of the criteria
 
