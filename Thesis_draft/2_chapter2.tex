@@ -1,7 +1,7 @@
 	\section{Missing data mechanisms}
 	Data may be missing for various reasons, and this leads to various patterns of missing data: in particular, the relationship between the missingness of observations and the true values. 
 	
-	Given some data $X$, we denote by $M$ the missingness indicator matrix: its coefficients are 1 if the corresponding value is missing in $X$ and 0 otherwise. We call $f(M \vert X, \phi)$ the distribution of $M$ given the data and some unknown parameters. The missingness patterns can be classified into three categories \cite{Rubin_missdata}:
+	Given some data $X$, we denote by $M$ the missingness indicator matrix: its coefficients are 1 if the corresponding value is missing in $X$ and 0 otherwise. We call $f(M \vert X, \phi)$ the distribution of $M$ given the data and some unknown parameters. The missingness patterns can be classified into three categories \cite[Ch.\ 1]{Rubin_missdata}:
 	
 \begin{itemize}
 	\item \emph{Missing completely at random (MCAR):} The missingness of any given value is independent from the values of the data
@@ -15,7 +15,7 @@
 In particular, Rubin showed \cite{rubin1976ignorable} that if the data is MAR or MCAR, then any likelihood ratio (LR) computed on the observed data is equal to the correct LR, so the missingness mechanism can be ignored for inference on this type of data.
 
 	\section{Main types of imputation}
-		\subsection{Joint specification}
+		\subsection{Joint maximum likelihood}
 		\subsection{Fully conditional specification (FCS)}
 In FCS rather than a joint model we define $p$ conditional models $\pi_1, \ldots, \pi_p$ where $\pi_i$ gives the distribution of variable $i$ conditional on the others. We can then othain an imputed dataset iteratively using the Multiple Imputation by Chained Equations (MICE) algorithm \cite{MICE_founding}
 \begin{algorithm}[H]
@@ -52,11 +52,43 @@ An alternative to assuming some distribution for the dataset is to find a low-ra
 	\end{algorithmic}
 \end{algorithm}		
 
-That is, the missing values are repeatedly imputed by projection on the principal components. Multiple methods using different univariate models exist \cite{MICE_founding}\cite{stekhoven2015missforest}\cite{van2007multiple}	
+That is, the missing values are repeatedly imputed by projection on the principal components. Many methods using different univariate models exist \cite{MICE_founding}\cite{stekhoven2015missforest}\cite{van2007multiple}.
 		
-		\subsection{Other methods}
-			\paragraph{Nearest neighbors-based}
+		\subsection{Nearest-neighbors}
+Other methods exist to impute missing values. \emph{Nearest-neighbor imputation}\cite{chen2000nearest}  consists in replacing missing values for one individual by the values observed in similar individuals. Using the observed value, a distance metric is computed with the other observations in the data, and we pick the closest one which has observations in the variable we need to impute. This value is then used for imputation.
+
+ The related \emph{hot-deck imputation} \cite{andridge2010hotdeck} use multiple similar individuals to generate imputed values. Rather than pick a single closest value, we can pick a pool of similar individuals and draw at random between their observed values, or impute via a combination of those values.
 
 	\section{Multiple imputation}
 		\subsection{Principle}
-		\subsection{Rubin's rule and prediction aggregation}
+One major drawback of imputation is that it hides the difference between values that were really observed and those that were initially missing. If one uses full-data analysis on an imputed dataset, the results may be overconfident, and in particular underestimate variances because the uncertainty from missing data is not taken into account.
+
+In order to retain the advantages of imputation (using any complete-data method) while compensating for this overconfidence, Rubin \cite{rubin1986mi_founding} introduced \emph{multiple imputation}. The idea is that rather than just one dataset, one should generate $m$ plausible imputed values for each missing observation, in order to account for the uncertainty of the imputation. By performing her inference on each imputed dataset, the Analyst then obtains a set a estimates rather than just one. 
+
+When the imputation is based on a distribution, one can use draws from the distribution rather than the expected mean as one would do for single imputation. In other cases, method-specific approaches have to be designed.
+
+Once the datasets are generated, and estimates have been computed, it is possible to combine them to obtain a new estimation for the variances of our estimates\cite[Ch.\ 5]{Rubin_missdata}.
+
+		\subsection{Rubin's rule for result aggregation}
+
+Let us denote $(\hat{\theta}_1, \ldots, \hat{\theta}_m)$ the $m$ estimates for a given parameter $\theta$, and $W_1, \ldots, W_m$ the variance for $\theta$ estimated by the complete-data method (within-imputation variance). The aggregated estimate for $\theta$ is
+
+$$\hat{\theta} = \frac{1}{m} \sum\limits_{i=1}^m \hat{\theta}_i $$
+
+And the aggregated within-imputation variance 
+
+$$ \hat{W} = \frac{1}{m} \sum\limits_{i=1}^m W_i  $$
+
+The between-imputation variance can be computed as the sample variance of the estimates:
+
+$$\hat{B} = \frac{1}{m-1} \sum\limits_{i=1}^m (\hat{\theta}_i - \hat{\theta})^2$$
+
+Then the total variability associated to $\theta$ is then \cite[Ch.\ 5]{Rubin_missdata}:
+$$\hat{T} = \hat{W} + \frac{m+1}{m} \hat{B}$$
+
+Moreover, if $\theta$ is a scalar, asymptotically we can approximate \cite{rubin1986mi_founding}
+$$ (\theta - \hat{\theta})\hat{T}^{-\frac{1}{2}} \sim t_\nu$$
+
+where $t_\nu$ is a t-distribution with $\nu = (m-1)(1+\frac{1}{m+1}\frac{\hat{W}}{\hat{B}})^2$. 
+
+Using this approximation, it is possible to compute confidence intervals for $\theta$ that take into account the uncertainty related to missing data.
