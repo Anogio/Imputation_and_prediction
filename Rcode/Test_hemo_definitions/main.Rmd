@@ -114,7 +114,43 @@ crit5 = physiological.crit & pragmatic.crit
 ```
 
 ```{r}
-criteria = data.frame(c1=crit1, c3=crit3, c4=crit4, c5=crit5)
+getScore = function(x, lims, scores){
+  if(is.na(x)){
+    return(0)
+  }
+  return(scores[min(which(x<lims))])
+}
+```
+
+
+```{r}
+isMale = traumdata$Sexe=='m'
+
+lims.Hemoglobin = c(7, 9, 10, 11, 12, Inf)
+scores.Hemoglobin = c(8, 6, 4, 3, 2, 0)
+gravity.hemo = sapply(traumdata$Hemocue.init, function(x) getScore(x,lims.Hemoglobin, scores.Hemoglobin))
+
+lims.base = c(-10,-6,-2,Inf)
+scores.base = c(4,3,2,1,0)
+gravity.base = sapply(traumdata$Exces.base, function(x) getScore(x, lims.base, scores.base))
+
+lims.PAS = c(100,120,Inf)
+scores.PAS = c(4,1,0)
+gravity.PAS = sapply(traumdata$PAS, function(x) getScore(x, lims.PAS, scores.PAS))
+
+gravity.HR = 2 * (traumdata$FC>=120)
+gravity.HR[is.na(gravity.HR)] = 0
+
+FAST.gravity = 3 * (!is.na(traumdata$FAST.epanchement.pericardique) & (traumdata$FAST.epanchement.pericardique))
+pelvic.gravity = 6 * (!is.na(traumdata$Radio.bassin.frac) & (traumdata$Radio.bassin.frac))
+
+crit6 = isMale + gravity.hemo + gravity.base + gravity.PAS + gravity.HR + FAST.gravity + pelvic.gravity
+```
+
+
+
+```{r}
+criteria = data.frame(c1=crit1, c3=crit3, c4=crit4, c5=crit5, c6=crit6)
 if(newdata){
   HS.procedure = !is.na(traumdata$procedureCH)&(traumdata$procedureCH==1)
 }else{
