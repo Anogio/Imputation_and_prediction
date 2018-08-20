@@ -260,7 +260,7 @@ metric_best_separation <- function(y_pred, y_true, positive_weighting=10){
 
   best_loss = Inf
 
-  for(thresh in sort(y_pred)){
+  for(thresh in c(min(y_pred-1),sort(unique(y_pred)), max(y_pred+1))){
     FP = sum(y_pred>=thresh & y_true==0)
     FN = sum(y_pred<thresh & y_true==1)
     loss.val = w1 * FN + w0 * FP
