@@ -13,6 +13,7 @@ dataset = 'abalone'
 
 seed = ceiling(runif(1,1e3,1e5))
 print(seed)
+seed.run = 123
 ```
 
 ```{r}
@@ -37,57 +38,32 @@ oneRun = function(args){
   
   print(y.train[1:10])
   
-  #spl2 = train_test_split(X.test, y.test, val_prop)
-  #X.test = spl2$X.test
-  #y.test = spl2$y.test
-  #X.val = spl2$X.train
-  #y.val = spl2$y.train
-  
-  print(dim(X.test))
-  inVal = 1:ceiling(nrow(X.test)/2)
-  inVal = seq(1,nrow(X.test),2)
-  X.val = X.test[inVal,]
-  y.val = y.test[inVal]
-  X.test = X.test[-inVal,]
-  y.test = y.test[-inVal]
-  print(dim(X.test))
-  print(dim(X.val))
-  
   #X.train = MCAR.nVars(X.train, miss_prop, 1)
-  #X.val = MCAR.nVars(X.val, miss_prop, 1)
   #X.test = MCAR.nVars(X.test, miss_prop, 1)
   X.train = MCAR.noEmptyLines(X.train, miss_prop)
-  X.val = MCAR.noEmptyLines(X.val, miss_prop)
   X.test = MCAR.noEmptyLines(X.test, miss_prop)
   
   datasets = list()
-  print('t3')
   imp.grouped = imp.mvnorm.train(rbind(X.train, X.test))
   imp.train = imp.mvnorm.train(X.train)
   imp.test = imp.mvnorm.train(X.test)
-  imp.val = imp.mvnorm.train(X.val)
-  print('t4')
-  datasets$grouped = list(train=imp.mvnorm.estim(imp.grouped, X.train), test=imp.mvnorm.estim(imp.grouped, X.test), val=imp.mvnorm.estim(imp.grouped, X.val))
-  datasets$separate = list(train=imp.mvnorm.estim(imp.train, X.train), test=imp.mvnorm.estim(imp.test, X.test), val=imp.mvnorm.estim(imp.val, X.val))
-  datasets$correct = list(train=imp.mvnorm.estim(imp.train, X.train), test=imp.mvnorm.estim(imp.train, X.test), val=imp.mvnorm.estim(imp.train, X.val))
+  datasets$grouped = list(train=imp.mvnorm.estim(imp.grouped, X.train), test=imp.mvnorm.estim(imp.grouped, X.test))
+  datasets$separate = list(train=imp.mvnorm.estim(imp.train, X.train), test=imp.mvnorm.estim(imp.test, X.test))
+  datasets$correct = list(train=imp.mvnorm.estim(imp.train, X.train), test=imp.mvnorm.estim(imp.train, X.test))
+  
   
   regressors.fit = lapply(datasets,
                           function(x) {(predictor$train)(x$train, y.train)})
   print('t4.5')
   predictions = lapply(names(datasets), function(x){(predictor$predict)(regressors.fit[[x]], datasets[[x]]$test)})
-  predictions.val = lapply(names(datasets), function(x){(predictor$predict)(regressors.fit[[x]], datasets[[x]]$val)})
   names(predictions) = names(datasets)
-  names(predictions.val) = names(datasets)
+  
+  mod.full = lm(y.train~., data=cbind(as.data.frame(X[spl$inTrain,]), y.train))
+  #predictions$Full = predict(mod.full, as.data.frame(X[-spl$inTrain,]))
+  
   errors = lapply(predictions, function(x){errFun(x,y.test)})
-  errors.val = lapply(predictions.val, function(x){errFun(x,y.val)})
-  nam = names(errors)
-  print('t5')
-  for(i in seq_along(nam)){
-    nam[i] = paste(nam[i], '.val', sep='')
-  }
-  names(errors.val) = nam
-  print(names(errors.val))
-  return(c(errors, errors.val))
+  errors
+  return(errors)
 }
 ```
 
@@ -99,9 +75,8 @@ predictor = reg.lin
 errFun = function(y.pred,y.test){mean((y.pred-y.test)^2)}
 argsL = list(n=c(500),
             rho=c(0.5),
-            sigma_reg = 0.3,
+            sigma_reg = 5,
             train_prop=0.7,
-            val_prop=0.5,
             miss_prop = c(0.8),
             p = 2:10
 )
@@ -110,30 +85,30 @@ argsL = list(n=c(500),
 S = 5
 res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
-res.1 %>% gather('method','error',c(grouped,separate,correct, grouped.val, separate.val, correct.val)) %>%
+res.1 %>% gather('method','error',c(grouped,separate,correct)) %>%
   ggplot() + aes(x=p, y=error, color=method) + geom_line()
 ```
 
 ```{r}
-X.gen = X.basic.MVN
+X.gen = X.two.groups.MVN
 y.gen = y.regression
 predictor = reg.lin
 errFun = function(y.pred,y.test){mean((y.pred-y.test)^2)}
-argsL = list(n=seq(200,1600,200),
-            rho=c(0.5),
-            sigma_reg = 0.3,
-            train_prop=0.7,
-            val_prop=0.5,
-            miss_prop = c(0.3),
-            p = 5
+argsL = list(n=seq(200,1500,50),
+            rho=c(0.3),
+            sigma_reg = 0,
+            train_prop=0.5,
+            miss_prop = c(0.4),
+            p = 10
 )
 
 
-S = 20
+S = 10
 res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
-res.1 %>% gather('method','error',c(grouped,separate,correct, grouped.val, separate.val, correct.val)) %>%
-  ggplot() + aes(x=n, y=error, color=method) + geom_line()
+res.1 %>% gather('method','error',c(grouped, separate, correct)) %>%
+  ggplot() + aes(x=n, y=error, color=method) + geom_line(position=position_jitter(w=0, h=0)) +#  xlim(c(400,NA)) + coord_cartesian(ylim=c(5,10))
+  scale_y_log10()
 ```
 ```{r}
 argsL = list(n=c(500),
@@ -141,11 +116,11 @@ argsL = list(n=c(500),
             sigma_reg = 0.3,
             train_prop=0.7,
             val_prop=0.5,
-            miss_prop = seq(0,0.95,0.05),
+            miss_prop = seq(0,0.5,0.05),
             p = 3
 )
 res.2 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
-res.2 %>% gather('method','error', c(grouped,separate,correct, grouped.val, separate.val, correct.val)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line() #+ xlim(c(NA,0.75))
+res.2 %>% gather('method','error', c(grouped,separate,correct)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line() #+ xlim(c(NA,0.75))
 ```
 
 ## Abalone data
@@ -153,17 +128,16 @@ res.2 %>% gather('method','error', c(grouped,separate,correct, grouped.val, sepa
 ```{r}
 X.gen = X.abalone
 y.gen = y.abalone 
-argsL = list(n=seq(400,1500,100),
-            train_prop=0.7,
-            val_prop=0.5,
-            miss_prop = c(0.8)
+argsL = list(n=seq(300,1000,25),
+            train_prop=0.5,
+            miss_prop = c(0.2)
 )
 
 
 S = 10
 res.3 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
-res.3 %>% gather('method','error',c(grouped,separate,correct, grouped.val, separate.val, correct.val)) %>%
+res.3 %>% gather('method','error',c(grouped,separate,correct)) %>%
   ggplot() + aes(x=n, y=error, color=method) + geom_line()# + xlim(c(300,NA))
 ```
 ```{r}
@@ -175,25 +149,26 @@ argsL = list(n=1000,
 )
 res.4 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 res.4 %>% group_by(miss_prop) %>% summarise_all(mean) %>%
-   gather('method','error', c(grouped,separate,correct, grouped.val, separate.val, correct.val)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line()
+   gather('method','error', c(grouped,separate,correct)) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line()
 ```
 
 ## Trauma data
 
 ```{r}
+S = 20
 X.gen = X.trauma
 y.gen = y.trauma
 predictor = reg.logit
 
-#errFun = function(y.pred,y.true){metric_best_separation(y.pred,y.true, positive_weighting=10)$val}
-errFun = MLmetrics::AUC
-argsL = list(n=seq(800, 4000,200),
+errFun = function(y.pred,y.true){metric_best_separation(y.pred,y.true, positive_weighting=10)$val}
+#errFun = MLmetrics::AUC
+argsL = list(n=seq(500, 4000,500),
             train_prop=0.7,
             val_prop=0.5,
             miss_prop=0
 )
 
 res.5 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
-res.5 %>% gather('method','AUC', c(grouped,separate,correct, grouped.val, separate.val, correct.val)) %>% ggplot() + aes(x=n,y=AUC, color=method) + geom_line()
+res.5 %>% gather('method','AUC', c(grouped,separate,correct)) %>% ggplot() + aes(x=n,y=AUC, color=method) + geom_line()
 ```
 
