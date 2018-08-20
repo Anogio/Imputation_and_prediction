@@ -27,7 +27,7 @@ that is, the average value of the loss when predicting the known $y$  from $X$ w
 
 We then select $\hat{\beta} = \argmin_{\beta} R_{\text{emp}}(\beta)$ as our ERM estimator for $\beta$. However, this is not enough. Once we have chose $\hat{\beta}$, we need to have an estimate of how well this estimate will perform on new data.
 
- This is important because this is what we will take into account if we need to compare multiple choices for $f$. But the empirical risk gives us no measure of how well our model generalizes, only of how closely it can fit known data. In particular, if the class $f$ is very broad, one may find a $\beta$ that exactly interpolates the values of $y$ but does not generalize at all (an issue known as overfitting \cite{overfitting}
+ This is important because this is what we will take into account if we need to compare multiple choices for $f$. But the empirical risk gives us no measure of how well our model generalizes, only of how closely it can fit known data. In particular, if the class $f$ is very broad, one may find a $\beta$ that exactly interpolates the values of $y$ but does not generalize at all (an issue known as overfitting \cite{hawkins2004overfitting}
 
 To address the issue of model selection, we need to resort to CV as descried below.
 
@@ -50,7 +50,7 @@ Remember that the purpose of this work is to impute the data independently of th
 			\paragraph{Imputation step}
 First we choose an imputation model $X^{\text{complete}} = g(X, \alpha)$ where $X^{\text{complete}}$ is the completed dataset and $\alpha$ some parameter. This is similar to the previously described ERM, except we do not know the true data (while we had $y$ to compare to $\hat{y}$, we do not know the true full dataset $\tilde{X}$). Thus we choose $\hat{\alpha}$ to minimize some unsupervised empirical risk
 $$R'_{emp}(\alpha)=L'(g(X, \alpha), \alpha)$$
-Sometimes the loss $L'$ is related to the likelihood of the completed data according to some distribution\cite{imputation_norm} (though it is not always the case \cite{imp_missforest}). Once this is done, we obtain a completed dataset $\hat{X}$.
+Sometimes the loss $L'$ is related to the likelihood of the completed data according to some distribution\cite{ref_amelia} (though it is not always the case \cite{stekhoven2015missforest}). Once this is done, we obtain a completed dataset $\hat{X}$.
 
 			\paragraph{Prediction step}
 With imputation done, we can proceed as before to choose a parameter $\hat{\beta}$ that minimizes the empirical risk when using the completed data:
@@ -70,11 +70,11 @@ We choose to use this notation to illustrate our point that imputation is an int
 This implies that just like $\beta$, the imputation parameter $\alpha$ should be estimated only on the training data and then used on the validation data. As we will see, this raises an issue with the way current imputation methods are implemented.
 
 		\subsection{Unsuitability of current methods}
-Implementations of imputation methods have one thing in common: they are used through a single function which takes a dataset with missing values as an input and returns the dataset completed by the method of choice, \emph{without giving the user any access to the imputation model itself}. \cite{method1} \cite{method2}\cite{...}
+Implementations of imputation methods have one thing in common: they are used through a single function which takes a dataset with missing values as an input and returns the dataset completed by the method of choice, \emph{without giving the user any access to the imputation model itself}. \cite{stekhoven2015missforest} \cite{josse2016missmda}\cite{MICE_founding}\cite{ref_amelia}
 
 This is a problem because of how CV is supposed to be performed. Supposedly, one would estimate $(\hat{\alpha}_A, \hat{\beta}_A)$ through ERM, and then make a prediction on the validation set as $h(X_V,(\hat{\beta}_{X_A},\hat{\alpha}_{X_A}))$. But here, all we have access to is a black-box function $g': X \mapsto g(X, \hat{\alpha}_X)$ where $\hat{\alpha}_X$ is the optimised parameter for the argument $X$. This means that one cannot choose what parameters are used to impute the input to function $g'$: a new parameter will be estimated at every call of the function. But in that case, it is impossible to use the same $\alpha$ for the training dataset and for the validation data --- or for new data.
 	
-This issue has started to arise in the machine learning community in the past few years \cite{thread_newdata1}\cite{thread_newdata2}\cite{thread_newdata3}, but for now no implementation exists that separates the parameter estimation and the imputation itself (except for the very basic imputation by the mean \cite{mean_iputation}). Below, we investigate the alternatives available to perform imputation with held out data.
+This issue has started to arise in the machine learning community in the past few years \cite{thread_newdata1}\cite{thread_newdata2}\cite{thread_newdata3}, but for now no implementation exists that separates the parameter estimation and the imputation itself (except for the very basic imputation by the mean \cite{mean_imputation}). Below, we investigate the alternatives available to perform imputation with held out data.
 
 	\section{Possible solutions}
 	\label{ERM.solutions}

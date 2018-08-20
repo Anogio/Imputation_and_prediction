@@ -1,15 +1,29 @@
+	\section{Missing data mechanisms}
+	Data may be missing for various reasons, and this leads to various patterns of missing data: in particular, the relationship between the missingness of observations and the true values. 
+	
+	Given some data $X$, we denote by $M$ the missingness indicator matrix: its coefficients are 1 if the corresponding value is missing in $X$ and 0 otherwise. We call $f(M \vert X, \phi)$ the distribution of $M$ given the data and some unknown parameters. The missingness patterns can be classified into three categories \cite{Rubin_missdata}:
+	
+\begin{itemize}
+	\item \emph{Missing completely at random (MCAR):} The missingness of any given value is independent from the values of the data
+	$$ f(M \vert X, \phi) = f(M \vert \phi)$$
+	\item \emph{Missing at random (MAR):} The missingness depends only on the values of X that are observed and not on the missing ones
+	$$f(M \vert X, \phi) = f(M \vert X_{\text{obs}}, \phi)$$
+	An example would be a survey on revenue where we know the age of respondent, and younger people fail to declare there revenue more oten.
+	\item \emph{Missing not at random (MNAR):} The missingness depends on the values that are missing. In the same survey example, this would occur if richer people fail to declare their revenue more often.
+\end{itemize}
 
+In particular, Rubin showed \cite{rubin1976ignorable} that if the data is MAR or MCAR, then any likelihood ratio (LR) computed on the observed data is equal to the correct LR, so the missingness mechanism can be ignored for inference on this type of data.
 
 	\section{Main types of imputation}
-		\subsection{Joint parametric specification}
+		\subsection{Joint specification}
 		\subsection{Fully conditional specification (FCS)}
-In FCS rather than a joint model we define $p$ conditional models $\pi_1, \ldots, \pi_p$ where $\pi_i$ gives the distribution of variable $i$ conditional on the others. We can then othain an imputed dataset iteratively using the Multiple Imputation by Chained Equations (MICE) algorithm \cite{MICE}
-		\begin{algorithm}[H]
+In FCS rather than a joint model we define $p$ conditional models $\pi_1, \ldots, \pi_p$ where $\pi_i$ gives the distribution of variable $i$ conditional on the others. We can then othain an imputed dataset iteratively using the Multiple Imputation by Chained Equations (MICE) algorithm \cite{MICE_founding}
+\begin{algorithm}[H]
 	\caption{MICE Algorithm}
 	\hspace*{\algorithmicindent} \textbf{Input:} $X, \pi_1, \ldots, \pi_p$  \\
  	\hspace*{\algorithmicindent} \textbf{Output:} $\hat{X}$
 	\begin{algorithmic}[1]
-		\State $\hat{X} \leftarrow $ plausible imputation of the missing data
+		\State $\hat{X} \leftarrow $ plausible imputation of the missing data (e.g. mean imputation)
 
 		\While {not converged}
 			\For{$i=1 \ldots p$}
@@ -22,9 +36,27 @@ In FCS rather than a joint model we define $p$ conditional models $\pi_1, \ldots
 \end{algorithm}
 
 The intereset of this approach is that is can be very flexible when the variables have very different distribution profiles. 
-		\subsection{Low-rank approximation for imputation}
-		\subsection{ML-based}
-	\section{Missing data mechanisms}
+		\subsection{Low-rank approaches}
+An alternative to assuming some distribution for the dataset is to find a low-rank representation of the data and use it to impute unobserved values. Such approaches \cite{josse2012missPCA}\cite{chen2004missSVD}\cite{brand2002incremental} are generally based on Principal Component Analysis (PCA)\cite{PCA}, using the iterative PCA algorithm \cite{iter_PCA}:		
+		\begin{algorithm}[H]
+	\caption{Iterative PCA Algorithm}
+	\hspace*{\algorithmicindent} \textbf{Input:} $X, k$  \\
+ 	\hspace*{\algorithmicindent} \textbf{Output:} $\hat{X}$
+	\begin{algorithmic}[1]
+		\State $\hat{X} \leftarrow $ plausible imputation of the missing data (e.g. mean imputation)
+		\While {not converged}
+			\State $V \leftarrow k$ first principal components of $\hat{X}$ (complete dataset)
+			\State $\tilde{X} \leftarrow \hat{X}$ projected on the span of $V$ (i.e. PCA fitted values)
+			\State $\hat{X} \leftarrow \hat{X} * (1-M) + (\tilde{X} * M$ where $M$ the missingness indicator
+		\EndWhile
+	\end{algorithmic}
+\end{algorithm}		
+
+That is, the missing values are repeatedly imputed by projection on the principal components. Multiple methods using different univariate models exist \cite{MICE_founding}\cite{stekhoven2015missforest}\cite{van2007multiple}	
+		
+		\subsection{Other methods}
+			\paragraph{Nearest neighbors-based}
+
 	\section{Multiple imputation}
 		\subsection{Principle}
 		\subsection{Rubin's rule and prediction aggregation}
