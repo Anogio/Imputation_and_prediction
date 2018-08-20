@@ -272,3 +272,25 @@ metric_best_separation <- function(y_pred, y_true, positive_weighting=10){
   }
   return(list(val=best_loss/length(y_pred)*100, best.threshold=best_thresh))
 }
+
+metric_best_separation_fixedThr <- function(y_pred, y_true, positive_weighting=10, threshold=0.5){
+  w0 = 1/(1+positive_weighting)
+  w1 = positive_weighting/(1+positive_weighting)
+  
+  y_true = as.numeric(as.factor(y_true)) - 1
+  y_pred = as.numeric(y_pred)
+  
+  best_loss = Inf
+  
+  thresh = threshold
+  FP = sum(y_pred>=thresh & y_true==0)
+  FN = sum(y_pred<thresh & y_true==1)
+  loss.val = w1 * FN + w0 * FP
+  
+  if(loss.val<best_loss){
+    best_loss = loss.val
+    best_thresh = thresh
+  }
+
+  return(list(val=best_loss/length(y_pred)*100, best.threshold=best_thresh))
+}
