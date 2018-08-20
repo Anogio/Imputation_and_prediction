@@ -15,11 +15,14 @@ source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
 source(paste(aux.folder,'prediction_methods.R',sep=''), chdir = T)
 source(paste(aux.folder,'simulation_methods.R',sep=''), chdir = T)
 data_folder = '../../../Data/'
+
+criteria = read.csv(paste(data_folder, 'criteria.csv', sep=''), row.names=1)
+criteria$HS.procedure = NULL
 dataset = 'abalone'
 
 seed = ceiling(runif(1,1e3,1e5))
 print(seed)
-seed.run = 123
+seed.run = seed
 ``` 
 
 ```{r}
@@ -34,11 +37,18 @@ oneRun = function(args){
     print(seed.run)
   }
   
+  if(errFun=='AUC'){
+    errFun = AUC
+  }
+  else if(errFun=='weighted'){
+    errFun = function(y.pred,y.true){metric_best_separation(y.pred,y.true, positive_weighting=pos.weight)$val}
+  } else{
+    stop('Wrong error function')
+  }
+  
   X.gen = X.trauma
   y.gen = y.trauma
   predictor = reg.logit
- errFun = function(y.pred,y.true){metric_best_separation_fixedThr(y.pred,y.true, positive_weighting=pos.weight,threshold = 0.1)$val}
- # errFun = AUC
 
   X = X.gen(args)
   y.g = y.gen(X,args)
@@ -93,7 +103,7 @@ oneRun = function(args){
   predictions = lapply(names(datasets), function(x){(predictor$predict)(regressors.fit[[x]], as.matrix(datasets[[x]]$test))})
   names(predictions) = names(datasets)
   predictions$allNeg = rep(0,length(y.test))
-  #predictions$allPos = rep(1,length(y.test))
+  predictions$allPos = rep(1,length(y.test))
   
   predictions = c(predictions, as.list(crit.test))
   
@@ -103,23 +113,39 @@ oneRun = function(args){
 ```
 
 ```{r}
+ errFun = 'AUC'
 args = list(train_prop=0.7, n=NULL, pos.weight=10)
-S = 16
+S = 32
 res = evaluate.S.run.general(S, args, evaluator=oneRun, do.parallel=T) %>% as.data.frame()
 res %>% gather('method', 'error') %>%
   ggplot() + aes(x=method, y=error) + geom_boxplot()
-stop("WARNING! J'utilise SD.SMUR et FC.SMUR qui ont plein de données manquantes -> mieux pour allCols")
+#stop("WARNING! J'utilise SD.SMUR et FC.SMUR qui ont plein de données manquantes -> mieux pour allCols")
 ```
 
 ```{r}
-S = 4
-argsL = list(train_prop=0.7, pos.weight=1:10)
+ errFun = 'weighted'
+args = list(train_prop=0.7, n=NULL, pos.weight=10)
+S = 32
+res = evaluate.S.run.general(S, args, evaluator=oneRun, do.parallel=T) %>% as.data.frame()
+res %>% gather('method', 'error') %>%
+  ggplot() + aes(x=method, y=error) + geom_boxplot()
+#stop("WARNING! J'utilise SD.SMUR et FC.SMUR qui ont plein de données manquantes -> mieux pour allCols")
+```
+
+```{r}
+S = 1
+errFun = 'weighted'
+argsL = list(train_prop=0.7, pos.weight=seq(0.1,10,0.1))
 res.2 = evaluate.S.run.multiArg(S, argsL, oneRun, do.parallel = T)
 ```
 
 ```{r}
 res.2 %>% gather('method','error',-c(train_prop,pos.weight)) %>%
-  ggplot() + aes(x=pos.weight, y=error, color=method) + geom_line()
+  ggplot() + aes(x=pos.weight, y=error, color=method) + geom_line() + 
+  scale_x_continuous(breaks=1:10)
+
+stop("WARNING! J'utilise SD.SMUR et FC.SMUR qui ont plein de données manquantes -> mieux pour allCols")
+
 ```
 
 
