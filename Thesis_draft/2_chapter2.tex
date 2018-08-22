@@ -4,11 +4,11 @@
 	Given some data $X$, we denote by $M$ the missingness indicator matrix: its coefficients are 1 if the corresponding value is missing in $X$ and 0 otherwise. We call $f(M \vert X, \phi)$ the distribution of $M$ given the data and some unknown parameters. The missingness patterns can be classified into three categories \cite[Ch.\ 1]{Rubin_missdata}:
 	
 \begin{itemize}
-	\item \emph{Missing completely at random (MCAR):} The missingness of any given value is independent from the values of the data
+	\item \emph{Missing completely at random (MCAR):} The missingness of any given value is independent of the values of the data
 	$$ f(M \vert X, \phi) = f(M \vert \phi)$$
 	\item \emph{Missing at random (MAR):} The missingness depends only on the values of X that are observed and not on the missing ones
 	$$f(M \vert X, \phi) = f(M \vert X_{\text{obs}}, \phi)$$
-	An example would be a survey on revenue where we know the age of respondent, and younger people fail to declare there revenue more oten.
+	An example would be a survey on revenue where we know the age of respondent, and younger people fail to declare their revenue more often.
 	\item \emph{Missing not at random (MNAR):} The missingness depends on the values that are missing. In the same survey example, this would occur if richer people fail to declare their revenue more often.
 \end{itemize}
 
@@ -17,7 +17,7 @@ In particular, Rubin showed \cite{rubin1976ignorable} that if the data is MAR or
 	\section{Main types of imputation}
 		\subsection{Joint maximum likelihood}
 		\subsection{Fully conditional specification (FCS)}
-In FCS rather than a joint model we define $p$ conditional models $\pi_1, \ldots, \pi_p$ where $\pi_i$ gives the distribution of variable $i$ conditional on the others. We can then othain an imputed dataset iteratively using the Multiple Imputation by Chained Equations (MICE) algorithm \cite{MICE_founding}
+In FCS rather than a joint model we define $p$ conditional models $\pi_1, \ldots, \pi_p$ where $\pi_i$ gives the distribution of variable $i$ conditional on the others. We can then obtain an imputed dataset iteratively using the Multiple Imputation by Chained Equations (MICE) algorithm \cite{MICE_founding}
 \begin{algorithm}[H]
 	\caption{MICE Algorithm}
 	\hspace*{\algorithmicindent} \textbf{Input:} $X, \pi_1, \ldots, \pi_p$  \\
@@ -35,7 +35,7 @@ In FCS rather than a joint model we define $p$ conditional models $\pi_1, \ldots
 	\end{algorithmic}
 \end{algorithm}
 
-The intereset of this approach is that is can be very flexible when the variables have very different distribution profiles. 
+The interest of this approach is that is can be very flexible when the variables have very different distribution profiles. 
 		\subsection{Low-rank approaches}
 An alternative to assuming some distribution for the dataset is to find a low-rank representation of the data and use it to impute unobserved values. Such approaches \cite{josse2012missPCA}\cite{chen2004missSVD}\cite{brand2002incremental} are generally based on Principal Component Analysis (PCA)\cite{PCA}, using the iterative PCA algorithm \cite{iter_PCA}:		
 		\begin{algorithm}[H]
@@ -63,7 +63,7 @@ Other methods exist to impute missing values. \emph{Nearest-neighbor imputation}
 		\subsection{Principle}
 One major drawback of imputation is that it hides the difference between values that were really observed and those that were initially missing. If one uses full-data analysis on an imputed dataset, the results may be overconfident, and in particular underestimate variances because the uncertainty from missing data is not taken into account.
 
-In order to retain the advantages of imputation (using any complete-data method) while compensating for this overconfidence, Rubin \cite{rubin1986mi_founding} introduced \emph{multiple imputation}. The idea is that rather than just one dataset, one should generate $m$ plausible imputed values for each missing observation, in order to account for the uncertainty of the imputation. By performing her inference on each imputed dataset, the Analyst then obtains a set a estimates rather than just one. 
+In order to retain the advantages of imputation (using any complete-data method) while compensating for this overconfidence, Rubin \cite{rubin1986mi_founding} introduced \emph{multiple imputation}. The idea is that rather than just one dataset, one should generate $m$ plausible imputed values for each missing observation, in order to account for the uncertainty of the imputation. By performing her inference on each imputed dataset, the Analyst then obtains a set of estimates rather than just one. 
 
 When the imputation is based on a distribution, one can use draws from the distribution rather than the expected mean as one would do for single imputation. In other cases, method-specific approaches have to be designed.
 
