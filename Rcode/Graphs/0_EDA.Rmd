@@ -213,7 +213,7 @@ missmap(X, margins = c(5,1), y.labels = rep('',nrow(X)), rank.order=F)
 ```{r}
 ggplot(dat) + aes(x=Glasgow, fill=y) + geom_bar(position='dodge', aes(y =..prop..)) + 
   themer(angle=F) + scale_fill_manual(labels = c("No shock", "Shock"), values=c('darkblue', 'red')) +
-  xlab('GCS score') + ylab('Proportion of occurences') + 
+  xlab('GCS score') + ylab('Proportion of occurrences') + 
   scale_x_continuous(breaks=3:15) + labs(fill='Outcome')
 ```
 
@@ -288,6 +288,6 @@ dat$Sex = sex.bk
 ```
 
 ```{r}
-ggplot() + aes(x=rowSums(is.na(X))) + geom_bar() + themer(angle=F) + ylab('Number of occurences') + xlab('Number of missing values')
+ggplot() + aes(x=rowSums(is.na(X))) + geom_bar() + themer(angle=F) + ylab('Number of occurrences') + xlab('Number of missing values')
 ```
 
