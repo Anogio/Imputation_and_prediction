@@ -15,6 +15,7 @@
 
 \usepackage{microtype}
 \usepackage{amsmath,amsthm,amssymb,amsfonts}
+\usepackage{mathtools}
 
 \usepackage{algorithm}
 %\usepackage[ruled,vlined,linesnumbered,algo2e,resetcount,algochapter]{algorithm2e}
@@ -45,4 +46,11 @@
 \DeclareMathOperator*{\argmax}{arg\,max}
 \DeclareMathOperator*{\argmin}{arg\,min}
 
+%\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\DeclarePairedDelimiterX{\norm}[1]{\lVert}{\rVert}{#1}
+
 \newsubfloat{figure} % used to enable subfloats in the memoir class
+
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{lemma}{Lemma}[chapter]
+\newtheorem{proposition}{Proposition}[chapter]
