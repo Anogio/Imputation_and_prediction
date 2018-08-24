@@ -1,7 +1,6 @@
-	\section{Is less missing data always better?}
-		\subsection{Impact of mising validation data}
-\todo{Include graphs to show the linear evolution of the loss (increasing and decreasing)}
-		\subsection{Impact of missing train data}
+	\section{Impact of missing data}
+		\subsection{Is less missing data always better?}
+	\label{miss_impact}
 %When estimating a model parameter, we generally want as little missing data as possible
 %Especially, when the missing data pattern is MCAR and we have lots of complete cases, it is tempting to use just them
 %However, it is possible that we really need to have the same MD pattern for train and validation (real-world data), as illustrated by empirical results: with mean imputation, the best predicition is when  there  is the same amount in both sets!
@@ -11,16 +10,13 @@ In particular, if the missing data is MCAR --- and so the complete cases have ex
 
 However, it may not be so: when imputing missing data, we do not recover the exact initial data. What if these errors change the structure of the dataset enough that a different parameter (possibly different from the one that generated the data) can yield better predictions? In that case, learning our model without any missing data may yield the true parameter but still not be optimal for prediction.
 
-We investigated this on some simulated data by adding a fixed proportion of missing values to the validation data (mimicking the real-world data) and varying the amount of missing data in the training set:
+We investigated this on some simulated (cf Appendix \ref{simulation} with $n=4000, p=5, rho=0.9, \sigma=10$) and real-world data (abalone, cf Appendix \ref{abalone}) by adding a fixed proportion of missing values to the validation data and varying the amount of missing data in the training set:
 
 \begin{algorithm}[H]
 	\caption{Impact of missing data}
-	\hspace*{\algorithmicindent} \textbf{Input:} $\pi_V, m$  \\
-	\hspace*{\algorithmicindent} \textbf{Input:} $L_1, \ldots L_m$  \\
+	\hspace*{\algorithmicindent} \textbf{Input:} $\pi_V, m, X_A, X_V, y_A,y_V$  \\
+	\hspace*{\algorithmicindent} \textbf{Output:} $L_1, \ldots L_m$  \\
 	\begin{algorithmic}[1]
-		\State $X \sim \mathcal{N}(\mu,\Sigma)$
-		\State $y \leftarrow X \beta + \epsilon$ \Comment Where $\epsilon$ is a normal noise factor
-		\State $X_A, X_V, y_A, y_V \leftarrow$ Random CV split of $X,y$
 		\For{$\pi_A \in [0, \frac{1}{m}, \ldots \frac{m-1}{m}]$}
 			\State Add proportion $\pi_A$ of MCAR missing data to $X_A$
 			\State Add proportion $\pi_VA$ of MCAR missing data to $X_V$
@@ -32,16 +28,53 @@ We investigated this on some simulated data by adding a fixed proportion of miss
 	\end{algorithmic}
 \end{algorithm}
 
-with $\Sigma = (1-\rho) I_p + \rho \mathbbm{1}$ (same correlation between all variables) and $\beta=(1,\ldots,1)$. The results are shown in Fig.\ref{fig.miss_impact3_simu} for $\rho=0.9, \pi_V=0.4$.
+The results are shown in Fig.\ref{fig.miss_impact} (where $\pi_{min}$ indicates the point where the lowest error is achieved).
 
-\input{Graphs/fig_miss_impact3_simu}
+\input{Graphs/fig_miss_impact}
 
 What we can see here is that when the training dataset is fully observed while the validation has missing data, the prediction error is \emph{higher} than in the same situation with missing data in the training set as well. More precisely, the best prediction is achieved when both datasets have roughly the same amount of missing data.
 
-It is not clear how general this result is. The same trend was visible on the real-world Abalone dataset, and on simulation through a range of parameters. However, we could obtain it \emph{only when using mean imputation}: with more elaborate imputation methods it did not show.
+It is not clear how general this result is. In particular, we could obtain it \emph{only when using mean imputation}: with more elaborate imputation methods it did not show. 
 
  In any case, this warrants caution when doing cross-validation with missing data: while reducing the amount of missing data in our records is a worthy endeavour --- e.g. by deleting incomplete cases ---, it is possible that it will only be useful if the real-world (or validation) data also has less missing data as a result --- e.g., improving the data-collection process. Additionally, just as it is important to ensure that the distribution of the data is stable between training and application --- no temporal trend in the data ---, the same should be done about the missing-data pattern.
-	\section{Using $y$ in the imputation}
+% \subsection{Impact of mising validation data}
+%\todo{Include graphs to show the linear evolution of the loss (increasing and decreasing)}
+%Here we illustrate our 
+		\subsection{Asymmetry between the two datasets}
+We want to keep investigating an observation from the previous chapter: missing data does not have the same impact on performance when it is in the training set as when it is in the validation set, and depending on the situation one or the other may be determinant of the value of the error.
+
+To do this we simulate data in the same fashion as above, that is with a normal $X$ and a linearly derived response $y$. For various proportions $\pi$, we then perform imputation and prediction in 4 different cases:
+\begin{itemize}
+\item Proportion $\pi$ of MCAR missing values in both datasets: we note the loss $L_B$
+\item Proportion $\pi$ of MCAR missing values just in the validation set: we note the loss $L_V$
+\item Proportion $\pi$ of MCAR missing values just in the training set: we note the loss $L_A$
+\item Fully observed data: we note the loss $L_F$.
+\end{itemize}
+
+Figure \ref{fig.linreg} shows the results of this process, for simulated (cf Appendix \ref{simulation} with $p=45, rho=0.5, \sigma=1$) and real-world data (abaone, cf Appendix \ref{abalone}), adding 30\% MCAR data . We observed that the variable that caused the most change in the relationship between each type of error was $p$, the number of covariates, which is why we choose to present the results for different values of $p$. We can see that $L_B$ tends to follow the trend imposed by either $L_A$ or $L_V$, whichever is worse: when $p$ is small, $L_B$ is almost equal to $L_V$ (i.e., with few parameters to estimate the estimation of $\beta$ is good so the biggest impact is from the imputation error in $X_V$). When $p$ is larger, $L_B$ starts following the trend of $L_A$ (with many parameters to estimate, the error on $\beta$ causes very large errors to appear), although $L_B$ stays smaller than $L_A$, which is the same effect that we showed in \ref{miss_impact}.
+
+\input{Graphs/fig_linreg}
+
+
 	\section{Multiple imputation}
+Instead of making only one imputation, it is possible (see Chapter \ref{imputation}) to instead impute multiple datasets and perform the analysis on each dataset. Just like for parameter estimates, we can generate multiple predictions and use these to estimate prediction uncertainty from missing data.
+
+		\subsection{Partial multiple imputation}
+		In Chapter \ref{linreg}, we mention the fact that if the estimation is consistent, then most of the prediction uncertainty is linked to missing data in the validation dataset, and not to that in the training one. This suggests an idea that would allow predictive multiple imputation while keeping the computational cost rather low.
+		
+		 Given some training data $X_A$ and validation $X_V$, we can impute $m$ datasets $X_A^{(1)}, \ldots X_A^{(m)}, X_V^{(1)}, \ldots X_V^{(m)}$ which would yield estimates $\hat{\beta}_n^{(1)}, \ldots, \hat{\beta}_n^{(m)}$ and then $\hat{y}_V^{(1)}, \ldots, \hat{y}_V^{(1)}$. However, this implies making $m$ separate parameter estimations. If $n$ is large, the variance of $\hat{\beta}$ may be insignificant in the variance of $\hat{y}_V$ compared to the direct impact of missing validation data. 
+		 
+		 This is why we can try instead to impute the training dataset only once, while imputing the validation data $m$ times as usual, and use the same $\hat{\beta}$ to predict on each imputed validation set. This would be a major computational gain, since the most computing-intensive part of the analysis is usually parameter estimation, not prediction.
+
+To see is this is worth considering, we perform an analysis on some very simple simulated data.
+
 		\subsection{Prediction intervals}
-		\subsection{Point estimate}
+As in \ref{miss_impact} we generate $X$ normal covariates and $y$ a noised linear combination of these, then split them for CV. We add the same amount of MCAR missing data in both datasets, then impute them multiply (both as described just above and by only imputing the training data once). We train a linear regression on $X_A, y_A$ and predict on $X_V$.
+
+This allows us to compute the between-imputation variance for each entry in $\hat{y}_V$, and the linear regression model gives us an estimation for the within-imputation variance of the predictions. We can then use Rubin's rule (cf Chapter \ref{imputation}) to compute a total variance for each prediction, and the t-distribution approximation to obtain an interval. 
+\todo{explain within-imputation variance calc}
+Figure \ref{fig.interval_coverage} shows average coverage rates for $p=20, \rho=0.5, m=30$, $30$\% missing data and multiple values of $n$ (averaging over several runs). We see that when $n$ is very small, partial MI tends to severely underestimate variance while full MI overestimates it. When $n$ is larger, both perform similarly and close to norminal coverage. 
+
+Note, though, that we could not reproduce those results even on simple real-world data: coverage was vastly inferior to nominal values. It is plausible that unless the model fits the data perfectly, the estimated intervals can be very misleading. 
+
+\input{Graphs/fig_interval_coverage}

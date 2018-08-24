@@ -174,7 +174,7 @@ It is possible to approximate maximum-likelihood estimators for $\mu$ and $\sigm
 	\end{algorithmic}
 \end{algorithm}
 
-The conditional expectations are easily derived using the Schur complement \cite{norm_schur}. For this step, we use a slightly modified version of the code from the \emph{norm} package.
+The conditional expectations are easily derived using the Schur complement \cite{norm_schur}. For this step, we use a slightly modified version of the code from the \emph{norm} package. In all that comes next, unless specified otherwise this imputation method is the one we use, with identical imputation.
 
 \paragraph{Imputation}
 Once we have the parameters, it is very straightforward to get an imputation of the missing data. Just as during the EM procedure, we impute using the conditional expectation of the dataset conditioned on the observed values: 
@@ -183,5 +183,10 @@ $$\hat{X} = \mathbb{E}_{X^{\text{miss}}}(X \vert X^{\text{obs}} ; \hat{\mu}, \ha
 We implemented this step as well to get a complete imputation procedure divided in two functions that implement the estimation and imputation steps separately. The code is available in package \todo{make package and insert reference}
 
 		\subsection{Comparison on simulated data}
-Now that we have an implementation that separates estimation and imputation, we use it to compare the three imputation procedures on simulated and real data. 
-	\todo{insert clean graphs}
+Now that we have an implementation that separates estimation and imputation, we use it to compare the three imputation procedures on simulated data (cf Appendix \ref{simulation}, with $\rho=0.5, p=4, \sigma=1$) and the abalone data (cf Appendix \ref{abalone}) with various sample sizes and adding 30\% missing data MCAR.  The results are in Figure \ref{fig.grouped_separate}.
+
+\input{Graphs/fig_grouped_separate}
+	
+We see that indeed grouped imputation seems to always have lower error than identical imputation, while separate imputation has higher error. However, when $n$ is not too small, all three are quite close together. Separate imputation seems to be further off than the other two, and sometimes has very high error. As a result, if no implementation exists for a given method to perform identical imputation, trying it out with grouped imputation would be a good first step to get an idea of how it can perform.
+
+Still, for real applications, imputation must be performed on new data without having the training data at hand, so once an imputation method is chosen, is would be necessary to implement it in a way that allows identical imputation.

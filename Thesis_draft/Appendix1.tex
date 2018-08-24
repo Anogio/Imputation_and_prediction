@@ -1,0 +1,17 @@
+To simulate a regression dataset with normally distributed covariates, we proceed as follows.
+
+\begin{algorithm}[H]
+	\caption{Data simulation}
+	\hspace*{\algorithmicindent} \textbf{Input:} $n_A,n_V,p,\rho, \sigma$\\
+	\hspace*{\algorithmicindent} \textbf{Output:} $X_A, X_V, y_A, y_V$  \\
+	\begin{algorithmic}[1]
+		\State $\Sigma \leftarrow (1-\rho) I_p + \rho \mathbbm{1}_{p\times p}$ \Comment Same correlation $\rho$ between all pairs of variables
+		\State $X_A \sim \mathcal{N}(0,\Sigma)$ \Comment Of size $n_A \times p$
+		\State $X_V \sim \mathcal{N}(0,\Sigma)$ \Comment Of size $n_V \times p$
+		\State $\beta \leftarrow (1,\ldots,1)$
+		\State $y_A \leftarrow X_A \beta + \epsilon_A$ \Comment Where $\epsilon_A \sim \mathcal{N}(0,\sigma^2)$
+		\State $y_V \leftarrow X_V \beta + \epsilon_V$ \Comment Where $\epsilon_V \sim \mathcal{N}(0,\sigma^2)$
+	\end{algorithmic}
+\end{algorithm}
+
+That is, for both the training and validation data, we generate a normally distributed $X$ and a rsponse $y$ that is a linear combination of $X$ with normal noise.

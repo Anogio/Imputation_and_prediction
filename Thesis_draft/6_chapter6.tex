@@ -1,0 +1,20 @@
+	\section{Methodology}
+		\subsection{Performing the prediction}
+
+		\subsection{Evaluating the prediction}
+The response variable in our data is binary, and we predict a probability. This, and the unbalance in the response (only 10\% of positive cases) means that the choice of metric is not straightforward. A first choice we have to make is whether we choose a threshold for the prediction (predict a positive when the predicted probability is above some value), or evaluate the predicted probability as-is.
+
+Some metrics allow us to evaluate the predicted probability directly, such as the AUC \cite{huang2005AUC} or log-loss (minimized by the logistic regression). However, we want to be able to compare our results with those given by scores or the historical decisions of doctors, which are binary. We want to see if our predictions are able to separate patients with and without shocks at least as well as those references, so we need a metric that puts our predictions and those scores on an equal footing.
+
+To that end, we choose a simple cost function that, given a binary prediction, assigns some user-defined cost to false negatives and false positives. That is:
+
+$$ L(\hat{y}, y)=\frac{1}{n} \sum \limits_{i=1}^n c_1 \mathbb{1}_{y_i=1,\hat{y}_i=0} + c_2 \mathbb{1}_{y_i=0,\hat{y}_i=1}$$
+
+To evaluate our predicted probability, we take the best value of this loss for any choice of threshold: this gives us a measure of the separation power of those predictions.
+
+		\subsection{Choice of imputation method}
+		Mention the fact that most methods have the same performance (even mean)
+		
+		Imputation done before model selection (cf congeniality)
+	\section{Results}
+	\label{results}
