@@ -132,16 +132,15 @@ oneRun = function(args){
   isCovered$BS = y.test > BS.quantiles[,1] & y.test < BS.quantiles[,2]
   isCovered$SIBS = y.test > SIBS.quantiles[,1] & y.test < SIBS.quantiles[,2]
   
-  return(lapply(isCovered, mean))
+  return(c(lapply(isCovered, mean), list(var_B=mean(MI.var_b), var_W=mean(MI.var_w))))
 }
 ```
-
 ```{r}
 X.gen = X.basic.MVN
 y.gen = y.regression
 predictor = reg.lin
-argsL = list(n=800,
-            p=seq(2, 30, 4 ),
+argsL = list(n=seq(200,2000,200),
+            p=20,
             rho=0.5,
             sigma_reg = 0.2,
             train_prop=0.6,
@@ -150,10 +149,51 @@ argsL = list(n=800,
             m=30
 )
 
-S = 10
+S = 5
+res.0 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+
+res.0 %>% rename('Partial MI coverage'=SI, 'Full MI coverage'=MI) %>% gather('method','error', c('Partial MI coverage','Full MI coverage')) %>% 
+  ggplot() + aes(x=n,y=error, color=method) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage'))
+```
+
+```{r}
+X.gen = X.basic.MVN
+y.gen = y.regression
+predictor = reg.lin
+argsL = list(n=1000,
+            p=seq(2,60,5),
+            rho=0.5,
+            sigma_reg = 0.2,
+            train_prop=0.6,
+            miss_prop=0.3,
+            alpha = 0.3,
+            m=30
+)
+
+S = 5
 res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
-res.1 %>% gather('method','error', c(MI, SI, BS, SIBS)) %>% ggplot() + aes(x=p,y=error, color=method) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage'))
+res.1 %>% rename('Partial MI coverage'=SI, 'Full MI coverage'=MI) %>% gather('method','error', c('Partial MI coverage','Full MI coverage')) %>% 
+  ggplot() + aes(x=p,y=error, color=method) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage'))
+```
+```{r}
+X.gen = X.basic.MVN
+y.gen = y.regression
+predictor = reg.lin
+argsL = list(n=1000,
+            p=20,
+            rho=0.5,
+            sigma_reg = 0.2,
+            train_prop=0.6,
+            miss_prop=seq(0,0.6,0.05),
+            alpha = 0.3,
+            m=30
+)
+
+S = 5
+res.15 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+
+res.15 %>% rename('Partial MI coverage'=SI, 'Full MI coverage'=MI) %>% gather('method','error', c('Partial MI coverage','Full MI coverage')) %>% ggplot() + aes(x=miss_prop,y=error, color=method) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage'))
 ```
 
 ```{r}

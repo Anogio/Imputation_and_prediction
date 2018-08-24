@@ -38,8 +38,8 @@ oneRun = function(args){
   
   print(y.train[1:10])
   
-  #X.train = MCAR.nVars(X.train, miss_prop, 1)
-  #X.test = MCAR.nVars(X.test, miss_prop, 1)
+#  X.train = MCAR.nVars(X.train, miss_prop, 1)
+#  X.test = MCAR.nVars(X.test, miss_prop, 1)
   X.train = MCAR.noEmptyLines(X.train, miss_prop)
   X.test = MCAR.noEmptyLines(X.test, miss_prop)
   
@@ -99,15 +99,15 @@ argsL = list(n=seq(200,1500,50),
             sigma_reg = 0,
             train_prop=0.5,
             miss_prop = c(0.4),
-            p = 10
+            p = 2
 )
 
 
-S = 10
+S = 100
 res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
 res.1 %>% gather('method','error',c(grouped, separate, correct)) %>%
-  ggplot() + aes(x=n, y=error, color=method) + geom_line(position=position_jitter(w=0, h=0)) +#  xlim(c(400,NA)) + coord_cartesian(ylim=c(5,10))
+  ggplot() + aes(x=n, y=error, color=method) + geom_line()+#position=position_jitter(w=0, h=0)) +#  xlim(c(400,NA)) + coord_cartesian(ylim=c(5,10))
   scale_y_log10()
 ```
 ```{r}

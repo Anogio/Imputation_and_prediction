@@ -49,6 +49,8 @@ oneRun = function(args){
   
   X.train = MCAR.noEmptyLines(X.train, miss_prop.train)
   X.test = MCAR.noEmptyLines(X.test, miss_prop.test)
+  #X.train = MCAR.nVars(X.train, miss_prop.train, 1)
+  #X.test = MCAR.nVars(X.test, miss_prop.test, 1)
   datasets = list()
   
   imp.norm = imp.mvnorm.train(X.train)
@@ -80,17 +82,17 @@ predictor = reg.lin
 errFun = function(y.pred,y.test){mean((y.pred-y.test)^2)}
 X.gen = X.two.groups.MVN
 y.gen = y.regression
-argsL = list(n=800,
-            rho=0.3,
-            sigma_reg = 0.3,
+argsL = list(n=400,
+            rho=0.9,
+            sigma_reg = 5,
             train_prop=0.7,
             miss_prop.train=grid,
             miss_prop.test=grid,
-            p = 5
+            p = 2
 )
 
 
-S = 10
+S = 5
 res = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
 res.grid = matrix(NA, nrow=length(grid), ncol=length(grid))
@@ -119,7 +121,7 @@ Quite clearly, the prediction error evolves much faster when missing data is add
 TThe graph below shows that for a fixed amout of missing training data, the error evolves roughly linearly with the amount of missing validation data. 
 
 ```{r}
-ggplot() + aes(x=grid, y=res.grid[4,]) + geom_point() + ggtitle('Evolution of the prediction error for fixed proportion of missing train values(30%) \n depending on the proportion of missing test values') + xlab('Missing validation data') + ylab('Validation error') +
+ggplot() + aes(x=grid, y=res.grid[5,]) + geom_point() + ggtitle('Evolution of the prediction error for fixed proportion of missing train values(30%) \n depending on the proportion of missing test values') + xlab('Missing validation data') + ylab('Validation error') +
   geom_smooth(method='lm')
 ```
 
