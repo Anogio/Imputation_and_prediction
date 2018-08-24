@@ -55,7 +55,7 @@ p1 = res.graph %>% mutate(nList=nList) %>%
   ggtitle('Predictive performance for n varying from 100 to 1000 (log scale)')
 
 
-p2 = res.graph %>% slice(1) %>% gather() %>%
+p2 = res.graph %>% dplyr::slice(1) %>% gather() %>%
   ggplot() + aes(x= factor(key,levels=levels(as.factor(key))[c(1,4,3,2,5)]),
                    y=value, fill=key) +
   geom_bar(stat='identity') +
@@ -66,7 +66,7 @@ p2 = res.graph %>% slice(1) %>% gather() %>%
   themer(boldX=T) +
   ggtitle('Zoom: n=100')
 
-p3 = res.graph %>% slice(length(nList)) %>% gather() %>%
+p3 = res.graph %>% dplyr::slice(length(nList)) %>% gather() %>%
   ggplot() + aes(x= factor(key,levels=levels(as.factor(key))[c(1,4,3,2,5)]),
                    y=value, fill=key) +
   geom_bar(stat='identity') +

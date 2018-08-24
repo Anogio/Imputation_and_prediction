@@ -42,6 +42,8 @@ oneRun = function(args){
   }
   else if(errFun=='weighted'){
     errFun = function(y.pred,y.true){metric_best_separation(y.pred,y.true, positive_weighting=pos.weight)$val}
+  }else if(errFun=='logloss'){
+    errFun = MLmetrics::LogLoss
   } else{
     stop('Wrong error function')
   }
@@ -113,11 +115,11 @@ oneRun = function(args){
 ```
 
 ```{r}
- errFun = 'AUC'
-args = list(train_prop=0.7, n=NULL, pos.weight=10)
+ errFun = 'logloss'
+args = list(train_prop=0.7, n=NULL)
 S = 32
-res = evaluate.S.run.general(S, args, evaluator=oneRun, do.parallel=T) %>% as.data.frame()
-res %>% gather('method', 'error') %>%
+res.0 = evaluate.S.run.general(S, args, evaluator=oneRun, do.parallel=T) %>% as.data.frame()
+res.0 %>% gather('method', 'error', -c(allPos, allNeg, c6)) %>%
   ggplot() + aes(x=method, y=error) + geom_boxplot()
 #stop("WARNING! J'utilise SD.SMUR et FC.SMUR qui ont plein de données manquantes -> mieux pour allCols")
 ```
