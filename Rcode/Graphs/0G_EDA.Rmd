@@ -181,7 +181,7 @@ trauma = loader('trauma')
 X = cbind(trauma$X_numeric, trauma$X_category$Sexe)
 colnames(X)[ncol(X)] = 'Sexe'
 y = trauma$y
-y=factor(c('No shock','Sock')[as.numeric(y)])
+y=factor(c('No shock','Shock')[as.numeric(y)])
 
 X = X[c('Sexe', "Age", "BMI","Glasgow.initial", 'FC.max', "SD.min", "Hemocue.init", "SpO2.min", "Remplissage.total.cristalloides", 
 "Remplissage.total.colloides")]
@@ -230,7 +230,8 @@ ggplot(dat) + aes(x=Expander, fill=y) + geom_histogram(position='dodge', aes(y=.
 ```{r}
 dat %>% gather('variable','value', c('Age','BMI','Heart.rate','Pulse.pressure', 'Hb.level', 'O2.saturation', 'Expander')) %>%
   ggplot() + aes(x=value, fill=y) + geom_histogram(aes(y=..density..), bins=30) + facet_wrap(~variable, scales = 'free') + themer() + xlab('') + ylab('') +
-  labs(fill = "Outcome") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+  labs(fill = "Outcome") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
+  scale_fill_manual(values=c('darkblue','red'))
 ```
 
 ```{r}

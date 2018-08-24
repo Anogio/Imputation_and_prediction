@@ -148,8 +148,8 @@ remove(errs.miss, errs.mvn)
 ggplot() +aes(x=miss.train.l) +
     geom_line(aes(y=errs.aba.mean))  + #geom_line(aes(y=errs.aba.mvn, color='mvn'))  +
     geom_vline(xintercept = miss_prop_test) + xlab(expression(pi[A])) + ylab('Error') + geom_vline(xintercept = miss.train.l[which.min(errs.aba.mean)],color='red') + themer(angle=F, sizeAxisTitle = 20) +
-    annotate('text',x=0.27, y=12, label='pi[V]', parse=T, size=8) +
-    annotate('text',x=0.37, y=12, label='pi[min]', parse=T, size=8, color='red')
+    annotate('text',x=0.32, y=12, label='pi[V]', parse=T, size=8) +
+    annotate('text',x=0.26, y=12, label='pi[min]', parse=T, size=8, color='red')
 
 #ggplot() + aes(x=miss.train.l, y=errs.aba.mvn) + geom_line(color=seq_gradient_pal('blue','cyan')(0.75)) + geom_vline(xintercept = miss_prop_test) 
 ```
@@ -231,11 +231,16 @@ p1 = ggplot() +aes(x=miss.train.l) +
     geom_vline(xintercept = miss_prop_test) + #xlab(expression(pi[A])) +
     xlab('') + ylab('Prediction error') + geom_vline(xintercept = miss.train.l[which.min(errs.miss)],color='red') + themer(angle=F, sizeAxisTitle = 20) +
     annotate('text',x=0.28, y=15, label='pi[V]', parse=T, size=8) +
-    annotate('text',x=0.35, y=15, label='pi[min]', parse=T, size=8, color='red') 
+    annotate('text',x=0.35, y=15, label='pi[min]', parse=T, size=8, color='red') #+
+#  theme(axis.text.y=element_blank(),
+#        axis.ticks.y=element_blank())
 
 p2 = ggplot() + aes(x=miss.train.l,y=betas.err) + geom_line() + themer(angle=F, sizeAxisTitle = 20) + 
     xlab(expression(pi[A])) + ylab(expression(paste(beta, ' estimation error'))) +
-   geom_vline(xintercept = miss.train.l[which.min(errs.miss)],color='red') + geom_vline(xintercept = miss_prop_test)
+   geom_vline(xintercept = miss.train.l[which.min(errs.miss)],color='red') + geom_vline(xintercept = miss_prop_test) #+
+#  theme(axis.text.y=element_blank(),
+#        axis.ticks.y=element_blank())
+
 
 grid.arrange(p1,p2)
 #ggplot() + aes(x=miss.train.l, y=errs.mvn) + geom_line(color=seq_gradient_pal('blue','cyan')(0.75)) + geom_vline(xintercept = miss_prop_test) 

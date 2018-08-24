@@ -110,12 +110,12 @@ oneRun = function(args){
 X.gen = X.basic.MVN
 y.gen = y.regression
 predictor = reg.lin
-argsL = list(n=1000,
-            p=5,
+argsL = list(n=2000,
+            p=4,
             rho=0.5,
             sigma_reg = 0.2,
             train_prop=0.6,
-            miss_prop=0.4,
+            miss_prop=0.3,
             alpha = 0.3,
             m=c(1:29,seq(30,200,20))
 )
