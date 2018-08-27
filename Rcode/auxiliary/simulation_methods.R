@@ -171,6 +171,20 @@ pred.rf.predict = function(model, X.test){
 }
 reg.rf = list(train=pred.rf.train, predict=pred.rf.predict)
 
+
+pred.svm.train = function(X.train, y.train){
+  dat_train = data.frame(y=y.train, X=I(X.train))
+  return(
+    svm(y ~ .,data=dat_train)
+  )
+}
+
+pred.svm.predict = function(model, X.test){
+  return(predict(model,data.frame(X=I(X.test)), probability=T))
+}
+
+reg.svm = list(train=pred.svm.train, predict=pred.svm.predict)
+
 ######
 # Imputation
 imp.mean.train = function(X){
