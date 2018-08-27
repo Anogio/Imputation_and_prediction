@@ -54,8 +54,6 @@ themer = function(sizeAxis = 10, sizeAxisTitle=13,
 ```{r}
 lm.predVar = function(X.new, X.fit, fittedM){
   sigma2 = (summary(fittedM)$sigma)**2
-  print('Sigma:')
-  print(sigma2)
   inv.cov = solve(t(X.fit) %*% X.fit)
   z = X.new %*% inv.cov
   res = rowSums(X.new*z)
@@ -63,13 +61,15 @@ lm.predVar = function(X.new, X.fit, fittedM){
   return(res * sigma2)
 }
 
-get_pred_variance = function(X.train,X.test,y.train){
-  preds = matrix(nrow=nrow(X.test), ncol=m)
+lm.predVar2 = function(X.new, X.fit, y.fit, m){
+  preds = matrix(NA, nrow=nrow(X.new), ncol=m)
   for(i in 1:m){
-    in.BS = base::sample(1:nrow(X.train), nrow(X.train), replace=T)
-    X.train.BS = X.train[in.BS,]
-    
-    }
+    in.BS = base::sample(1:nrow(X.fit), nrow(X.fit), replace=T)
+    X.fit.BS = X.train[in.BS,]
+    fit.BS = (predictor$train)(X.fit.BS, y.fit)
+    preds[,i] = (predictor$predict)(fit.BS, X.new)
+  }
+  return(apply(preds,1,var))
 }
 ```
 
@@ -103,38 +103,21 @@ oneRun = function(args){
   pre.test = prelim.norm2(X.test)
   imp.train = em.norm(pre.train)
   
-  imp.train.BS = list()
-  for(i in 1:m){
-    in.BS = base::sample(1:nrow(X.train), nrow(X.train), replace=T)
-    X.train.BS = X.train[in.BS,]
-    pre.BS = prelim.norm2(X.train.BS)
-    imp.train.BS[[i]] = em.norm(pre.BS)
-  }
-  
   X.train.single.imp = imp.mvnorm.estim(list(thetahat=imp.train,params=getparam.norm(pre.train,imp.train)),X.train)
   
   datasets.train = list()
   datasets.test = list()
-  datasets.train.BS = list()
-  datasets.test.BS = list()
-  for(i in 1:m){
+   for(i in 1:m){
     datasets.train[[i]] = imp.norm(pre.train,imp.train,X.train)
     datasets.test[[i]] = imp.norm(pre.test, imp.train, X.test)
-    datasets.train.BS[[i]] = imp.norm(pre.train,imp.train.BS[[i]], X.train)
-    datasets.test.BS[[i]] = imp.norm(pre.test, imp.train.BS[[i]], X.test)
   }
   
   single.imp.fit = (predictor$train)(X.train.single.imp, y.train)
   MI.regressors.fit = lapply(1:m,
                           function(i) {(predictor$train)(datasets.train[[i]], y.train)})
-  BS.regressors.fit = lapply(1:m,
-                          function(i) {(predictor$train)(datasets.train.BS[[i]], y.train)})
-  
-  predictions.MI = lapply(1:m, function(i){(predictor$predict)(MI.regressors.fit[[i]], datasets.test[[i]])}) %>% as.data.frame()
+   predictions.MI = lapply(1:m, function(i){(predictor$predict)(MI.regressors.fit[[i]], datasets.test[[i]])}) %>% as.data.frame()
   predictions.SI = lapply(1:m, function(i){(predictor$predict)(single.imp.fit, datasets.test[[i]])}) %>% as.data.frame()
-  predictions.BS = lapply(1:m, function(i){(predictor$predict)(BS.regressors.fit[[i]], datasets.test.BS[[i]])}) %>% as.data.frame()
-  predictions.SIBS = lapply(1:m, function(i){(predictor$predict)(single.imp.fit, datasets.test.BS[[i]])}) %>% as.data.frame()
-  
+ 
   #MI.quantiles = t(apply(predictions.MI,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
   #SI.quantiles = t(apply(predictions.SI,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
   #BS.quantiles = t(apply(predictions.BS,1,function(x)quantile(x, probs=c(alpha/2,1-alpha/2)))) %>% as.data.frame()
@@ -142,13 +125,11 @@ oneRun = function(args){
 
   MI.var_b = apply(predictions.MI,1,var)
   SI.var_b = apply(predictions.SI,1,var)
-  BS.var_b = apply(predictions.BS,1,var)
-  SIBS.var_b = apply(predictions.SIBS,1,var)
   
   MI.var_w = lapply(1:m, function(i) lm.predVar(datasets.test[[i]], datasets.train[[i]], MI.regressors.fit[[i]])) %>% as.data.frame() %>% rowMeans()
   SI.var_w = lapply(1:m, function(i) lm.predVar(datasets.test[[i]], X.train.single.imp, single.imp.fit)) %>% as.data.frame() %>% rowMeans()
-  BS.var_w = lapply(1:m, function(i) lm.predVar(datasets.test.BS[[i]], datasets.train.BS[[i]], BS.regressors.fit[[i]])) %>% as.data.frame() %>% rowMeans()
-  SIBS.var_w = lapply(1:m, function(i) lm.predVar(datasets.test.BS[[i]], X.train.single.imp, single.imp.fit)) %>% as.data.frame() %>% rowMeans()
+#  MI.var_w = lapply(1:m, function(i) lm.predVar2(datasets.test[[i]], datasets.train[[i]], y.train,m)) %>% as.data.frame() %>% rowMeans()
+ # SI.var_w = lapply(1:m, function(i) lm.predVar2(datasets.test[[i]], X.train.single.imp, y.train,m)) %>% as.data.frame() %>% rowMeans()
   
   MI.var_tot = MI.var_w + (1 + 1/m) * MI.var_b
   MI.df = (m-1) * (1 + MI.var_w / ((1+1/m)*MI.var_b))**2
@@ -158,20 +139,11 @@ oneRun = function(args){
   SI.df = (m-1) * (1 + SI.var_w / ((1+1/m)*SI.var_b))**2
   SI.quantiles = t(sapply(SI.df, function(x) qt(c(alpha/2,1-alpha/2), df=x))) * sqrt(SI.var_tot) + rowMeans(predictions.SI)
   
-  BS.var_tot = BS.var_w + (1 + 1/m) * BS.var_b
-  BS.df = (m-1) * (1 + BS.var_w / ((1+1/m)*BS.var_b))**2
-  BS.quantiles = t(sapply(BS.df, function(x) qt(c(alpha/2,1-alpha/2), df=x))) * sqrt(BS.var_tot) + rowMeans(predictions.BS)
-  
-  SIBS.var_tot = SIBS.var_w + (1 + 1/m) * SIBS.var_b
-  SIBS.df = (m-1) * (1 + SIBS.var_w / ((1+1/m)*SIBS.var_b))**2
-  SIBS.quantiles = t(sapply(SIBS.df, function(x) qt(c(alpha/2,1-alpha/2), df=x))) * sqrt(SIBS.var_tot) + rowMeans(predictions.SIBS)
-  
+
   isCovered = list()
   isCovered$MI = y.test > MI.quantiles[,1] & y.test < MI.quantiles[,2]
   isCovered$SI = y.test > SI.quantiles[,1] & y.test < SI.quantiles[,2]
-  isCovered$BS = y.test > BS.quantiles[,1] & y.test < BS.quantiles[,2]
-  isCovered$SIBS = y.test > SIBS.quantiles[,1] & y.test < SIBS.quantiles[,2]
-  
+
   return(c(lapply(isCovered, mean), list(var_B=mean(MI.var_b), var_W=mean(MI.var_w), sigma=summary(single.imp.fit)$sigma)))
 }
 ```
@@ -180,7 +152,7 @@ X.gen = X.basic.MVN
 y.gen = y.regression
 predictor = reg.lin
 argsL = list(n=1000,
-            p=20,
+            p=5,
             rho=0.5,
             sigma_reg = seq(0,10,0.5),
             train_prop=0.6,
