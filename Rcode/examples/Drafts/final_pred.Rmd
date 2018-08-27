@@ -30,6 +30,7 @@ oneRun = function(args){
     assign(name, args[[name]])
   }
   errWeight = F
+  errMulti = F
   if(exists('seed.run')){
     set.seed(seed.run)
     print('seeded')
@@ -38,12 +39,15 @@ oneRun = function(args){
   
   if(errFun=='AUC'){
     errFun = AUC
-  }
-  else if(errFun=='weighted'){
+  }else if(errFun=='weighted'){
     errFun = function(y.pred,y.true){metric_best_separation(y.pred,y.true, positive_weighting=pos.weight)$val}
     errWeight = T
   }else if(errFun=='logloss'){
     errFun = MLmetrics::LogLoss
+  } else if(errFun=="weighted_multi"){
+    errMulti = T
+    weightsL = c(seq(0.1,1,0.1), seq(1.5,6,0.5), seq(7,10,1))
+    errFun = function(y.pred,y.true){lapply(weightsL, function(x){metric_best_separation(y.pred,y.true,positive_weighting = x)$val})}
   } else{
     stop('Wrong error function')
   }
@@ -125,7 +129,13 @@ oneRun = function(args){
   
   predictions = c(predictions, as.list(crit.test))
   
+  preds.SAEM = saem_prediction(X, as.factor(y), seed=seed, spl=spl$inTrain, printevery=50)
+  predictions$SAEM = preds.SAEM$y_pred[-spl$inTrain]
+  
   errors = lapply(predictions, function(x){errFun(x,y.test)})
+  if(errMulti){
+      errors$pos.w = as.list(weightsL)
+    }
   
   if(errWeight){
     w0 = 1/(1+pos.weight)
@@ -138,38 +148,24 @@ oneRun = function(args){
 ```
 
 ```{r}
- errFun = 'logloss'
+ errFun = 'weighted_multi'
 args = list(train_prop=0.7, n=NULL)
-S = 32
-res.0 = evaluate.S.run.general(S, args, evaluator=oneRun, do.parallel=T) %>% as.data.frame()
-res.0 %>% gather('method', 'error', -c(allPos, allNeg, c6)) %>%
-  ggplot() + aes(x=method, y=error) + geom_boxplot()
-#stop("WARNING! J'utilise SD.SMUR et FC.SMUR qui ont plein de données manquantes -> mieux pour allCols")
-```
-
-```{r}
- errFun = 'weighted'
-args = list(train_prop=0.7, n=NULL, pos.weight=5)
-S = 256
+S = 16
 res = evaluate.S.run.general(S, args, evaluator=oneRun, do.parallel=T) %>% as.data.frame()
-res %>% gather('method', 'error') %>%
+res  %>%
+  gather('method', 'error',-pos.w) %>% filter(pos.w==5) %>%
   ggplot() + aes(x=reorder(method,error,median), y=error) + geom_boxplot()
 #stop("WARNING! J'utilise SD.SMUR et FC.SMUR qui ont plein de données manquantes -> mieux pour allCols")
 ```
 
 ```{r}
-S = 1
-errFun = 'weighted'
-argsL = list(train_prop=0.7, pos.weight=seq(0.1,10,0.1))
-res.2 = evaluate.S.run.multiArg(S, argsL, oneRun, do.parallel = T)
-```
-
-```{r}
-res.2 %>% gather('method','error',-c(train_prop,pos.weight, c3, c4, c5,noBMI, allCols, allPos, withY)) %>%
-  ggplot() + aes(x=pos.weight, y=error, color=method) + geom_line() + 
+res %>% group_by(pos.w) %>% summarise_all(mean) %>% filter(pos.w>=1)%>% 
+  rename(TASH=c6, ABC=c1, Doctor=doctor, Logit=predCols) %>%
+  gather('method','error',-c(pos.weight, c3, c4, c5,noBMI, allCols, allPos, withY, pos.w, allNeg, fullJoint, completeCases, mean))%>%
+  ggplot() + aes(x=pos.w, y=error, color=method) + geom_line() + 
   scale_x_continuous(breaks=1:10)
 
-stop("WARNING! J'utilise SD.SMUR et FC.SMUR qui ont plein de données manquantes -> mieux pour allCols")
+#stop("WARNING! J'utilise SD.SMUR et FC.SMUR qui ont plein de données manquantes -> mieux pour allCols")
 
 ```
 
