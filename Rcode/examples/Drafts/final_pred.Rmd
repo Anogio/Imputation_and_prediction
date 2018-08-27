@@ -18,7 +18,6 @@ data_folder = '../../../Data/'
 
 criteria = read.csv(paste(data_folder, 'criteria.csv', sep=''), row.names=1)
 criteria$HS.procedure = NULL
-dataset = 'abalone'
 
 seed = ceiling(runif(1,1e3,1e5))
 print(seed)
@@ -30,7 +29,7 @@ oneRun = function(args){
   for(name in names(args)){
     assign(name, args[[name]])
   }
-  
+  errWeight = F
   if(exists('seed.run')){
     set.seed(seed.run)
     print('seeded')
@@ -42,6 +41,7 @@ oneRun = function(args){
   }
   else if(errFun=='weighted'){
     errFun = function(y.pred,y.true){metric_best_separation(y.pred,y.true, positive_weighting=pos.weight)$val}
+    errWeight = T
   }else if(errFun=='logloss'){
     errFun = MLmetrics::LogLoss
   } else{
@@ -60,9 +60,9 @@ oneRun = function(args){
   X.cat = y.g$X.aux
   X$Sexe = as.numeric(X.cat$Sexe)
   
-  useCols.pred = c("Age", "BMI", "Glasgow.initial", 
-"FC.SMUR", "Hemocue.init", "SpO2.min", "Remplissage.total.cristalloides", 
-"Remplissage.total.colloides", "SD.SMUR", 'SD.min', 'FC.max'
+  useCols.pred = c("Sexe", "Age", "BMI", "Glasgow.initial", 
+ "Hemocue.init", "SpO2.min", "Remplissage.total.cristalloides", 
+"Remplissage.total.colloides", 'SD.min', 'FC.max' # ,'SD.SMUR', 'FC.SMUR'
 )
   
   spl = train_test_split(X, y, train_prop)
@@ -94,6 +94,7 @@ oneRun = function(args){
   
   datasets$noBMI = list(train=as.data.frame(X.train.predCols[,-2]), test=as.data.frame(X.test.predCols[,-2]), n='noBMI')
   
+  
   imp.train.mean = imp.mean.train(X.train)
   X.train.mean = imp.mean.estim(imp.train.mean, X.train)
   X.test.mean = imp.mean.estim(imp.train.mean, X.test)
@@ -102,8 +103,23 @@ oneRun = function(args){
   regressors.fit = lapply(datasets,
                           function(x) {print(x$n);(predictor$train)(as.matrix(x$train), y.train)})
   
+  datasets$completeCases = list(train=X.train.predCols[rowSums(is.na(X.train))==0,], test=X.test.predCols)
+  regressors.fit$completeCases = (predictor$train)(as.matrix(datasets$completeCases$train), y.train[rowSums(is.na(X.train))==0])
+  
   predictions = lapply(names(datasets), function(x){(predictor$predict)(regressors.fit[[x]], as.matrix(datasets[[x]]$test))})
   names(predictions) = names(datasets)
+  
+  imp.fulljoint.train = imp.train.withY
+  predictions$fullJoint = imp.mvnorm.estim(imp.fulljoint.train, cbind(rep(NA,nrow(X.test)), X.test))[,1]
+
+  predictor = reg.rf
+  fit.rf = (predictor$train)(as.matrix(datasets$predCols$train), y.train)
+  predictions$RF = (predictor$predict)(fit.rf, as.matrix(datasets$predCols$test))
+  
+  predictor = reg.svm
+  fit.svm = (predictor$train)(as.matrix(datasets$predCols$train), y.train)
+  predictions$SVM = (predictor$predict)(fit.svm, as.matrix(datasets$predCols$test))
+  
   predictions$allNeg = rep(0,length(y.test))
   predictions$allPos = rep(1,length(y.test))
   
@@ -111,6 +127,13 @@ oneRun = function(args){
   
   errors = lapply(predictions, function(x){errFun(x,y.test)})
   
+  if(errWeight){
+    w0 = 1/(1+pos.weight)
+    w1 = pos.weight/(1+pos.weight)
+    errors$allNeg = mean(y.test*w1)*100
+    errors$allPos = mean(1-y.test)*100*w0
+  }
+  return(errors)
 }
 ```
 
@@ -126,11 +149,11 @@ res.0 %>% gather('method', 'error', -c(allPos, allNeg, c6)) %>%
 
 ```{r}
  errFun = 'weighted'
-args = list(train_prop=0.7, n=NULL, pos.weight=10)
-S = 32
+args = list(train_prop=0.7, n=NULL, pos.weight=5)
+S = 256
 res = evaluate.S.run.general(S, args, evaluator=oneRun, do.parallel=T) %>% as.data.frame()
 res %>% gather('method', 'error') %>%
-  ggplot() + aes(x=method, y=error) + geom_boxplot()
+  ggplot() + aes(x=reorder(method,error,median), y=error) + geom_boxplot()
 #stop("WARNING! J'utilise SD.SMUR et FC.SMUR qui ont plein de données manquantes -> mieux pour allCols")
 ```
 
@@ -142,7 +165,7 @@ res.2 = evaluate.S.run.multiArg(S, argsL, oneRun, do.parallel = T)
 ```
 
 ```{r}
-res.2 %>% gather('method','error',-c(train_prop,pos.weight)) %>%
+res.2 %>% gather('method','error',-c(train_prop,pos.weight, c3, c4, c5,noBMI, allCols, allPos, withY)) %>%
   ggplot() + aes(x=pos.weight, y=error, color=method) + geom_line() + 
   scale_x_continuous(breaks=1:10)
 
