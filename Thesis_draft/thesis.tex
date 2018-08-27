@@ -60,14 +60,21 @@ After investigating the issues linked to imputation in this context, we go back 
 \label{empirical}
 \import{.}{5_chapter5}
 
-\chapter{Analysis: imputing the Traumabase data for prediction}
+\chapter{Imputing the Traumabase data for prediction}
 \label{analysis}
 \import{.}{6_chapter6}
 
 \chapter*{Conclusion}
-
 \addcontentsline{toc}{chapter}{Conclusion}
+In this work, we investigated the possibility to predict hemorrhagic shock in trauma patients when imputing the missing values, both in the database and at the time of prediction. We tried to understand how this taks should be performed, and found that to use existing imputation methods in the real world, they must be modified so that data for a single new patient can be imputed (as opposed to a block of many lines). We implemented such a method and compared it to other alternatives that can be used for model selection and to not require a new implementation, and found that grouped imputation seemed to be a good indicator of a methods true performance.
 
+We also studied a simplified case to understant the specificities of our task. It is clear that the missing values in the validation data/new patients means that estimating a good regression parameter on the training data is not our only task (we also need to choose how to impute the new data). In favorable cases, we show that these two objectives go hand in hand: when the imputation is done using the true conditional expectation and the estimation uses a consistent full-data method on the imputed data, then the imputation error is minimal and so is the parameter estimation error. 
+
+Additionally, if we have some control over the amount of missing data on the training data or the real world data, but not both (which can happen, as the causes of missingness can be separate: a measurement can be made by the doctor and be available at the time of diagnostic, then not be recorded into the base. On the contrary, a measurement can be delayed because of lack of time or instruments and be completed once the patient reaches the hospital), then one should focus on limiting misingness in the real world data because missing information at the time of prediction reflects much more directly in the validation error. On the contrary, decreasing only the amount of missing training data may actually have a negative effect when it comes to predicting new data with missing values.
+
+The final evaluation of imputation on the Traumabase data gave us mixed results. Indeed, it appears that the joint SAEM regression gives significantly better results than prediction after imputation. Still, performing imputation allowed us to compare many prediction methods with minimal efforts, which had the potential to guide us in our future choices of imputation.
+
+In the future, it would be worthwile to quantify formally the gap in predictive performance between joint optimization, and imputation followed by prediction with the same hypotheses (for instance, SAEM has the same distribution hypotheses as normal imputation followed by logistic regression: it is only the choice of parameters that differs).
 \begin{appendices}
 \chapter{Simulated normal data}
 \label{simulation}
