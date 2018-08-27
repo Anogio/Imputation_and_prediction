@@ -10,7 +10,12 @@
 
 \begin{vplace}[0.7]
 \begin{abstract}
-Lorem ipsum dolot sit amet.
+Hemorrhagic shock is a condition that can be life-threatening but that has much higher survival rates if treated early. It is also quite difficult to detect. Because of this, there is a strong case for a tool that predicts it based on prehospital measurement made on trauma patients. 
+
+The Traumabase dataset provides a large history of such measurements, and could be used to learn a model to predict hemorrhagic shock (Chapter \ref{data}). However, the presence of missing data complicates the task. In this work, we specifically explore one way to handle missing data: imputation of unobserved values (Chapter \ref{imputation}). In a context where the final goal is prediction on new real-world patients, rather than parameter estimation, there are some important differences that we investigate. In particular, current implementations of imputation methods need to be modified to work in such case (Chapter \ref{validation}). The possible presence of missing values for new patients at the time of prediction (in addition to those in the records) means that some issues beyond parameter estimation appear (Chapters \ref{linreg} and \ref{empirical}).
+
+After investigating the issues linked to imputation in this context, we go back to the Traumabase and estimate its potential for hemorrhagic shock prediction (Chapter \ref{analysis}).
+
 \end{abstract}
 \end{vplace}
 
@@ -27,12 +32,9 @@ Lorem ipsum dolot sit amet.
 \vspace*{\fill}
 
 \addtocontents{toc}{\protect\vspace*{\fill}}
-\chapter*{Introduction}
-Main outline: Haemorrhagic shock is a condition that can be life-threatening but that has much higher survival rates if treated early. In addition, doctors tend to have a fairly bad record of detecting it. Because of this, we want to build a tool that predicts it based on measurement on trauma patients. For this we use Traumabase, a large patient-records database. Problem: lots of missing data in it. Solutions: use algorithms specifically made for missing data or impute missing data. Nice thing about imputation: once it is done, you can use any existing method -> here we only work on imputation (not so much the prediction part).
-
-We present the data (Chapter \ref{data}), then present the state of the art in imputation (Chapter \ref{imputation}). Then, we derive some theory on imputation when it is performed with prediction as a goal (Chapters \ref{validation} and \ref{linreg}). Finally, we come back to the data to apply what we learn, in order to choose the best imputation method for this problem (Chapter \ref{analysis}) and present our results (Chapter \ref{results}).
+%\chapter*{Introduction}
 \pagenumbering{arabic}
-\addcontentsline{toc}{chapter}{Introduction}
+%\addcontentsline{toc}{chapter}{Introduction}
 
 \chapter{Goal and data}
 \label{data}
@@ -60,8 +62,10 @@ We present the data (Chapter \ref{data}), then present the state of the art in i
 
 \chapter{Analysis: imputing the Traumabase data for prediction}
 \label{analysis}
+\import{.}{6_chapter6}
 
 \chapter*{Conclusion}
+
 \addcontentsline{toc}{chapter}{Conclusion}
 
 \begin{appendices}
