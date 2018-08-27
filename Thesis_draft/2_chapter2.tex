@@ -8,8 +8,8 @@
 	$$ f(M \vert X, \phi) = f(M \vert \phi)$$
 	\item \emph{Missing at random (MAR):} The missingness depends only on the values of X that are observed and not on the missing ones
 	$$f(M \vert X, \phi) = f(M \vert X_{\text{obs}}, \phi)$$
-	An example would be a survey on revenue where we know the age of respondent, and younger people fail to declare their revenue more often.
-	\item \emph{Missing not at random (MNAR):} The missingness depends on the values that are missing. In the same survey example, this would occur if richer people fail to declare their revenue more often.
+	An example would be a survey on income where we know the age of respondent, and younger people fail to declare their income more often.
+	\item \emph{Missing not at random (MNAR):} The missingness depends on the values that are missing. In the same survey example, this would occur if richer people fail to declare their income more often.
 \end{itemize}
 
 In particular, Rubin showed \cite{rubin1976ignorable} that if the data is MAR or MCAR, then any likelihood ratio (LR) computed on the observed data is equal to the correct LR, so the missingness mechanism can be ignored for inference on this type of data.
