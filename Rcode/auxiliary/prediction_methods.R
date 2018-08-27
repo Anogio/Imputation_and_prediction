@@ -56,7 +56,7 @@ saem_prediction <- function(X, y, train_size=0.5, seed=42, spl=NULL, printevery=
   y_test = splitted$y_test
   X_train = splitted$X_train
 
-  list.saem.subset=miss.saem(data.matrix(X_train),1:ncol(X_train),y_train,maxruns=1000,tol_em=1e-7,
+  list.saem.subset=miss.saem(data.matrix(X_train),1:ncol(X_train),y_train,maxruns=1000,tol_em=1e-4,
                              print_iter=TRUE,var_obs_cal=TRUE, printevery=printevery)
   beta.saem.train = list.saem.subset$beta
   se.saem.train = list.saem.subset$std_obs
