@@ -5,6 +5,7 @@ library(pbapply)
 library(mvtnorm)
 library(caret)
 library(sn)
+library(e1071)
 #############################"
 # X generators
 
