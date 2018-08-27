@@ -53,7 +53,7 @@ oneRun = function(args){
   y.train = y[inTrain]
   y.test = y[-inTrain]
     
-  datasets = lapply(filled.datasets, function(x){print(dim(x));list(train=x[inTrain,], test=x[-inTrain,])})
+  datasets = lapply(filled.datasets, function(x){print(dim(x));list(train=x[inTrain,useCols.pred], test=x[-inTrain,useCols.pred])})
   
   regressors.fit = lapply(datasets,
                           function(x) {(predictor$train)(as.matrix(x$train), y.train)})
@@ -85,7 +85,7 @@ useCols.pred = c("Sexe", "Age", "BMI", "Glasgow.initial",
 "Hemocue.init", "SpO2.min", "Remplissage.total.cristalloides", 
 "Remplissage.total.colloides", 'SD.min', 'FC.max'
 )
-X = X[,useCols.pred]
+#X = X[,useCols.pred]
  
 
 filled.datasets = list()

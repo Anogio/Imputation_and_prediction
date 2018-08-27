@@ -121,8 +121,6 @@ for(i in 1:20){
 o = rowMeans(pred.MI)
 preds[['MI']] = exp(o)/(1+exp(o))
 
-preds.SAEM = saem_prediction(X, y, seed=seed, spl=inTraining, printevery=50)
-preds[['SAEM']] = preds.SAEM$y_pred[-inTraining]
 ```
 
 ### Evaluation
