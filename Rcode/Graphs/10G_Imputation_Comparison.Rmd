@@ -1,0 +1,50 @@
+---
+title: "Comparison imputation"
+output: html_document
+---
+
+```{r}
+themer = function(sizeAxis = 10, sizeAxisTitle=13,
+                  sizeLegend=15, sizeStrip = 15, angle=T, boldX=F){
+  if(angle){
+    a=45
+    h=1
+  }
+  else{
+    a=0
+    h=0.5
+  }
+  if(boldX){
+    xface = 'bold'
+  }
+  else{
+    xface=NULL
+  }
+  return(
+    theme(axis.text.y= element_text(size=sizeAxis),
+          axis.text.x=element_text(size=sizeAxis,
+                                   angle=a, hjust=h, face=xface),
+          axis.title = element_text(size=sizeAxisTitle),
+          legend.text=element_text(size=sizeLegend),
+          legend.title=element_text(size=sizeLegend,
+                                    face='bold'),
+          strip.text.x = element_text(size=sizeStrip,
+                                      face='bold')
+          )
+  )
+}
+res = list()
+res.logit = read.csv("res_128_runs_SI_comp.csv", row.names = 1) %>% mutate(predictor='Logistic regression')
+res.SVM = read.csv("results_128_runs_SVM.csv", row.names = 1) %>% mutate(predictor='SVM')
+res.RF = read.csv("res_128_runs_RF.csv", row.names = 1) %>% mutate(predictor='Random forest')
+
+res = rbind(res.logit,res.SVM, res.RF)
+```
+
+```{r}
+res %>% rename(MissForest=MF, Mean=mean, Normal=MVN, 'PCA imputation'=mipca, FCS=mice.custom) %>% gather('method', 'error', -c('mice.norm', 'amelia', 'mice.pmm', 'predictor')) %>% 
+  ggplot() + aes(x=reorder(method,error,median), y=error) + geom_boxplot() +
+  themer(angle=F) + xlab('Imputation method') + ylab('Validation error') +
+  facet_wrap(~predictor) + themer() + ggtitle('Prediction method') + theme(plot.title = element_text(hjust = 0.5,face='bold'))
+```
+
