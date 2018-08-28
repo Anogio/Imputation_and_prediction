@@ -14,7 +14,7 @@ source(paste(aux.folder,'MVN_imputation.R',sep=''), chdir = T)
 source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
 source(paste(aux.folder,'prediction_methods.R',sep=''), chdir = T)
 source(paste(aux.folder,'simulation_methods.R',sep=''), chdir = T)
-data_folder = '../../../Data/'
+data_folder = '../../Data/'
 dataset = 'abalone'
 
 seed = ceiling(runif(1,1e3,1e5))
@@ -55,21 +55,28 @@ themer = function(sizeAxis = 10, sizeAxisTitle=13,
 lm.predVar = function(X.new, X.fit, fittedM){
   sigma2 = (summary(fittedM)$sigma)**2
   inv.cov = solve(t(X.fit) %*% X.fit)
-  z = X.new %*% inv.cov
-  res = rowSums(X.new*z)
+  res = diag(X.new %*% inv.cov %*% t(X.new))
+  #res = rowSums(X.new*z)
   print(res)
   return(res * sigma2)
 }
 
-lm.predVar2 = function(X.new, X.fit, y.fit, m){
-  preds = matrix(NA, nrow=nrow(X.new), ncol=m)
-  for(i in 1:m){
-    in.BS = base::sample(1:nrow(X.fit), nrow(X.fit), replace=T)
-    X.fit.BS = X.train[in.BS,]
-    fit.BS = (predictor$train)(X.fit.BS, y.fit)
-    preds[,i] = (predictor$predict)(fit.BS, X.new)
-  }
-  return(apply(preds,1,var))
+lm.predVar_knownsigma = function(X.new, X.fit, fittedM,sig){
+  #sigma2 = (summary(fittedM)$sigma)**2
+  inv.cov = solve(t(X.fit) %*% X.fit)
+  res = diag(X.new %*% inv.cov %*% t(X.new))
+  #res = rowSums(X.new*z)
+  print(res)
+  return((res+1) * sig)
+}
+
+lm.predVar2 = function(X.new, X.fit, fittedM){
+  sigma2 = (summary(fittedM)$sigma)**2
+  inv.cov = solve(t(X.fit) %*% X.fit)
+  res = diag(X.new %*% inv.cov %*% t(X.new))
+  #res = rowSums(X.new*z)
+  print(res)
+  return((res+1) * sigma2)
 }
 ```
 
@@ -126,7 +133,7 @@ oneRun = function(args){
   MI.var_b = apply(predictions.MI,1,var)
   SI.var_b = apply(predictions.SI,1,var)
   
-  MI.var_w = lapply(1:m, function(i) lm.predVar(datasets.test[[i]], datasets.train[[i]], MI.regressors.fit[[i]])) %>% as.data.frame() %>% rowMeans()
+  MI.var_w = lapply(1:m, function(i) lm.predVar2(datasets.test[[i]], datasets.train[[i]], MI.regressors.fit[[i]])) %>% as.data.frame() %>% rowMeans()
   SI.var_w = lapply(1:m, function(i) lm.predVar(datasets.test[[i]], X.train.single.imp, single.imp.fit)) %>% as.data.frame() %>% rowMeans()
 #  MI.var_w = lapply(1:m, function(i) lm.predVar2(datasets.test[[i]], datasets.train[[i]], y.train,m)) %>% as.data.frame() %>% rowMeans()
  # SI.var_w = lapply(1:m, function(i) lm.predVar2(datasets.test[[i]], X.train.single.imp, y.train,m)) %>% as.data.frame() %>% rowMeans()
@@ -151,10 +158,10 @@ oneRun = function(args){
 X.gen = X.basic.MVN
 y.gen = y.regression
 predictor = reg.lin
-argsL = list(n=1000,
+argsL = list(n=500,
             p=5,
             rho=0.5,
-            sigma_reg = seq(0,10,0.5),
+            sigma_reg = seq(0,100,10),
             train_prop=0.6,
             miss_prop=0.3,
             alpha = 0.3,
@@ -167,6 +174,54 @@ res.0 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T)
 res.0 %>% rename('Partial MI coverage'=SI, 'Full MI coverage'=MI) %>% gather('Legend','error', c('Partial MI coverage','Full MI coverage')) %>% 
   ggplot() + aes(x=sigma_reg,y=error, color=Legend) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage')) + 
   themer() +
-  xlab('Train sample size') + ylab('Average coverage rate') + theme(legend.title = element_blank()) + 
+  xlab('Regression noise') + ylab('Average coverage rate') + theme(legend.title = element_blank()) + 
+  scale_color_manual(values=c('darkblue','black','red'))
+```
+
+```{r}
+X.gen = X.basic.MVN
+y.gen = y.regression
+predictor = reg.lin
+argsL = list(n=seq(500,2000,500),
+            p=5,
+            rho=0.5,
+            sigma_reg = 1:10,
+            train_prop=0.6,
+            miss_prop=seq(0,0.8,0.1),
+            alpha = c(0.2, 0.3, 0.4),
+            m=10
+)
+
+S = 5
+res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+```
+```{r}
+res.1 %>% rename('Partial MI coverage'=SI, 'Full MI coverage'=MI) %>%group_by(miss_prop) %>% summarise_all(mean) %>%
+  gather('Legend','error', c('Partial MI coverage','Full MI coverage')) %>% 
+  ggplot() + aes(x=miss_prop,y=error, color=Legend) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage')) +
+  themer() +
+  xlab('Regression noise') + ylab('Average coverage rate') + theme(legend.title = element_blank()) + 
+  scale_color_manual(values=c('darkblue','black','red'))
+```
+
+
+```{r}
+X.gen = X.abalone
+y.gen = y.abalone
+predictor = reg.lin
+argsL = list(n=1000,
+            train_prop=0.6,
+            miss_prop=0.3,
+            alpha = seq(0.1, 0.9, 0.1),
+            m=20
+)
+
+S = 5
+res.0 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+
+res.0 %>% rename('Partial MI coverage'=SI, 'Full MI coverage'=MI) %>% gather('Legend','error', c('Partial MI coverage','Full MI coverage')) %>% 
+  ggplot() + aes(x=alpha,y=error, color=Legend) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage')) + 
+  themer() +
+  xlab('Regression noise') + ylab('Average coverage rate') + theme(legend.title = element_blank()) + 
   scale_color_manual(values=c('darkblue','black','red'))
 ```
