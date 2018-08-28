@@ -189,11 +189,16 @@ res  %>%
 ```
 
 ```{r}
+
+res = read.csv('res_finalpred_16runs.csv', header=T, row.names = 1)
+
 res %>% group_by(pos.w) %>% summarise_all(mean) %>% filter(pos.w>=1)%>% 
   rename(TASH=c6, ABC=c1, Doctor=doctor, Logit=predCols) %>%
-  gather('method','error',-c(pos.weight, c3, c4, c5,noBMI, allCols, allPos, withY, pos.w, allNeg, fullJoint, completeCases, mean))%>%
-  ggplot() + aes(x=pos.w, y=error, color=method) + geom_line() + 
-  scale_x_continuous(breaks=1:10)
+  gather('method','error',-c(c3, c4, c5,noBMI, allCols, allPos, withY, pos.w, allNeg, fullJoint, completeCases, mean))%>% 
+  ggplot() + aes(x=pos.w, y=error, color=reorder(method, c(2,1,4,5,7,6,3)[as.numeric(as.factor(method))])) + geom_line() + 
+  scale_x_continuous(breaks=1:10) + themer(angle=F) +
+  xlab(expression(frac(c[1], c[2]))) + ylab('Validation error') + 
+  scale_color_manual(name='Prediction', values=c('red', 'black', 'skyblue', 'darkblue', 'forestgreen', 'royalblue', 'red3')[c(2,1,7,3,4,6,5)])
 
 #stop("WARNING! J'utilise SD.SMUR et FC.SMUR qui ont plein de données manquantes -> mieux pour allCols")
 
