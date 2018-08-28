@@ -1,5 +1,3 @@
-\todo{Ajouter données manquantes}
-
 %We now evaluate the potential for prediction of HS using the Traumabase. For that, we perform a prediction with CV (cf Chapter \ref{validation}) and compare it with other methods of HS evaluation. An advantage of imputation is that one can predict with various models: we compare predictions using logistic regression \cite{hosmer2013logreg}, Support Vector Machines (SVM) \cite{hearst1998SVM} and random forests \cite{svetnik2003RF} in predicting the probability of HS.
 
 Our final step is to see how well prediction with imputation works to predict hemorrhagic shock. For that, we proceed to cross-validation (cf Chapter \ref{validation}) to get an idea of the performance we can achieve this way. We compare it to several references to see whether this is an improvement over other methods of prediction.
@@ -17,7 +15,7 @@ Some metrics allow us to evaluate the predicted probability directly, such as th
 
 To that end, we choose a simple cost function that, given a binary prediction, assigns some user-defined cost to false negatives and false positives. That is:
 
-$$ L(\hat{y}, y)=\frac{1}{n} \sum \limits_{i=1}^n c_1 \mathbb{1}_{y_i=1,\hat{y}_i=0} + c_2 \mathbb{1}_{y_i=0,\hat{y}_i=1}$$
+$$ L(\hat{y}, y)=\frac{1}{n} \sum \limits_{i=1}^n c_1 \mathbbm{1}_{y_i=1,\hat{y}_i=0} + c_2 \mathbbm{1}_{y_i=0,\hat{y}_i=1}$$
 
 with $c_1 + c_2 = 1$.
 
@@ -28,7 +26,7 @@ In order to have a reference performance for HS prediction, we compare the value
 \begin{itemize}
 \item \emph{Doctor's prediction:} The decision to initiate a MT procedure is recorded in the Traumabase. It determines whether the doctor considered the patient to be at risk of HS.
 \item \emph{ABC (Assessment of Blood Consumption)\cite{nunez2009ABC} score:} this gravity score is the only one that was designed with prehospital prediction in mind. It is a very simple score that only uses a few measurements.
-\item \emph{TASH (Trauma Associated Severe Hemorrhage)\cite{yucel2006tash}) score:} this score was also designed for hemorrhage detection, but at a later stage: it uses some values that are only available after laboratory tests (e.g. base excess) or radiography (presence of a fracture).
+\item \emph{TASH (Trauma Associated Severe Hemorrhage)\cite{yucel2006tash}) score:} this score was also designed for hemorrhage detection, but at a later stage: it uses some values that are only available after laboratory tests (e.g.\ base excess) or radiography (presence of a fracture).
 \item \emph{SAEM Logistic regression:} this a method for logistic regression without imputation of the training dataset, developed by Jiang \cite{jiangsaem} to address the specific issue of HS prediction on the Traumabase. If we take the notations from Chapter \ref{validation}, the idea is that $\alpha$ the imputation parameter and $\beta$ the regression parameter are learned jointly rather than one after the other. 
 \end{itemize}
 
@@ -37,18 +35,33 @@ This gives us some points of comparison for predictive performance.
 		\subsection{Choice of imputation method}
 There are many methods of imputation we can choose from (cf Chapter \ref{imputation}) to impute missing values in. In order to compare them, we proceed to grouped imputation (as described in Chapter \ref{validation}) with each of them, and then perform a prediction on each imputed dataset. The resulting validation errors are presented in figure \ref{fig.imp_method}.
 
-%\input{Graphs/fig_imp_method}
+We used the following imputation methods (c.f.\ Chapter \ref{imputation}):
+\begin{itemize}
+\item \emph{Mean imputation:} replace missing values by the observed mean of the corresponding column
+\item \emph{Normal expectation:} impute by approximating the data as multivariate normal and taking conditional expectations (c.f.\ Chapter \ref{validation})
+\item \emph{PCA imputation:} impute through a low-rank approximation of the data
+\emph{FCS with adapted methods:} FCS with a normal regression model for all variables except the Sex (logistic regression) and GCS (proportional odds model for ordered variables).
+\item \emph{MissForest:} a FCS method that uses random forests as the univariate predictor
+\end{itemize}
 
-It is striking that the difference between imputation methods is very small: even though there are differences in the mean performance, these differences are manor compared to the variation of the performance for different CV splits.
+Note that the Sex is binary and the GCS is ordered discrete, so we cannot in theory impute them with the PCA or normal imputation. However, de Sex has no missing data and the GCS has only a handful (0.4\%) so we proceed with the imputation by treating them as numerical variables.
+
+\input{Graphs/fig_imp_method}
+
+It is striking that the difference between imputation methods is very small: even though there are differences in the mean performance, these differences are manor compared to the variation of the performance for different CV splits. Even imputation by the mean, which is supposedly very inaccurate, is on par with other methods in terms of performance. We were not able to determine the reason for this: the relatively low proportion of missing data does not seem to be in cause as the same trend shows if we artificially add missing values.
+
+In what follows, the results are presented for normal imputation.
 
 	\section{Results}
 We performed predictions on the Traumabase data as described above, for 16 different CV splits. Figure \ref{fig.final_pred} shows the average loss of each prediction (ours and the reference values) for different values of $\frac{c_1}{c_2}$. 
 
-%\input{Graphs/fig_final_pred}
+\input{Graphs/fig_final_pred}
 
 First note that there are two possible main trends for the loss depending on the method:
+\begin{itemize}
 \item The loss increases with $c_1$: this means that the predictions are more conservative, and tend to have fewer false positives but more false negatives. This is the case of the doctors' prediction and the ABC score.
 \item The loss decreases when $c_1$ increases: this means that the prediction tends to favor overpredicting HS, so it has fewer false negatives but more false positives. This is the case of all our predictions, as well as the TASH score and SAEM prediction.
+\end{itemize}
 
 When two predictions follow the same trend, it is easy to compare them as one is usually above the other regardless of the choice of weights. In particular, the ABC score seems to be strictly better at predicing hemorrhage than doctors, even though it is extremely simple in principle.
 

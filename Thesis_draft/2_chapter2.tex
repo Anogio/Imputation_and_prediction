@@ -12,23 +12,25 @@
 	\item \emph{Missing not at random (MNAR):} The missingness depends on the values that are missing. In the same survey example, this would occur if richer people fail to declare their income more often.
 \end{itemize}
 
-In particular, Rubin showed \cite{rubin1976ignorable} that if the data is MAR or MCAR, then any likelihood ratio (LR) computed on the observed data is equal to the correct LR, so the missingness mechanism can be ignored for inference on this type of data.
+In particular, Rubin showed \cite{rubin1976ignorable} that if the data is MAR or MCAR, then the likelihood factorises so that maximum-likelihood estimates can be computed by maximizing just the observed likelihood.
 
 	\section{Main types of imputation}
 		\subsection{Joint maximum likelihood}
+The most straightforward way to impute data is to assume that the data is distributed according to some parametric joint distribution on all of the variables. In that case, once the distribution has been chosen, one needs to estimate the distribution parameters, and it is then possible to replace missing values by their expected value conditional on the observed data (or draws from this distribution for multiple imputation, see below).\cite{kropko2014joint} \cite{ref_amelia} \cite{pkg_norm} 
+
 		\subsection{Fully conditional specification (FCS)}
-In FCS rather than a joint model we define $p$ conditional models $\pi_1, \ldots, \pi_p$ where $\pi_i$ gives the distribution of variable $i$ conditional on the others. We can then obtain an imputed dataset iteratively using the Multiple Imputation by Chained Equations (MICE) algorithm \cite{MICE_founding}
+In FCS rather than a joint model we define $p$ conditional models $\pi_1, \ldots, \pi_p$ where $\pi_i$ gives the distribution of variable $i$ conditional on the others. We can then obtain an imputed dataset iteratively using an iterative algorithm \cite{MICE_founding}.
 \begin{algorithm}[H]
-	\caption{MICE Algorithm}
-	\hspace*{\algorithmicindent} \textbf{Input:} $X, \pi_1, \ldots, \pi_p$  \\
+	\caption{FCS Algorithm}
+	\hspace*{\algorithmicindent} \textbf{Input:} $X, \pi_1, \ldots, \pi_p$\\
  	\hspace*{\algorithmicindent} \textbf{Output:} $\hat{X}$
 	\begin{algorithmic}[1]
-		\State $\hat{X} \leftarrow $ plausible imputation of the missing data (e.g. mean imputation)
+		\State $\hat{X} \leftarrow $ plausible imputation of the missing data (e.g.\ mean imputation)
 
 		\While {not converged}
 			\For{$i=1 \ldots p$}
 				\State $X^{(i)} \leftarrow $ the $i^{\text{th}}$ column of $X$
-				\State $\hat{X}^{(-i)} \leftarrow \hat{X}$  without its $i^{\text{th}}$ column
+				\State $\hat{X}^{(-i)} \leftarrow \hat{X}$ without its $i^{\text{th}}$ column
 				\State $\hat{X}^{(i)}_{\text{miss}} \sim P(\hat{X}^{(i)}_{\text{miss}} \vert {X}^{(i)}_{\text{obs}}, \hat{X}^{(-i)})$
 			\EndFor
 		\EndWhile
@@ -40,13 +42,13 @@ The interest of this approach is that is can be very flexible when the variables
 An alternative to assuming some distribution for the dataset is to find a low-rank representation of the data and use it to impute unobserved values. Such approaches \cite{josse2012missPCA}\cite{chen2004missSVD}\cite{brand2002incremental} are generally based on Principal Component Analysis (PCA)\cite{PCA}, using the iterative PCA algorithm \cite{iter_PCA}:		
 		\begin{algorithm}[H]
 	\caption{Iterative PCA Algorithm}
-	\hspace*{\algorithmicindent} \textbf{Input:} $X, k$  \\
+	\hspace*{\algorithmicindent} \textbf{Input:} $X, k$ \\
  	\hspace*{\algorithmicindent} \textbf{Output:} $\hat{X}$
 	\begin{algorithmic}[1]
-		\State $\hat{X} \leftarrow $ plausible imputation of the missing data (e.g. mean imputation)
+		\State $\hat{X} \leftarrow $ plausible imputation of the missing data (e.g.\ mean imputation)
 		\While {not converged}
 			\State $V \leftarrow k$ first principal components of $\hat{X}$ (complete dataset)
-			\State $\tilde{X} \leftarrow \hat{X}$ projected on the span of $V$ (i.e. PCA fitted values)
+			\State $\tilde{X} \leftarrow \hat{X}$ projected on the span of $V$ (i.e.\ PCA fitted values)
 			\State $\hat{X} \leftarrow \hat{X} * (1-M) + (\tilde{X} * M$ where $M$ the missingness indicator
 		\EndWhile
 	\end{algorithmic}
@@ -55,7 +57,7 @@ An alternative to assuming some distribution for the dataset is to find a low-ra
 That is, the missing values are repeatedly imputed by projection on the principal components. Many methods using different univariate models exist \cite{MICE_founding}\cite{stekhoven2015missforest}\cite{van2007multiple}.
 		
 		\subsection{Nearest-neighbors}
-Other methods exist to impute missing values. \emph{Nearest-neighbor imputation}\cite{chen2000nearest}  consists in replacing missing values for one individual by the values observed in similar individuals. Using the observed value, a distance metric is computed with the other observations in the data, and we pick the closest one which has observations in the variable we need to impute. This value is then used for imputation.
+Other methods exist to impute missing values. \emph{Nearest-neighbor imputation}\cite{chen2000nearest}consists in replacing missing values for one individual by the values observed in similar individuals. Using the observed value, a distance metric is computed with the other observations in the data, and we pick the closest one which has observations in the variable we need to impute. This value is then used for imputation.
 
  The related \emph{hot-deck imputation} \cite{andridge2010hotdeck} use multiple similar individuals to generate imputed values. Rather than pick a single closest value, we can pick a pool of similar individuals and draw at random between their observed values, or impute via a combination of those values.
 
@@ -77,7 +79,7 @@ $$\hat{\theta} = \frac{1}{m} \sum\limits_{i=1}^m \hat{\theta}_i $$
 
 And the aggregated within-imputation variance 
 
-$$ \hat{W} = \frac{1}{m} \sum\limits_{i=1}^m W_i  $$
+$$ \hat{W} = \frac{1}{m} \sum\limits_{i=1}^m W_i $$
 
 The between-imputation variance can be computed as the sample variance of the estimates:
 

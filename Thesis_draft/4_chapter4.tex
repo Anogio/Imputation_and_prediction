@@ -34,7 +34,7 @@ y_V = X_V \beta + \epsilon_V
 
 
 			\subsubsection{Observed data}
-The observed data is God's data with some missing values. Specifically, some observations are missing from the first column of each dataset.  We observe the full $y^A$, but the covariate matrices we actually have access to are:
+The observed data is God's data with some missing values. Specifically, some observations are missing from the first column of each dataset. We observe the full $y^A$, but the covariate matrices we actually have access to are:
 \begin{equation*}
 X_A = 
 \begin{pmatrix}
@@ -112,7 +112,7 @@ Our end goal is to minimise this metric.
 
 In what we described above, the actions of the Analyst and the Practitioner are completely determined. On the other hand, we have not specified how the Imputer proceeds to the imputation. We want to investigate the effect of the choice of imputation on the expected loss:
 
-$$R = \mathbb{E}_{\tilde{X_V}, X_A^{miss}, \epsilon_A, \epsilon_V}[(y_V^{(i)} - \hat{y}_V^{(i)})^2 \vert X_A]$$ %\footnote{Even though what we ultimately want is a decision rule for $\phi$ and $\psi$, they are only a function of the observed data $X_A$, $X_V$, which is fixed here. For simplicity of notation, we write $\phi$ and $\psi$ as constant values}
+$$R = \mathbb{E}_{\tilde{X}_V, X_A^{miss}, \epsilon_A, \epsilon_V}[(y_V^{(i)} - \hat{y}_V^{(i)})^2 \vert X_A]$$ %\footnote{Even though what we ultimately want is a decision rule for $\phi$ and $\psi$, they are only a function of the observed data $X_A$, $X_V$, which is fixed here. For simplicity of notation, we write $\phi$ and $\psi$ as constant values}
 
 			\subsubsection{Distribution hypotheses}
 Lastly, for this last expression to have any meaning, fix the distribution of $\tilde{X}$ the true data.
@@ -130,7 +130,7 @@ the estimated parameter we would obtain if the training data were completely obs
 
 \begin{align*}
 L_i(y_V, \hat{y}_V) &= (y_V - \hat{y_V})^2 &\\
-				   &= (\tilde{x}_i^V \beta + \epsilon_V - \hat{x}_i^V \hat{\beta}_n)^2 &\\
+				&= (\tilde{x}_i^V \beta + \epsilon_V - \hat{x}_i^V \hat{\beta}_n)^2 &\\
 				   &= (\tilde{x}_i^V(\beta - \tilde{\beta}_n) + \tilde{x}_i^V (\tilde{\beta}_n - \hat{\beta}_n) + (\tilde{x}_i^V - \hat{x}_i^V) \hat{\beta}_n + \epsilon_V)^2 & \\
 				   &= (\tilde{x}_i^V (\beta - \tilde{\beta}_n))^2 & (1) \\
 				   & \quad + (\tilde{x}_i^V (\tilde{\beta}_n-\hat{\beta}_n))^2 &(2) \\
@@ -195,15 +195,15 @@ Note that to do this means the Imputer must know the distribution of $X$, in ord
 If $\tilde{beta}, \hat{\beta}$ are consistent, then all terms but $(3) + \epsilon_V^2$ in the loss tend to 0 when $n\rightarrow \infty$. Additionally, term $(3)$ is zero for lines without missing data, and for lines with missing data its expectation is:
 $$ \mathbb{E}[((\tilde{x}_i^V - \hat{x}_i^V) \hat{\beta}_n)^2] = \mathbb{E}[(\hat{\beta}_n^{(2)})^2] \mathbb{E}[(x_{i2}^V - \hat{x}_{i2}^V)^2] $$
 
-Which is minimized by the choice of imputation  $\hat{x}_{i2}^V = \mathbb{E}[x_{i2}^V]$, i.e. the same that ensures a consistent estimator for $\beta$. 
+Which is minimized by the choice of imputation $\hat{x}_{i2}^V = \mathbb{E}[x_{i2}^V]$, i.e.\ the same that ensures a consistent estimator for $\beta$. 
 		\subsection{Consequences}
 These results highlight the asymmetry between training and validation data. In a very simple case, it gives us an intuition of the behaviour of the prediction error with missing data.
 
 We see that when the imputation is done well, consistency results ensure that in the training data, it is ultimately possible to make up for the unobserved values and have an arbitrarily good parameter estimate, if we have enough observations.
 
-On the other hand, missingness in the validation set adds some inevitable terms to the error. This is important because although training and validation data have the same distribution by hypothesis, in some cases the missingness could be somehow different between those datasets.  
+On the other hand, missingness in the validation set adds some inevitable terms to the error. This is important because although training and validation data have the same distribution by hypothesis, in some cases the missingness could be somehow different between those datasets. 
 
-For instance, in the Traumabase it is possible that missing data comes from doctors who fail to record some values in the database, although the data was available when treating the patient. In that case when real-world prediction are made, there may be less missing values than there were when we performed CV and model selection. On the contrary, maybe some values were collected late in the process and would have been unavailable for the prehospital diagnostic. Proposition \ref{prop.linear} shows that this matters a lot, and that efforts to reduce the amount of missing data at the time of real-world predictions may have a more direct effect on performance than efforts to reduce missing data in the database (e.g. by improving recording). 
+For instance, in the Traumabase it is possible that missing data comes from doctors who fail to record some values in the database, although the data was available when treating the patient. In that case when real-world prediction are made, there may be less missing values than there were when we performed CV and model selection. On the contrary, maybe some values were collected late in the process and would have been unavailable for the prehospital diagnostic. Proposition \ref{prop.linear} shows that this matters a lot, and that efforts to reduce the amount of missing data at the time of real-world predictions may have a more direct effect on performance than efforts to reduce missing data in the database (e.g.\ by improving recording). 
 
 Lastly, presence of term $(3)$ even for large $n$ and consistent estimation also shows that the intrisic variability of the covariates imposes a limit on the performance of the prediction with missing data (while otherwise the only limit would be linked to the noise $\epsilon$ in the response). 
 

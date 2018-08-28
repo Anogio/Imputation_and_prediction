@@ -18,13 +18,13 @@ As stated in Chapter \ref{data}, our end goal is to make good predictions in the
 
 To learn and evaluate the model, we go through two steps: Empirical risk minimization (ERM) and cross-validation (CV). We describe them below
 		\subsection{Empirical risk minimization}
-Let us denote the $X$ a $n \times p$ matrix of covariates and $y$ a response vector of size $n$, where our goal is to predict the response $y_{new}$ from some future data $X_{new}$, assuming that $(X_{new}, y_{new}$ follow the same distribution as $X,y$. 
+Let us denote the $X$ a $n \times p$ matrix of covariates and $y$ a response vector of size $n$, where our goal is to predict the response $y_{new}$ from some future data $X_{new}$, assuming that $(X_{new}, y_{new})$ follow the same distribution as $X,y$. 
 
-We choose a class of functions $f(\cdot, \beta), \beta \in B$. We want to choose a parameter $\hat{\beta}$ which we can use to predict $\hat{y}_{new} = f(X_{new}, \hat{\beta})$.  The quality of a prediction is evaluated by some loss $L(y_{new},\hat{y}_{new})$. Since we do not have access to $X_{new}$, our goal is to minimize the risk: $R(\beta) = \mathbb{E}_{X_{new},y_{new}}(L(y_{new}, f(X_{new}, \beta)))$.
+We choose a class of functions $f(\cdot, \beta), \beta \in B$. We want to choose a parameter $\hat{\beta}$ which we can use to predict $\hat{y}_{new} = f(X_{new}, \hat{\beta})$. The quality of a prediction is evaluated by some loss $L(y_{new},\hat{y}_{new})$. Since we do not have access to $X_{new}$, our goal is to minimize the risk: $R(\beta) = \mathbb{E}_{X_{new},y_{new}}(L(y_{new}, f(X_{new}, \beta)))$.
 
 However, we do not know the true distribution of those values. This is why we resort to ERM \cite{ERM}: we define the empirical risk
 $$ R_{\text{emp}}(\beta) = \frac{1}{n} \sum\limits_{i=1}^n L(y_i, f(X_i, \beta))$$
-that is, the average value of the loss when predicting the known $y$  from $X$ with $\beta$.
+that is, the average value of the loss when predicting the known $y$ from $X$ with $\beta$.
 
 We then select $\hat{\beta} = \argmin_{\beta} R_{\text{emp}}(\beta)$ as our ERM estimator for $\beta$. However, this is not enough. Once we have chosen $\hat{\beta}$, we need to have an estimate of how well this estimate will perform on new data.
 
@@ -83,7 +83,7 @@ This issue has started to arise in the machine learning community in the past fe
 If we were to follow exactly the principles of CV, we would proceed as follows: 
 \begin{algorithm}[H]
 	\caption{Identical imputation}
-	\hspace*{\algorithmicindent} \textbf{Input:} $X$, $y$, $I_A={i, X_i \in X_A}$  \\
+	\hspace*{\algorithmicindent} \textbf{Input:} $X$, $y$, $I_A=\{i, X_i \in X_A\}$ \\
  	\hspace*{\algorithmicindent} \textbf{Output:} $\hat{y}_V$
 	\begin{algorithmic}[1]
 		\State \textbf{Parameter estimation:}
@@ -113,7 +113,7 @@ This is why we explore options that can be used to impute the training and valid
 Impute all the data at once before performing the CV split:
 \begin{algorithm}[H]
 	\caption{Grouped imputation}
-	\hspace*{\algorithmicindent} \textbf{Input:} $X$, $y$, $I_A={i, X_i \in X_A}$  \\
+	\hspace*{\algorithmicindent} \textbf{Input:} $X$, $y$, $I_A=\{i, X_i \in X_A\}$ \\
  	\hspace*{\algorithmicindent} \textbf{Output:} $\hat{y}_V$
 	\begin{algorithmic}[1]
 		\State \textbf{Imputation:}
@@ -132,7 +132,7 @@ Here, both datasets are indeed imputed with the same parameter $\alpha_X$ but th
 Divide the data first, then impute each dataset separately:
 \begin{algorithm}[H]
 	\caption{Separate imputation}
-	\hspace*{\algorithmicindent} \textbf{Input:} $X$, $y$, $I_A={i, X_i \in X_A}$  \\
+	\hspace*{\algorithmicindent} \textbf{Input:} $X$, $y$, $I_A=\{i, X_i \in X_A\}$ \\
  	\hspace*{\algorithmicindent} \textbf{Output:} $\hat{y}_V$
 	\begin{algorithmic}[1]
 		\State \textbf{Training parameter estimation:}
@@ -145,7 +145,7 @@ Divide the data first, then impute each dataset separately:
 	\end{algorithmic}
 \end{algorithm}
 
-Contrarily to grouped imputation, we are not cheating. However, we are using parameter $\hat{\alpha}_V$ to impute $X_V$, while we learned $\hat{\beta}_A$ on $\hat{X}_A$ which was imputed with $\hat{\alpha}_A$. That is, we are optimising $h(\cdot,(\hat{\alpha}_A, \hat{\beta}_A$ and predicting with  $h(\cdot,(\hat{\alpha}_V, \hat{\beta}_A$.
+Contrarily to grouped imputation, we are not cheating. However, we are using parameter $\hat{\alpha}_V$ to impute $X_V$, while we learned $\hat{\beta}_A$ on $\hat{X}_A$ which was imputed with $\hat{\alpha}_A$. That is, we are optimising $h(\cdot,(\hat{\alpha}_A, \hat{\beta}_A))$ and predicting with $h(\cdot,(\hat{\alpha}_V, \hat{\beta}_A))$.
 
 $\hat{\alpha}_V$, $\hat{\alpha}_A$ and $\hat{\alpha}_X$ are asymptotically the same for large $n$ --- since $X_A$, $X_V$ and $X$ have the same distribution ---, so all three methods should be identical for large $n$. But for smaller $n$, harmful effects may be present --- overoptimistic validation due to 'cheating' for the grouped imputation, high error due to the difference in parameters for separate imputation.
 
@@ -166,14 +166,14 @@ The principle of this imputation is inspired from R package \emph{Amelia} \cite{
 It is possible to approximate maximum-likelihood estimators for $\mu$ and $\sigma$ with an iterative procedure, using the EM (expectation-maximisation) algorithm \cite{EM} \cite{em_normal_fit}. The algorithm is as follows:
 \begin{algorithm}[H]
 	\caption{Normal parameter estimation with EM}
-	\hspace*{\algorithmicindent} \textbf{Input:} $X$  \\
+	\hspace*{\algorithmicindent} \textbf{Input:} $X$ \\
  	\hspace*{\algorithmicindent} \textbf{Output:} $\hat{\mu}, \hat{\Sigma}$
 	\begin{algorithmic}[1]
 		\State $X^{(0)} \leftarrow X$ where missing values are replaced using the observed mean of $X$ (mean imputation)
 		\State $t \leftarrow 0$
 		\While {not converged}
-			\State $(\mu^{(t)}, \Sigma^{(t)}) \leftarrow$  sample mean and covariance matrix of $X^{(t)}$ \Comment \emph{i.e. maximum likelihood estimates on the completed data}
-			\State $X^{(t+1)} \leftarrow  \mathbb{E}_{X^{\text{miss}}}(X \vert X^{\text{obs}} ; \mu^{(t)}, \Sigma^{(t)})$ \Comment \emph{Missing values are replaced by their expected value under the new parameters}
+			\State $(\mu^{(t)}, \Sigma^{(t)}) \leftarrow$ sample mean and covariance matrix of $X^{(t)}$ \Comment \emph{i.e.\ maximum likelihood estimates on the completed data}
+			\State $X^{(t+1)} \leftarrow \mathbb{E}_{X^{\text{miss}}}(X \vert X^{\text{obs}} ; \mu^{(t)}, \Sigma^{(t)})$ \Comment \emph{Missing values are replaced by their expected value under the new parameters}
 			\State $t \leftarrow t+1$
 		\EndWhile
 		\State $\hat{\mu}, \hat{\Sigma}$ = $\mu^{(t)}, \Sigma^{(t)}$
@@ -189,7 +189,7 @@ $$\hat{X} = \mathbb{E}_{X^{\text{miss}}}(X \vert X^{\text{obs}} ; \hat{\mu}, \ha
 We implemented this step as well to get a complete imputation procedure divided in two functions that implement the estimation and imputation steps separately. The code is available in package \todo{make package and insert reference}
 
 		\subsection{Comparison on simulated data}
-Now that we have an implementation that separates estimation and imputation, we use it to compare the three imputation procedures on simulated data (cf Appendix \ref{simulation}, with $\rho=0.5, p=4, \sigma=1$) and the abalone data (cf Appendix \ref{abalone}) with various sample sizes and adding 30\% missing data MCAR.  The results are in Figure \ref{fig.grouped_separate}.
+Now that we have an implementation that separates estimation and imputation, we use it to compare the three imputation procedures on simulated data (cf Appendix \ref{simulation}, with $\rho=0.5, p=4, \sigma=1$) and the abalone data (cf Appendix \ref{abalone}) with various sample sizes and adding 30\% missing data MCAR. The results are in Figure \ref{fig.grouped_separate}.
 
 \input{Graphs/fig_grouped_separate}
 	
