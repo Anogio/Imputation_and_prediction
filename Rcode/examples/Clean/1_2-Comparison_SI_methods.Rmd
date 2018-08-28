@@ -71,7 +71,7 @@ args = list(train_prop=0.7, n=NULL, pos.weight=5)
 X.gen = X.trauma
 y.gen = y.trauma
 #predictor = reg.logit
-predictor = reg.rf
+predictor = reg.logit
 
 X = X.gen(args)
 y.g = y.gen(X,args)
@@ -80,6 +80,8 @@ y = y.g$y
 X = y.g$X %>% as.data.frame()
 X.cat = y.g$X.aux
 X$Sexe = as.numeric(X.cat$Sexe)
+
+X = MCAR.noEmptyLines(X,0.2)
 
 useCols.pred = c("Sexe", "Age", "BMI", "Glasgow.initial", 
 "Hemocue.init", "SpO2.min", "Remplissage.total.cristalloides", 
@@ -92,7 +94,7 @@ filled.datasets = list()
   
 filled.datasets[['mice.pmm']] = mice::complete(mice(X, m=1, method='pmm', printFlag = F))
 filled.datasets[['mice.norm']] = mice::complete(mice(X, m=1, method='norm', printFlag = F))
-X.cust = X
+X.cust = X[,useCols.pred]
 X.cust$Glasgow.initial = as.factor(X.cust$Glasgow.initial)
 X.cust$Sexe = as.factor(X.cust$Sexe)
 #X.cust$Remplissage.total.cristalloides = as.factor(X.cust$Remplissage.total.cristalloides)
@@ -101,7 +103,7 @@ filled.datasets[['mice.custom']] = mice::complete(mice(X.cust, m=1, method=c('lo
 filled.datasets[['mean']] = mice::complete(mice(X, m=1, method='mean', printFlag = F))
 filled.datasets[['mipca']] = MIPCA(X, ncp=3, nboot=1)$res.MI[[1]]
 filled.datasets[['amelia']] = amelia(X, m=1, noms=c(), p2s=0, parallel = 'multicore', ncpus = 4)$imputations$imp1
-filled.datasets[['MF']] = missForest(X)$ximp
+#filled.datasets[['MF']] = missForest(X)$ximp
 imp.mvn.trained = imp.mvnorm.train(X)
 filled.datasets[['MVN']] = imp.mvnorm.estim(imp.mvn.trained, X)
 ```
