@@ -186,7 +186,7 @@ The conditional expectations are easily derived using the Schur complement \cite
 Once we have the parameters, it is very straightforward to get an imputation of the missing data. Just as during the EM procedure, we impute using the conditional expectation of the dataset conditioned on the observed values: 
 $$\hat{X} = \mathbb{E}_{X^{\text{miss}}}(X \vert X^{\text{obs}} ; \hat{\mu}, \hat{\Sigma})$$
 
-We implemented this step as well to get a complete imputation procedure divided in two functions that implement the estimation and imputation steps separately. The code is available in package \todo{make package and insert reference}
+We implemented this step as well to get a complete imputation procedure divided in two functions that implement the estimation and imputation steps separately. The code is available in package SIMVN \cite{SIMVN_github}.
 
 		\subsection{Comparison on simulated data}
 Now that we have an implementation that separates estimation and imputation, we use it to compare the three imputation procedures on simulated data (cf Appendix \ref{simulation}, with $\rho=0.5, p=4, \sigma=1$) and the abalone data (cf Appendix \ref{abalone}) with various sample sizes and adding 30\% missing data MCAR. The results are in Figure \ref{fig.grouped_separate}.
