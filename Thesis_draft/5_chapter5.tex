@@ -57,7 +57,9 @@ Figure \ref{fig.linreg} shows the results of this process, for simulated (cf App
 
 	\section{Multiple imputation}
 	\todo{Actually implementation is wrong, results to be fixed}
-Instead of making only one imputation, it is possible (see Chapter \ref{imputation}) to instead impute multiple datasets and perform the analysis on each dataset. Just like for parameter estimates, we can generate multiple predictions and use these to estimate prediction uncertainty from missing data.
+Instead of making only one imputation, it is possible (see Chapter \ref{imputation}) to instead impute multiple datasets and perform the analysis on each dataset. Just like for parameter estimates, we can generate multiple predictions and use these to estimate prediction uncertainty from missing data. This can allow us (c.f.\ Chapter \ref{imputation}) to compute approximate prediction intervals for $y$ rather than point estimates, as we would compute confidence intervals for parameter estimation.
+
+Although we ultimately want to make a binary prediction, having an interval allows us to understand how confident the prediction is.
 
 		\subsection{Partial multiple imputation}
 		In Chapter \ref{linreg}, we mention the fact that if the estimation is consistent, then most of the prediction uncertainty is linked to missing data in the validation dataset, and not to that in the training one. This suggests an idea that would allow predictive multiple imputation while keeping the computational cost rather low.
@@ -69,12 +71,14 @@ Instead of making only one imputation, it is possible (see Chapter \ref{imputati
 To see is this is worth considering, we perform an analysis on some very simple simulated data.
 
 		\subsection{Prediction intervals}
-As in \ref{miss_impact} we generate $X$ normal covariates and $y$ a noised linear combination of these, then split them for CV. We add the same amount of MCAR missing data in both datasets, then impute them multiply (both as described just above and by only imputing the training data once). We train a linear regression on $X_A, y_A$ and predict on $X_V$.
+We now evaluate whether the intervals computed using Rubin's rule (cf Chapter \ref{imputation}) can be trusted. To that end, we perform predictions with CV (as in Chapter \ref{validation}, training on $X_A, y_A$ and validating on $X_V, y_V$ for two datasets: normal simulated data (c.f.\ Appendix \ref{simulation}, with $n=1000, p=5, \rho=0.5, m=30, \sigma^2=10$) and the abalone dataset (c.f.\ Appendix \ref{abalone}) where we add 30\% MCAR missing data. We multiply impute the datasets and fit a linear regression for each training dataset (or just one for partial MI), and perform a prediction for each validation dataset.
 
-This allows us to compute the between-imputation variance for each entry in $\hat{y}_V$, and the linear regression model gives us an estimation for the within-imputation variance of the predictions. We can then use Rubin's rule (cf Chapter \ref{imputation}) to compute a total variance for each prediction, and the t-distribution approximation to obtain an interval. 
-\todo{explain within-imputation variance calc}
-Figure \ref{fig.interval_coverage} shows average coverage rates for $p=20, \rho=0.5, m=30$, $30$\% missing data and multiple values of $n$ (averaging over several runs). We see that when $n$ is very small, partial MI tends to severely underestimate variance while full MI overestimates it. When $n$ is larger, both perform similarly and close to nominal coverage. 
+This allows us to compute the between-imputation variance for each entry in $\hat{y}_V$. The linear regression model gives us an estimation for the within-imputation variance: for any given entry $y_V^{(i)}$, the variance can be computed as $\hat{\sigma}^2(1+x_V^{(i)} (X_A^T X_A)^{-1} x_V^{(i)T})$, where $\hat{\sigma}$ is the maximum-likelihod estimator of the noise variance.
 
-Note, though, that we could not reproduce those results even on simple real-world data: coverage was vastly inferior to nominal values. It is plausible that unless the model fits the data perfectly, the estimated intervals can be very misleading. 
+ We can then use Rubin's rule  to compute a total variance for each prediction, and the t-distribution approximation to obtain an interval. 
+
+Figure \ref{fig.interval_coverage} shows average coverage rates averaged over multiple runs, for full MI and partial MI on both datasets. We see that in both cases, the intervals tend to be too broad, and this worsens with more missing values. However, except for very large amounts of missing values, the coverages are not too far off (about 85\% coverage for a nominal value of 80\%) so the intervals look rather accurate. The same trends are visible for other confidence levels.
 
 \input{Graphs/fig_interval_coverage}
+
+All in all, even though the intervals are not perfectly accurate they do give us an idea of where the values of the response will fall, which may be useful in many situations.
