@@ -38,9 +38,7 @@ What we can see here is that when the training dataset is fully observed while t
 It is not clear how general this result is. In particular, we could obtain it \emph{only when using mean imputation}: with more elaborate imputation methods it did not show. 
 
  In any case, this warrants caution when doing cross-validation with missing data: while reducing the amount of missing data in our records is a worthy endeavour --- e.g.\ by deleting incomplete cases ---, it is possible that it will only be useful if the real-world (or validation) data also has less missing data as a result --- e.g., improving the data-collection process. Additionally, just as it is important to ensure that the distribution of the data is stable between training and application --- no temporal trend in the data ---, the same should be done about the missing-data pattern.
-% \subsection{Impact of mising validation data}
-%\todo{Include graphs to show the linear evolution of the loss (increasing and decreasing)}
-%Here we illustrate our 
+
 		\subsection{Asymmetry between the two datasets}
 We want to keep investigating an observation from the previous chapter: missing data does not have the same impact on performance when it is in the training set as when it is in the validation set, and depending on the situation one or the other may be determinant of the value of the error.
 
