@@ -12,3 +12,4 @@ Data/hemo_shock*
 *.blg
 *.bcf
 *.run.xml
+.Rproj.user
