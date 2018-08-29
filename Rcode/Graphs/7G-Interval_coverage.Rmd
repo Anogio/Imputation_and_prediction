@@ -68,7 +68,7 @@ lm.predVar_knownsigma = function(X.new, X.fit, fittedM,sig){
   res = diag(X.new %*% inv.cov %*% t(X.new))
   #res = rowSums(X.new*z)
   print(res)
-  return((res) * sig)
+  return((res+1) * sig)
 }
 
 lm.predVar2 = function(X.new, X.fit, fittedM){
@@ -158,7 +158,7 @@ oneRun = function(args){
   isCovered$SI = (y.test > SI.quantiles[,1]) & (y.test < SI.quantiles[,2])
   #isCovered$MI = (y.true > MI.quantiles[,1]) & (y.true < MI.quantiles[,2])
   #isCovered$SI = (y.true > SI.quantiles[,1]) & (y.true < SI.quantiles[,2])
-
+  lapply(isCovered, mean)
   
   return(c(lapply(isCovered, mean), list(var_B=mean(MI.var_b), var_W=mean(MI.var_w), sigma=summary(single.imp.fit)$sigma)))
 }
@@ -167,24 +167,25 @@ oneRun = function(args){
 X.gen = X.basic.MVN
 y.gen = y.regression
 predictor = reg.lin
-argsL = list(n=500,
+argsL = list(n=1000,
             p=5,
             rho=0.5,
-            sigma_reg = seq(0,50,5),
-            train_prop=0.6,
-            miss_prop=0.3,
-            alpha = 0.3,
+            sigma_reg = 10,
+            train_prop=0.7,
+            miss_prop=seq(0,0.9,0.1),
+            alpha = 0.2,
             m=30
 )
 
-S = 30
+S = 50
 res.0 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
-res.0 %>% rename('Partial MI coverage'=SI, 'Full MI coverage'=MI) %>% gather('Legend','error', c('Partial MI coverage','Full MI coverage')) %>% 
-  ggplot() + aes(x=sigma_reg,y=error, color=Legend) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage')) + 
+res.0 %>% filter(miss_prop<0.9) %>%
+  rename('Partial MI coverage'=SI, 'Full MI coverage'=MI) %>% gather('Legend','error', c('Partial MI coverage','Full MI coverage')) %>% 
+  ggplot() + aes(x=miss_prop,y=error, color=Legend) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage')) + 
   themer() +
-  xlab('Regression noise') + ylab('Average coverage rate') + theme(legend.title = element_blank()) + 
-  scale_color_manual(values=c('darkblue','black','red'))
+  xlab('Proportion of missing values') + ylab('Average coverage rate') + theme(legend.title = element_blank()) + 
+  scale_color_manual(values=c('darkblue','black','red')) + ylim(0.5,1)
 ```
 
 ```{r}
@@ -202,15 +203,15 @@ argsL = list(n=seq(500,2000,500),
 )
 
 S = 5
-res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+#res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 ```
 ```{r}
-res.1 %>% rename('Partial MI coverage'=SI, 'Full MI coverage'=MI) %>%group_by(miss_prop) %>% summarise_all(mean) %>%
-  gather('Legend','error', c('Partial MI coverage','Full MI coverage')) %>% 
-  ggplot() + aes(x=miss_prop,y=error, color=Legend) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage')) +
-  themer() +
-  xlab('Regression noise') + ylab('Average coverage rate') + theme(legend.title = element_blank()) + 
-  scale_color_manual(values=c('darkblue','black','red'))
+#res.1 %>% rename('Partial MI coverage'=SI, 'Full MI coverage'=MI) %>%group_by(miss_prop) %>% summarise_all(mean) %>%
+#  gather('Legend','error', c('Partial MI coverage','Full MI coverage')) %>% 
+#  ggplot() + aes(x=miss_prop,y=error, color=Legend) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage')) +
+#  themer() +
+#  xlab('Regression noise') + ylab('Average coverage rate') + theme(legend.title = element_blank()) + 
+#  scale_color_manual(values=c('darkblue','black','red'))
 ```
 
 
@@ -219,18 +220,18 @@ X.gen = X.abalone
 y.gen = y.abalone
 predictor = reg.lin
 argsL = list(n=1000,
-            train_prop=0.6,
+            train_prop=0.7,
             miss_prop=seq(0,0.9,0.1),
             alpha = 0.2,
-            m=20
+            m=30
 )
 
-S = 5
-res.0 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+S = 50
+res.2 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
-res.0 %>% rename('Partial MI coverage'=SI, 'Full MI coverage'=MI) %>% gather('Legend','error', c('Partial MI coverage','Full MI coverage')) %>% 
+res.2 %>% filter(miss_prop<0.9) %>% rename('Partial MI coverage'=SI, 'Full MI coverage'=MI) %>% gather('Legend','error', c('Partial MI coverage','Full MI coverage')) %>% 
   ggplot() + aes(x=miss_prop,y=error, color=Legend) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage')) + 
   themer() +
-  xlab('Regression noise') + ylab('Average coverage rate') + theme(legend.title = element_blank()) + 
-  scale_color_manual(values=c('darkblue','black','red'))
+  xlab('Proportion of missing values') + ylab('Average coverage rate') + theme(legend.title = element_blank()) + 
+  scale_color_manual(values=c('darkblue','black','red')) +ylim(0.5,1)
 ```
