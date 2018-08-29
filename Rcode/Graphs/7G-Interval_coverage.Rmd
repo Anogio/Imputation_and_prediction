@@ -6,6 +6,7 @@ output: html_document
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(MLmetrics)
+library(mice)
 ```
 
 ```{r}
@@ -67,7 +68,7 @@ lm.predVar_knownsigma = function(X.new, X.fit, fittedM,sig){
   res = diag(X.new %*% inv.cov %*% t(X.new))
   #res = rowSums(X.new*z)
   print(res)
-  return((res+1) * sig)
+  return((res) * sig)
 }
 
 lm.predVar2 = function(X.new, X.fit, fittedM){
@@ -82,13 +83,13 @@ lm.predVar2 = function(X.new, X.fit, fittedM){
 
 MI: multiple imputation on train and test
 SI: Single imputation on train, multiple on test
-MIBS, SIBS: same as before, but the imputation parameters are estimated from bootstrap samples 
 
 ```{r}
 oneRun = function(args){
   for(name in names(args)){
     assign(name, args[[name]])
   }
+  #alpha = alpha + 0.1
   X = X.gen(args)
   y.g = y.gen(X,args)
   
@@ -114,9 +115,13 @@ oneRun = function(args){
   
   datasets.train = list()
   datasets.test = list()
+  mice.fit = mice(rbind(X.train,X.test),m, method='norm')
    for(i in 1:m){
-    datasets.train[[i]] = imp.norm(pre.train,imp.train,X.train)
-    datasets.test[[i]] = imp.norm(pre.test, imp.train, X.test)
+    #datasets.train[[i]] = imp.norm(pre.train,imp.train,X.train)
+    #datasets.test[[i]] = imp.norm(pre.test, imp.train, X.test)
+    dat = complete(mice.fit, i)
+    datasets.train[[i]] = dat[1:nrow(X.train),] %>% as.matrix()
+    datasets.test[[i]] = dat[-(1:nrow(X.train)),] %>% as.matrix()
   }
   
   single.imp.fit = (predictor$train)(X.train.single.imp, y.train)
@@ -134,7 +139,7 @@ oneRun = function(args){
   SI.var_b = apply(predictions.SI,1,var)
   
   MI.var_w = lapply(1:m, function(i) lm.predVar2(datasets.test[[i]], datasets.train[[i]], MI.regressors.fit[[i]])) %>% as.data.frame() %>% rowMeans()
-  SI.var_w = lapply(1:m, function(i) lm.predVar(datasets.test[[i]], X.train.single.imp, single.imp.fit)) %>% as.data.frame() %>% rowMeans()
+  SI.var_w = lapply(1:m, function(i) lm.predVar2(datasets.test[[i]], X.train.single.imp, single.imp.fit)) %>% as.data.frame() %>% rowMeans()
 #  MI.var_w = lapply(1:m, function(i) lm.predVar2(datasets.test[[i]], datasets.train[[i]], y.train,m)) %>% as.data.frame() %>% rowMeans()
  # SI.var_w = lapply(1:m, function(i) lm.predVar2(datasets.test[[i]], X.train.single.imp, y.train,m)) %>% as.data.frame() %>% rowMeans()
   
@@ -146,11 +151,15 @@ oneRun = function(args){
   SI.df = (m-1) * (1 + SI.var_w / ((1+1/m)*SI.var_b))**2
   SI.quantiles = t(sapply(SI.df, function(x) qt(c(alpha/2,1-alpha/2), df=x))) * sqrt(SI.var_tot) + rowMeans(predictions.SI)
   
+  #y.true = (X %*% y.g$beta)[-spl$inTrain]
 
   isCovered = list()
-  isCovered$MI = y.test > MI.quantiles[,1] & y.test < MI.quantiles[,2]
-  isCovered$SI = y.test > SI.quantiles[,1] & y.test < SI.quantiles[,2]
+  isCovered$MI = (y.test > MI.quantiles[,1]) & (y.test < MI.quantiles[,2])
+  isCovered$SI = (y.test > SI.quantiles[,1]) & (y.test < SI.quantiles[,2])
+  #isCovered$MI = (y.true > MI.quantiles[,1]) & (y.true < MI.quantiles[,2])
+  #isCovered$SI = (y.true > SI.quantiles[,1]) & (y.true < SI.quantiles[,2])
 
+  
   return(c(lapply(isCovered, mean), list(var_B=mean(MI.var_b), var_W=mean(MI.var_w), sigma=summary(single.imp.fit)$sigma)))
 }
 ```
@@ -161,14 +170,14 @@ predictor = reg.lin
 argsL = list(n=500,
             p=5,
             rho=0.5,
-            sigma_reg = seq(0,100,10),
+            sigma_reg = seq(0,50,5),
             train_prop=0.6,
             miss_prop=0.3,
             alpha = 0.3,
             m=30
 )
 
-S = 5
+S = 30
 res.0 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
 res.0 %>% rename('Partial MI coverage'=SI, 'Full MI coverage'=MI) %>% gather('Legend','error', c('Partial MI coverage','Full MI coverage')) %>% 
@@ -211,8 +220,8 @@ y.gen = y.abalone
 predictor = reg.lin
 argsL = list(n=1000,
             train_prop=0.6,
-            miss_prop=0.3,
-            alpha = seq(0.1, 0.9, 0.1),
+            miss_prop=seq(0,0.9,0.1),
+            alpha = 0.2,
             m=20
 )
 
@@ -220,7 +229,7 @@ S = 5
 res.0 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 
 res.0 %>% rename('Partial MI coverage'=SI, 'Full MI coverage'=MI) %>% gather('Legend','error', c('Partial MI coverage','Full MI coverage')) %>% 
-  ggplot() + aes(x=alpha,y=error, color=Legend) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage')) + 
+  ggplot() + aes(x=miss_prop,y=error, color=Legend) + geom_line() + geom_line(aes(y=1-alpha, color='Nominal coverage')) + 
   themer() +
   xlab('Regression noise') + ylab('Average coverage rate') + theme(legend.title = element_blank()) + 
   scale_color_manual(values=c('darkblue','black','red'))
