@@ -11,7 +11,7 @@ In particular, if the missing data is MCAR --- and so the complete cases have ex
 
 However, it may not be so: when imputing missing data, we do not recover the exact initial data. What if these errors change the structure of the dataset enough that a different parameter (possibly different from the one that generated the data) can yield better predictions? In that case, learning our model without any missing data may yield the true parameter but still not be optimal for prediction.
 
-We investigated this on some simulated (cf Appendix \ref{simulation} with $n=4000, p=5, rho=0.9, \sigma=10$) and real-world data (abalone, cf Appendix \ref{abalone}) by adding a fixed proportion of missing values to the validation data and varying the amount of missing data in the training set:
+We investigated this on some simulated (cf Appendix \ref{simulation} with $n=4000, p=5, \rho=0.9, \sigma=10$) and real-world data (abalone, cf Appendix \ref{abalone}) by adding a fixed proportion of missing values to the validation data and varying the amount of missing data in the training set:
 
 \begin{algorithm}[H]
 	\caption{Impact of missing data}
@@ -42,7 +42,7 @@ It is not clear how general this result is. In particular, we could obtain it \e
 		\subsection{Asymmetry between the two datasets}
 We want to keep investigating an observation from the previous chapter: missing data does not have the same impact on performance when it is in the training set as when it is in the validation set, and depending on the situation one or the other may be determinant of the value of the error.
 
-To do this we simulate data in the same fashion as above, that is with a normal $X$ and a linearly derived response $y$. For various proportions $\pi$, we then perform imputation and prediction in 4 different cases:
+To do this we simulate data in the same fashion as above, that is with a normal $X$ and a linearly derived response $y$. For various proportions $\pi$, we then perform normal imputation (cf Chapter \ref{validation}) and prediction in 4 different cases:
 \begin{itemize}
 \item Proportion $\pi$ of MCAR missing values in both datasets: we note the loss $L_B$
 \item Proportion $\pi$ of MCAR missing values just in the validation set: we note the loss $L_V$
