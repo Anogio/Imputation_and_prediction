@@ -3,8 +3,8 @@
 		\subsection{Description}
 Post-traumatic bleeding is the primary cause of preventable deaths among injured patients around the world \cite{WHO}\cite{urban}. When a person sustains a severe injury (e.g.\ due to a car accident or violent assault), she may present serious internal or external bleeding. If the injury is serious enough, the natural coagulation process is not sufficient to stop the blood loss. In that case, if too much blood is lost, the patient enters a state called hemorrhagic shock (HS) where the body is no longer able to provide vital organs with enough dioxygen to sustain them \cite{HS_def}. At this point, even proper care may not be enough to save the patient \cite{dutton2007current}.
 
-When an individual sustains an injury, she is usually first taken in charge by first responders who evaluate the situation and the patient's state, before transporting her to a trauma centre when the patient will be treated.
-To prevent patients from falling into HS, procedures have been established in most hospitals to trigger a fast response to suspected haemorhhage \cite{pommerening2015gestalt}: massive transfusion (MT) protocols can be activated even before the patient enters the hospital \cite{malone2006MT}. When this happens, the hospital gets ready to transfuse the patient with large amounts of blood as soon as she arrives, and frees up the necessary personnel. This way, the time interval between the injury and the transfusion in minimal. Studies \cite{hoyt1994death} \cite{martin2009combatSupport} show that early transfusion, followed by surgical bleeding control if necessary, can greatly improve the survival odds of patients that are at risk of entering hemorrhagic shock.
+When an individual sustains an injury, they are usually taken in charge by first responders who evaluate the situation and the patient's state, before transporting them to a trauma centre when they will be treated.
+To prevent patients from falling into HS, procedures have been established in most hospitals to trigger a fast response to suspected hemorhhage \cite{pommerening2015gestalt}: massive transfusion (MT) protocols can be activated even before the patient enters the hospital \cite{malone2006MT}. When this happens, the hospital gets ready to transfuse the patient with large amounts of blood as soon as they arrive, and frees up the necessary personnel. This way, the time interval between the injury and the transfusion in minimal. Studies \cite{hoyt1994death} \cite{martin2009combatSupport} show that early transfusion, followed by surgical bleeding control if necessary, can greatly improve the survival odds of patients that are at risk of entering hemorrhagic shock.
 
 This means that it is essential to activate the procedure as early as possible if a patient's condition requires it. Unfortunately, it is quite hard to evaluate whether a patient is at risk of hemorrhagic shock\cite{pommerening2015gestalt}. While external bleeding (e.g.\ from a knife wound) is obvious, internal bleeding (usually from blunt trauma) on the other hand is not easily diagnosed visually or using physiological parameters (heart rate, blood pressure, \ldots) \cite{frank2010bloodLoss}. A full-body scan or at least an ultrasound examination may be needed\cite{perera2010rush}. This results in a significant delay in the activation of the procedure.
 
@@ -13,13 +13,13 @@ This means that it is essential to activate the procedure as early as possible i
 
 As we mentioned, it is both far from obvious and very important to diagnose a risk of HS early, and doctors often fail to do so without advanced tests: a study \cite{pommerening2015gestalt} showed doctors to have quite limited performance when trying to predict a patient's risk of HS even after 10 minutes in the hospital. This highlights the difficulty of evaluating the need for the MT procedure before arrival, even when a doctor is present in the ambulance.
 
-This combination of factors means that it makes sense to try to provide tools that would assist a doctor in detecting possible HS. To that end, a number of scoring systems have been developed to evaluate the risk of HS for a patient \cite{nunez2009ABC} \cite{gonzalez2016resussitation_outcome} \cite{maegele2011TASH} \cite{hamada2018redflag} the idea is to determine a set of conditions on physiological measurements that determine a numeric score for the patient. The idea is that with well-chosen criteria, the score gives an objective assessment of a patient's condition that can supplement a doctor's expertise, or be used directly as a prediction (e.g.\ if the score is higher than some threshold, then the patient is at risk). However, the same study that evaluated the performance of doctors' prediction \cite{pommerening2015gestalt} showed that numeric criteria perform no better than doctors in predicting HS.
+This combination of factors means that it makes sense to try to provide tools that would assist a doctor in detecting possible HS. To that end, a number of scoring systems have been developed to evaluate the risk of HS for a patient \cite{nunez2009ABC} \cite{gonzalez2016resussitation_outcome} \cite{maegele2011TASH} \cite{hamada2018redflag} the idea is to determine a set of conditions on physiological measurements that determine a numeric score for the patient. With well-chosen criteria, the score gives an objective assessment of a patient's condition that can supplement a doctor's expertise, or be used directly as a prediction (e.g.\ if the score is higher than some threshold, then the patient is at risk). However, the same study that evaluated the performance of doctors' prediction \cite{pommerening2015gestalt} showed that numeric criteria perform no better than doctors in predicting HS.
 
 This might mean that it is simply impossible to accurately predict HS before advanced examinations are performed. However, it is also possible, that the relations between HS and physiological measurements are complex enough that a simple hand-made criterion is not enough to capture them. In that case, it would be useful to build a statistical model capable of representing this relationship and of providing hospitals with early estimates of a patient's level of risk. 
 
 This is why a team of researchers is trying to develop a tool that would leverage machine learning techniques to predict hemorrhagic shock, using a database of patient records (cf Section \ref{traumabase}). Our paper is part of that effort, with a specific focus on missing data imputation.
 
-	\section{The Traumabase data}
+	\section{Medical data}
 	\label{traumabase}
 		\subsection{The Traumabase project}
 	
@@ -30,7 +30,7 @@ The Traumabase contained the records of 7477 patients at the time of this work. 
 
 In this population, 500 patients went through hemorrhagic shock and 4653 did not.
 			
-The Traumabase records dozens of variables that trace a patient's history from the moment first responders arrive to the end of the patient's stay in the hospital (i.e.\ death or recovery). Here we are interested in performing a prehospital evaluation, so when we perform the prediciton we only consider a few measurements that correspond to those performed by the first responders. 
+The Traumabase records dozens of variables that trace a patient's history from the moment first responders arrive to the end of the patient's stay in the hospital (i.e.\ death or recovery). Here we are interested in performing a prehospital evaluation, so when we perform the prediction we only consider a few measurements that correspond to those performed by the first responders. 
 
 			\subsubsection{Definition of the variables}
 There are 9 variables in the data that we can use for prediction.
@@ -80,12 +80,12 @@ As regards the sex, there are 1177 females and 3976 males in the population.
 Figure \ref{fig.cor_values} shows the correlation between the values of the observations (including the patient outcome). We see that not all variables have obvious correlation, but there are some subgroups of variables that are all correlated (e.g.\ Glasgow, heart rate, pulse pressure and saturation; or age, BMI and Hb level). 
 
 As expected, the physical measurements (Sex, BMI, age) show no correlation with patient outcome, while all the other variables do. 
-\todo{Correlation with binary variable undefined: use other indocator for association}
+%\todo{Correlation with binary variable undefined: use other indocator for association}
 \input{Graphs/fig_cor_values}
-\todo{PCA}
+%\todo{PCA}
 			\subsubsection{Missing data}
 			
-An important aspect of the Traumabase is that is contains a significant amount of missing data. That is, some measurements or informations about the patients were not collected or not reported into the database, which makes them unavailable to us. In total, 5\% of the observations are missing. The table below gives the amount and proportion of missing data for each variable:
+An important aspect of the Traumabase is that it contains a significant amount of missing data. That is, some measurements or information about the patients were not collected or not recorded in the database, which makes them unavailable to us. In total, 5\% of the observations are missing. The table below gives the amount and proportion of missing data for each variable:
 
 \input{Charts/miss_table}
 
@@ -96,13 +96,13 @@ Figure \ref{fig.n_miss} shows the repartition of the number of missing observati
 Figure \ref{fig.cor_miss} shows the correlation between the missingness of the variables. They are mostly uncorrelated, but we see that physiological measurements tend to be missing at the same time.
 
 \input{Graphs/fig_corr_miss}
-\todo{MCA}
-Lastly, the table below gives the correlation between the missingness of each variable with the patient outcome:
-\todo{Replace correlation with meaningful metric for binary variables}
+%\todo{MCA}
+%Lastly, the table below gives the correlation between the missingness of each variable with the patient outcome:
+%\todo{Replace correlation with meaningful metric for binary variables}
 
-\input{Charts/cor_output}
+%\input{Charts/cor_output}
 
-There is some amount of correlation between the missingness of the O2 saturation and the shock, but it is still quite low so it is hard to tell whether this has any significance.
+%There is some amount of correlation between the missingness of the O2 saturation and the shock, but it is still quite low so it is hard to tell whether this has any significance.
 
 
 	\section{Objective and formalization}
@@ -111,11 +111,11 @@ Given the importance of treating HS quickly, and the difficulty of detecting it 
 		
 If one is to develop a tool that would predict hemorrhagic shock, an issue that will need to be addressed is that of missing data. Indeed, there are missing observations in the records of 33\% of the patients. Although this leaves us with a rather large number of complete cases, using only those would still be a major loss of information. Even more importantly, some data may also be missing in the real world when a prediction needs to be made. In that case, there no way around handling the missing observations to output a prediction.
 
-In this work, we will address the particular issue of missing data, and more precisely of imputation: replacing the missing values in the dataset by plausible ones. Indeed, it is possible to create a model that takes missing data into account without trying to fill in the missing values and it has been done successfully in the past \cite{schafer2002missing}. However, existing missing-data implementations are fairly rare, so trying out any model means working almost from the ground up. This greatly limits our ability to compare several models.
+In this work, we will address the particular issue of missing data, and more precisely of imputation: replacing the missing values in the dataset by plausible ones. Indeed, many models exist that take missing data into account without trying to fill in the missing values \cite{schafer2002missing}. However, generic software implementations of missing data methods are fairly rare, as such methods tend to be quite problem-specific. This means that building such a method usually requires working from the ground up: this is of course possible, but it limits one's ability to compare many possible models before choosing a definitive implementation..
 
-Comparatively, once the dataset is imputed, it can be used with any existing complete-data prediction method. Additionally, it allows a separation of the tasks: the person or team performing the imputation is not necessarily the same as the one performing the subsequent analysis. Of course, this approach has drawbacks as well. In particular, once the dataset is imputed, any method used to perform a prediction with this dataset will use the observed and imputed values indiscriminately, which may lead to errors if the imputation is not correct.
+Comparatively, once the dataset is imputed, it can be used with any existing complete-data prediction method --- necessarily in a sub-optimal way since the fact that data was missing is now hidden, but giving one an insight into this method's potential. Additionally, it allows a separation of the tasks: the person or team performing the imputation is not necessarily the same as the one performing the subsequent analysis. As we will explain, this was a prerequisite in our context.
 
- In the following chapters, we investigate the possibility of performing imputation in a predictive context, and how it should be done. Below we present the formal setting of the problem we investigate.
+ In the following chapters, we investigate the methodology and dyamics of imputation, performed in a context where the prediction model is not fully known, and new data also has missing values. Below we present the formal setting of the problem we investigate.
  
 		\subsection{The God/Imputer/Analyst/Practitioner framework}
 		\label{framework}
@@ -126,7 +126,7 @@ It is clear that form the point of view of the end user (the hospital or medical
 To formalize this setting, we draw inspiration from the framework proposed by Xie and Meng \cite{xie2017framework} to explore the issue of imputation. In their work, three actors come into play, God, the Imputer and the Analyst. We adapt this framework by adding a fourth actor, the Practitioner, who represents the end user who is only interested in prediction. Their interaction goes as follows:
 \begin{itemize}
  \item "God" (i.e.\ nature) generates some data $\tilde{X}$ and outcome $y$ based on a process known only to him. 
- \item A dataset $X$ is generated by adding missing values to $\tilde{X}$. $X$ and $y$ are transferred to an Imputer. The Imputer is tasked with filling in the missing observations. She chooses an imputation model with a parameter $\alpha$ of her choice, and computes an estimate $\hat{\alpha}$ which she uses to generate a completed dataset $X_{imp}$.
+ \item A dataset $X$ is generated by adding missing values to $\tilde{X}$ ($y$ is fully observed). $X$ and $y$ are transferred to an Imputer. The Imputer is tasked with filling in the missing observations. She chooses an imputation model with a parameter $\alpha$ of her choice, and computes an estimate $\hat{\alpha}$ which she uses to generate a completed dataset $X_{imp}$.
  \item The Imputer transfers $X_{imp}$ to an Analyst, along with $y$. The Analyst does not know which observations were initially missing.
  \item The Analyst uses $X_{imp}$ and $y$ to learn a predictive model with parameter $\beta$. Her estimation for this parameter is $\hat{\beta}$
  \item God generates a new pair of data and outcome $\tilde{X}_{new}, y_{new}$. Some missing data are added to
@@ -144,7 +144,9 @@ This process is illustrated in Figure \ref{fig.tikz_imp}
  \label{fig.tikz_imp}
 \end{figure}
 
-The purpose of this formalization is to clarify the separation between the different phases of the inference, and show how the information is divided. Note that the separation between the Imputer and the Analyst is artificial --- we choose it because we are interested in performing imputation separately --- while the distinction between the Practitioner and the Analyst is imposed by the problem we are trying to solve: during an intervention, the users need a black-box tool that takes in the available data and outputs a prediction more or less instantly. Even if they had access to the training data, it would be impractical to learn a model all over again every time a new patient comes up. Additionally, the data we are using to learn the model cannot be widely shared since it contains patient records, so the Practitioner will not have access to it.
+The purpose of this formalization is to clarify the separation between the different phases of the inference, and show how the information is divided. The distinction between the Practitioner and the Analyst is imposed by the problem we are trying to solve: during an intervention, the users need a black-box tool that takes in the available data and outputs a prediction. Indeed, the data we are using to learn the model cannot be widely shared since it contains patient records, so the Practitioner will not have access to it, only to one line of new data at a time when a new patient needs a diagnostic.
+
+On the other hand, the distinction between Imputer and Analyst is a prerequisite related to the work we were asked to perform: namely, impute the dataset so that others in the HS research group can work on it without having to handle missing data --- which compromises optimal performance in favor of the breadth of the investigation.
 
 In a setting where all three roles are regrouped, the sensible way to proceed would be to define a joint model on the full data (including the response) and use it to find the maximum likelihood estimator for the unknown outcomes. However, the segmentation of the roles makes it necessary for each agent to work with partial information. In the rest of this work, we investigate the implications of this division, both in terms of theory and of practical implementation.
 

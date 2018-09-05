@@ -31,13 +31,14 @@ In FCS rather than a joint model we define $p$ conditional models $\pi_1, \ldots
 			\For{$i=1 \ldots p$}
 				\State $X^{(i)} \leftarrow $ the $i^{\text{th}}$ column of $X$
 				\State $\hat{X}^{(-i)} \leftarrow \hat{X}$ without its $i^{\text{th}}$ column
-				\State $\hat{X}^{(i)}_{\text{miss}} \sim P(\hat{X}^{(i)}_{\text{miss}} \vert {X}^{(i)}_{\text{obs}}, \hat{X}^{(-i)})$
+				\State $\hat{X}^{(i)}_{\text{miss}} = \max_{\alpha} P(\alpha \vert {X}^{(i)}_{\text{obs}}, \hat{X}^{(-i)})$
 			\EndFor
 		\EndWhile
 	\end{algorithmic}
 \end{algorithm}
 
-The interest of this approach is that is can be very flexible when the variables have very different distribution profiles. 
+The interest of this approach is that is can be very flexible when the variables have very different distribution profiles. It can be used with a number of univariate conditional models \cite{MICE_founding}\cite{stekhoven2015missforest}\cite{van2007multiple}.
+
 		\subsection{Low-rank approaches}
 An alternative to assuming some distribution for the dataset is to find a low-rank representation of the data and use it to impute unobserved values. Such approaches \cite{josse2012missPCA}\cite{chen2004missSVD}\cite{brand2002incremental} are generally based on Principal Component Analysis (PCA)\cite{PCA}, using the iterative PCA algorithm \cite{iter_PCA}:		
 		\begin{algorithm}[H]
@@ -54,7 +55,7 @@ An alternative to assuming some distribution for the dataset is to find a low-ra
 	\end{algorithmic}
 \end{algorithm}		
 
-That is, the missing values are repeatedly imputed by projection on the principal components. Many methods using different univariate models exist \cite{MICE_founding}\cite{stekhoven2015missforest}\cite{van2007multiple}.
+That is, the missing values are repeatedly imputed by projection on the principal components. 
 		
 		\subsection{Nearest-neighbors}
 Other methods exist to impute missing values. \emph{Nearest-neighbor imputation}\cite{chen2000nearest}consists in replacing missing values for one individual by the values observed in similar individuals. Using the observed value, a distance metric is computed with the other observations in the data, and we pick the closest one which has observations in the variable we need to impute. This value is then used for imputation.
@@ -88,7 +89,7 @@ $$\hat{B} = \frac{1}{m-1} \sum\limits_{i=1}^m (\hat{\theta}_i - \hat{\theta})^2$
 Then the total variability associated to $\theta$ is then \cite[Ch.\ 5]{Rubin_missdata}:
 $$\hat{T} = \hat{W} + \frac{m+1}{m} \hat{B}$$
 
-Moreover, if $\theta$ is a scalar, asymptotically we can approximate \cite{rubin1986mi_founding}
+Moreover, if $\theta$ is a scalar, when $n \rightarrow \infty$ we can approximate \cite{rubin1986mi_founding}
 $$ (\theta - \hat{\theta})\hat{T}^{-\frac{1}{2}} \sim t_\nu$$
 
 where $t_\nu$ is a t-distribution with $\nu = (m-1)(1+\frac{1}{m+1}\frac{\hat{W}}{\hat{B}})^2$. 
