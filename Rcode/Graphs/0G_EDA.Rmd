@@ -88,8 +88,11 @@ color2D.matplot.abs = function (x, cs1 = c(0, 1), cs2 = c(0, 1), cs3 = c(0, 1), 
                   extremes <- c("black", "white")
                 cellcolors <- extremes[(x > 0) + 1]
             }
-            else cellcolors <- color.scale(abs(x), cs1, cs2, cs3, 
+            else{
+              x2 = pmin(abs(x),0.5)
+              cellcolors <- color.scale(x2, cs1, cs2, cs3, 
                 extremes = extremes, na.color = na.color, color.spec = color.spec)
+            }
         }
         if (is.na(vcol)) 
             vcol <- ifelse(colSums(col2rgb(cellcolors) * c(1, 
@@ -239,7 +242,7 @@ par(mar=c(1,7,1,1),xaxt='n',yaxt='n')
 grid = 1:(ncol(X)-1)
 tlab = 0.5:(length(grid)-0.5)
 lab = colnames(X)[-1]
-cor(is.na(X[,-1])) %>% as.data.frame() %>% color2D.matplot.abs(show.values=2, axes=F, xlab='', ylab='')
+cor(is.na(X[,-1])) %>% as.data.frame() %>% color2D.matplot.abs(show.values=2, axes=F, xlab='', ylab='', extremes = c('white','black'))
 axis(1, at=tlab, labels=F)
 #text(x=tlab, y=par()$usr[3]-0.1*(par()$usr[4]-par()$usr[3]), 
  #    labels=lab, srt=45, adj=1, xpd=T)
@@ -259,7 +262,7 @@ par(mar=c(1,7,1,1), xaxt='n',yaxt='n')
 grid = 1:(ncol(dat))
 tlab = 0.5:(length(grid)-0.5)
 lab = colnames(dat)
-cor(dat, use='complete.obs') %>% as.data.frame() %>%color2D.matplot.abs(show.values=2, axes=F, xlab='', ylab='')
+cor(dat, use='complete.obs') %>% as.data.frame() %>%color2D.matplot.abs(show.values=2, axes=F, xlab='', ylab='', extremes = c('white','black'))
 axis(1, at=tlab, labels=F)
 #text(x=tlab, y=par()$usr[3]-0.1*(par()$usr[4]-par()$usr[3]), 
 #     labels=lab, srt=45, adj=1, xpd=T)
