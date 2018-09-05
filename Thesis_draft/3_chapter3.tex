@@ -1,9 +1,9 @@
-\todo{Add graphics to explain cv}
+%\todo{Add graphics to explain cv}
 Let us now go back to the issue of imputing missing data when there is a separation between the Practitioner and the Analyst, that is, when it is necessary to impute new incoming data without having access to the historical data.
 
 As described Chapter \ref{imputation}, a number of methods exist to impute missing data. However, they have been designed with parameter estimation in mind: in that case, there is just one dataset that needs to be imputed. The issue, as we show in this chapter, is that current implementations of these methods may not be suitable when we need to use the same model to impute two separate datasets.
 
-This is not only problematic for our particular problem. As we remind in Section \ref{ERM}, it is standard practice when working on prediction to resort to CV, that is to hold out part of the data and use it to validate the model. Section \ref{ERM.imp} shows how this clashes with current implementation of imputation methods. In section \ref{ERM.solutions}, we investigate possible ways to address this issue and compare them empirically.
+In Section \ref{ERM} we describe the process of cross-validation used to evaluate the performance that a model will have on new data. Section \ref{ERM.imp} shows how this clashes with standard implementation of imputation methods, especially when trying to compare different methods. In section \ref{ERM.solutions}, we investigate possible ways to address this issue and compare them empirically.
 
 %On the other hand, there is almost no research on these methods when applied to prediction. Even recent manuals for machine learning \cite{ML_missdata} generally make only a quick mention of missing data, and in practice it is extremely rare for anything else than imputation by the mean to be used. \emph{Scikit-learn} \cite{scikit-learn}, by far the most-used machine learning package, only proposes imputation by the mean as of now. 
 
@@ -22,7 +22,7 @@ Let us denote the $X$ a $n \times p$ matrix of covariates and $y$ a response vec
 
 We choose a class of functions $f(\cdot, \beta), \beta \in B$. We want to choose a parameter $\hat{\beta}$ which we can use to predict $\hat{y}_{new} = f(X_{new}, \hat{\beta})$. The quality of a prediction is evaluated by some loss $L(y_{new},\hat{y}_{new})$. Since we do not have access to $X_{new}$, our goal is to minimize the risk: $R(\beta) = \mathbb{E}_{X_{new},y_{new}}(L(y_{new}, f(X_{new}, \beta)))$.
 
-However, we do not know the true distribution of those values. This is why we resort to ERM \cite{ERM}: we define the empirical risk
+However, we do not know the true distribution of those values. This is why we use ERM \cite{ERM}: we define the empirical risk
 $$ R_{\text{emp}}(\beta) = \frac{1}{n} \sum\limits_{i=1}^n L(y_i, f(X_i, \beta))$$
 that is, the average value of the loss when predicting the known $y$ from $X$ with $\beta$.
 
@@ -30,16 +30,16 @@ We then select $\hat{\beta} = \argmin_{\beta} R_{\text{emp}}(\beta)$ as our ERM 
 
  This is important because this is what we will take into account if we need to compare multiple choices for $f$. But the empirical risk gives us no measure of how well our model generalizes, only of how closely it can fit known data. In particular, if the class $f$ is very broad, one may find a $\beta$ that exactly interpolates the values of $y$ but does not generalize at all (an issue known as overfitting \cite{hawkins2004overfitting}).
 
-To address the issue of model selection, we need to resort to CV as descried below.
+To address the issue of model selection, we need to use CV as described below.
 
 		\subsection{Cross-validation}
-CV, consists in dividing the available data in two datasets: first we choose $n_A < n$ entries in the dataset that will be used in ERM to learn $\hat{\beta}$: this is the training dataset $X_A$ and response $y_A$. We denote $I_A = (i_1, \ldots, i_{n_A})$ the set of indices chosen for the training data.
+CV, consists in dividing the available data in two datasets: first we choose $n_A < n$ entries in the dataset that will be used in ERM to learn $\hat{\beta}$: this is the training dataset $X_A$ and response $y_A$. We denote $I_A = (i_1, \ldots, i_{n_A})$ the set of indices chosen for the training data and $I_V$ its complement.
 
 The rest of the observations are noted $X_V$ and $y_V$ and called the validation dataset. They are used as a substitute for $X_{new},y_{new}$
 
 Once this is done, the Analyst performs ERM as before, using only the training data. The obtained parameter $\hat{\beta}$ can then be evaluated with the validation error:
 
-$$ R_{V}(\hat{\beta}) = \frac{1}{n_V} \sum\limits_{i=1, i \notin I_A}^n L(y_i, f(X_i, \hat{\beta}))$$
+$$ R_{V}(\hat{\beta}) = \frac{1}{n_V} \sum\limits_{i \in I_V} L(y_i, f(X_i, \hat{\beta}))$$
 
 It is this value that we can compare to choose the model class $f$. Once the Analyst has decided on a choice of $f$ and $\hat{\beta}$ using ERM and CV, she can send $f(\cdot, \hat{\beta})$ over to the Practitioner so that she can proceed to prediction on new data using $\hat{y_{new}} = f(X_{new}, \hat{\beta})$.
 
@@ -49,40 +49,46 @@ We now place ourselves in the same context as before, except some values are mis
 		\subsection{Imputation seen as an ERM}
 Remember that the purpose of this work is to impute the data independently of the model used afterwards for prediction. This means that we cannot perform ERM exactly as before and use any function we like to go from $X$ (which has missing data) to $\hat{y}$. The prediction is the composition of two steps.
 			\paragraph{Imputation step}
-First we choose an imputation model $X^{\text{complete}} = g(X, \alpha)$ where $X^{\text{complete}}$ is the completed dataset and $\alpha$ some parameter. This is similar to the previously described ERM, except we do not know the true data (while we had $y$ to compare to $\hat{y}$, we do not know the true full dataset $\tilde{X}$). Thus, we choose $\hat{\alpha}$ to minimize some unsupervised empirical risk
-$$R'_{emp}(\alpha)=L'(g(X, \alpha), \alpha)$$
-The loss $L'$ is usually related to the likelihood of the completed data according to some distribution\cite{ref_amelia}. Once this is done, we obtain a completed dataset $\hat{X}$.
+First we choose an imputation model $\hat{X} = g(X, \alpha)$ where $\hat{X}$ is the completed dataset and $\alpha$ some parameter. This is similar to the previously described ERM, except we do not know the true data (while we had $y$ to compare to $\hat{y}$, we do not know the true full dataset $\tilde{X}$). Thus, we choose $\hat{\alpha}$ to minimize some unsupervised loss
+$$L'(g(X, \alpha), \alpha)$$
+The loss $L'$ would usually be the negative log-likelihood of a distribution model for $X$. For example, we can choose to perform imputation by maximum likelihood using a normal approximation. In that case, we would have $alpha =(\mu, \Sigma)$ and \cite{ref_amelia}
+$$L'(\hat{X}, \alpha) = \phi(\hat{X};\mu, \Sigma) $$ (where $\phi$ is the p.d.f.\ of the normal distribution)
+with $\hat{X} = \argmax_{A} \phi(A;\mu, \Sigma)$ (in this case, this corresponds the expected value of $X$).
 
 			\paragraph{Prediction step}
 With imputation done, we can proceed as before to choose a parameter $\hat{\beta}$ that minimizes the empirical risk when using the completed data:
 	$$ R_{\text{emp}}(\beta, \hat{X}) = \frac{1}{n} \sum\limits_{i=1}^n L(y_i, f(\hat{X}_i, \beta))$$
 	
-Putting it all together, we can define 
-$$ h(X, (\alpha, \beta)) = f(X^{imp}, \beta) = f( g(X, \alpha), \beta) $$
+Putting it all together, we can define (with a slight abuse of notation, we use $f(\hat{X}, \beta)$ to refer to function $f$ applied to each line of $\hat{X}$):
+$$ h(X, (\alpha, \beta)) = f(\hat{X}, \beta) = f( g(X, \alpha), \beta) $$
 the combined model that takes the observed data as input and outputs a predicted $y$. Formally, the two successive steps yield:
 \begin{align*}
-\hat{\alpha} &= \argmin_{\alpha} L'(g(X,\alpha) \\
-\hat{\beta} &= \argmin_{\beta} R_{\text{emp}}(\beta,f(X,\hat{\alpha})) \\
+\hat{\alpha} &= \argmin_{\alpha} L'(g(X,\alpha), \alpha) \\
+\hat{\beta} &= \argmin_{\beta} R_{\text{emp}}(\beta,g(X,\hat{\alpha})) \\
 \hat{y} &= h(X, (\hat{\alpha}, \hat{\beta}))
 \end{align*}
 
 We choose to use this notation to illustrate our point that imputation is an integral part of the ERM, not a separate, preliminary process. In particular, it means that its parameters must be subjected to CV just like those of the prediction. That is, only $X_A$ and $y_A$ are used to estimate $(\hat{\alpha}, \hat{\beta})$ as shown above, while $X_V$ and $y_V$ are held out. Then, we can compute a prediction $\hat{y}_V = h(X_V, (\hat{\beta}, \hat{\alpha}))$ and we compute $L(y_V, \hat{y}_V)$ to evaluate the choice of model.
 
-This implies that just like $\beta$, the imputation parameter $\alpha$ should be estimated only on the training data and then used on the validation data. As we will see, this raises an issue with the way current imputation methods are implemented.
+This implies that just like $\beta$, the imputation parameter $\alpha$ should be estimated only on the training data and then used to impute and predict the validation data. As we see below, this particular requirement clashes with standard implementations of imputation methods.
 
-		\subsection{Unsuitability of current methods}
-Most of these methods are used through a single function which takes a dataset with missing values as an input and returns the dataset completed by the method of choice, \emph{without giving the user any access to the imputation model itself}. \cite{stekhoven2015missforest} \cite{josse2016missmda}\cite{MICE_founding}\cite{ref_amelia}
+		\subsection{Implementation issues}
+Current standard implementations of imputation methods are usually used through a single function which takes a dataset with missing values as an input and returns a completed dataset, but not simple a way to impute a new dataset with the exact same parameters. \cite{stekhoven2015missforest} \cite{josse2016missmda}\cite{MICE_founding}\cite{ref_amelia}
 
-This is a problem because of how CV is supposed to be performed. Supposedly, one would estimate $(\hat{\alpha}_A, \hat{\beta}_A)$ through ERM, and then make a prediction on the validation set as $h(X_V,(\hat{\beta}_{X_A},\hat{\alpha}_{X_A}))$. But here, all we have access to is a black-box function $g': X \mapsto g(X, \hat{\alpha}_X)$ where $\hat{\alpha}_X$ is the optimised parameter for the argument $X$. This means that one cannot choose what parameters are used to impute the input to function $g'$: a new parameter will be estimated at every call of the function. But in that case, it is impossible to use the same $\alpha$ for the training dataset and for the validation data --- or for new data.
-	
-This issue has started to arise in the machine learning community in the past few years \cite{thread_newdata1}\cite{thread_newdata2}\cite{thread_newdata3}, but for now no implementation exists that separates the parameter estimation and the imputation itself (except for the very basic imputation by the mean \cite{mean_imputation}). Below, we investigate the alternatives available to perform imputation with held out data.
+Although this is fine for most applications, in the case of CV this is problematic. To perform CV properly, one would estimate $(\hat{\alpha}_A, \hat{\beta}_A)$ through ERM, and then make a prediction on the validation set as $h(X_V,(\hat{\beta}_{X_A},\hat{\alpha}_{X_A}))$. But if all one has access to is a black-box function $g': X \mapsto g(X, \hat{\alpha}_X)$, where $\hat{\alpha}_X$ is the optimised parameter for the argument $X$, then one cannot choose what parameters are used to impute the input to function $g'$: a new parameter will be estimated at every call of the function. But in that case, it is impossible to use the same $\alpha$ for the training dataset and for the validation data --- or for new data.
+
+If we are to use one of these methods to build a tool for hemorrhagic shock, we need to be able to impute on a new incoming patient, without any access to the training data or to other new patients' data, so we have no choice but to reuse previously computed parameters: a reimplementation is unavoidable.
+
+In some cases it is straightforward to reimplement a given method to separate the parameter estimation and the imputation. However, in other cases (e.g.\ iterative methods such as PCA imputation) this is a much more involved task. In particular, one may want a way to rapidly compare many imputation methods using existing software packages, before choosing one to reimplement. 
+
+This is why we are interested in alternatives that could be used to impute the data using only a black-box function, to use as a proxy of the performance of the properly reimplemented method. We want to see if there is a way to order the relative performance of various imputation methods using such a proxy, before choosing one to implement.
 
 	\section{Possible solutions}
 	\label{ERM.solutions}
 	
 If we were to follow exactly the principles of CV, we would proceed as follows: 
 \begin{algorithm}[H]
-	\caption{Identical imputation}
+	\caption{Separate imputation}
 	\hspace*{\algorithmicindent} \textbf{Input:} $X$, $y$, $I_A=\{i, X_i \in X_A\}$ \\
  	\hspace*{\algorithmicindent} \textbf{Output:} $\hat{y}_V$
 	\begin{algorithmic}[1]
@@ -96,21 +102,14 @@ If we were to follow exactly the principles of CV, we would proceed as follows:
 	\end{algorithmic}
 \end{algorithm}
 
-But this is not possible using a black-box function because we need to recover $\hat{\alpha}_A$ and reuse it with $X_V$.
+We call this Separate Imputation (SI). But this is not possible using a black-box function because we need to recover $\hat{\alpha}_A$ and reuse it with $X_V$.
 
 		\subsection{Alternatives using current implementations}
-			\subsubsection{Motivation}
-As mentioned above, many implementations of imputation methods only provide a black-box function. If we are to use one of these methods to build a tool for hemorrhagic shock, we need to be able to impute on a new incoming patient, without any access to the training data or to other new patients' data, so we have no choice but to use past estimated parameters as in identical imputation. This necessitates a new implementation of the same method.
-
-However, before building a final model for real-world use, there is a phase of model selection that is done using CV, where we actually have access to all of the data. Reimplementing a method is a time-consuming process, so we would prefer to be able to choose the best imputation method and reimplement just this one, rather than having to remake every method we are interested in just to compare them.
-
-This is why we explore options that can be used to impute the training and validation CV datasets, using only a black-box function. In particular, we try to see if those methods give a good idea of a method's true performance, and so would allow us to perform model selection with existing implementations.
-
 			\subsubsection{Methods}
 
-\paragraph{Grouped imputation} 
+\paragraph{Grouped imputation (GI)} 
 
-Impute all the data at once before performing the CV split:
+A way to perform the imputation with just one function is to impute all the data at once before performing the CV split:
 \begin{algorithm}[H]
 	\caption{Grouped imputation}
 	\hspace*{\algorithmicindent} \textbf{Input:} $X$, $y$, $I_A=\{i, X_i \in X_A\}$ \\
@@ -126,12 +125,12 @@ Impute all the data at once before performing the CV split:
 	\end{algorithmic}
 \end{algorithm}
 
-Here, both datasets are indeed imputed with the same parameter $\alpha_X$ but this means that the validation data is used to choose that parameter which then serves to impute the training data. This is contrary to the principles of CV, we are 'cheating' in some way.
+Here, both datasets are imputed with the same parameter $\alpha_X$ but this means that the validation data is used to choose that parameter which then serves to impute the training data. In that sense, the CV does not faithfully reproduce the actual real-world application where the new data would be unavailable at the time of training --- and the training data unavailable at the time of prediction. As a consequence the validation error may not be representative of real-world performance and could modify the performance order when comparing multiple methods.
 
-\paragraph{Separate imputation}
-Divide the data first, then impute each dataset separately:
+\paragraph{Independent imputation (II)}
+Another approach is to divide the data first, then impute each dataset independently:
 \begin{algorithm}[H]
-	\caption{Separate imputation}
+	\caption{Independent imputation}
 	\hspace*{\algorithmicindent} \textbf{Input:} $X$, $y$, $I_A=\{i, X_i \in X_A\}$ \\
  	\hspace*{\algorithmicindent} \textbf{Output:} $\hat{y}_V$
 	\begin{algorithmic}[1]
@@ -145,22 +144,24 @@ Divide the data first, then impute each dataset separately:
 	\end{algorithmic}
 \end{algorithm}
 
-Contrarily to grouped imputation, we are not cheating. However, we are using parameter $\hat{\alpha}_V$ to impute $X_V$, while we learned $\hat{\beta}_A$ on $\hat{X}_A$ which was imputed with $\hat{\alpha}_A$. That is, we are optimising $h(\cdot,(\hat{\alpha}_A, \hat{\beta}_A))$ and predicting with $h(\cdot,(\hat{\alpha}_V, \hat{\beta}_A))$.
+Here, we respect the rules of CV (the validation data is not used at all during training), but we are using parameter $\hat{\alpha}_V$ to impute $X_V$, while we learned $\hat{\beta}_A$ on $\hat{X}_A$ which was imputed with $\hat{\alpha}_A$. That is, we are optimising $h(\cdot,(\hat{\alpha}_A, \hat{\beta}_A))$ and predicting with $h(\cdot,(\hat{\alpha}_V, \hat{\beta}_A))$. As for GI, this could have an impact on the validation error.
 
-$\hat{\alpha}_V$, $\hat{\alpha}_A$ and $\hat{\alpha}_X$ are asymptotically the same for large $n$ --- since $X_A$, $X_V$ and $X$ have the same distribution ---, so all three methods (Identical, Grouped and Separate) should be identical for large $n$. But for smaller $n$, harmful effects may be present --- overoptimistic validation due to 'cheating' for the grouped imputation, high error due to the difference in parameters for separate imputation.
+$\hat{\alpha}_V$, $\hat{\alpha}_A$ and $\hat{\alpha}_X$ are asymptotically the same for large $n$ --- $X_A$, $X_V$ and $X$ have the same distribution since the lines of $X$ are i.i.d\ ---, so all three methods (Separate, Grouped and Independent) should be identical for large $n$. But for smaller $n$, harmful effects may be present --- overoptimistic validation error due to 'cheating' for GI, high error due to the difference in parameters for II.
 
 %\paragraph{Line by line imputation}
 %The last option we mention here is to first impute the training data on its own. Then for every line of the validation data we impute it by stacking it with the imputed training data and imputing the whole dataset. Since it is just one line, we can safely assume that the imputation parameters will be those of the training data. The main issue with this method is that is the validation data is rather large, this will be computationally infeasible.
 
 			\subsubsection{Need for a new implementation}
-We want to understand if the alternatives proposed here are good enough to be used if Identical imputation in infeasible. To do that, we need to be able to compare these with the correct method. That means that for at least one imputation method we need to build an implementation that allows us to separate the estimation and the imputation. That way we will be able to compare its performance with the other alternatives we propose.
+We want to understand whether the alternatives proposed here are good enough to be used if SI is not available. To do that, we need at least one implementation where SI is available. That way we will be able to compare its performance with GI and II.
 
-Moreover, in addition to this theoretical pursuit, we need this because of what we are trying to achieve with Traumabase: the end goal is to make a recommendation system that can produce a prediction for \emph{a single new patient} arriving to the hospital, without needing to have access to the whole Traumabase data. Without access to the initial training data, this means that only a fully parametric approach can be taken in this particular case (separate imputation is impossible on just one line of data, and grouped imputation requires access to the full data).
+Moreover, in addition to this theoretical pursuit, we need this because of what we are trying to achieve with Traumabase: the end goal is to make a recommendation system that can produce a prediction for \emph{a single new patient} arriving to the hospital, without needing to have access to the whole Traumabase data. Without access to the initial training data, this means that only a fully parametric approach can be taken in this particular case (II is impossible on just one line of data, and GI requires access to the full data).
 
 Below, we design a very simple imputation method for those purposes.
 
 		\subsection{Multivariate normal conditional expectation}
-The principle of this imputation is inspired from R package \emph{Amelia} \cite{ref_amelia}, and a large part of the code is from the \emph{norm} package \cite{pkg_norm}. The idea is to model both $X_A$ and $X_V$ as normally distributed $\mathcal{N}(\mu, \Sigma)$ with unknown parameters. This will allow us to impute the missing data conditionally on the observed data.
+The principle of this imputation is inspired from R package \emph{Amelia} \cite{ref_amelia}, and a large part of the code is from the \emph{norm} package \cite{pkg_norm}. The idea is to model both $X_A$ and $X_V$ as normally distributed $\mathcal{N}(\mu, \Sigma)$ with unknown parameters. Although this is often a rough approximation of the true distribution, it has been shown to  perform well on a range of datasets \cite{MICE_founding}\cite{schafer1998multiple}. In the Traumabase data, the variables are unimodal and have almost symmetric distributions so we can expect a normal approximation to be resonable.
+
+This hypothesis allows us to impute the missing data conditionally on the observed data.
 
 \paragraph{Parameter estimation}
 It is possible to approximate maximum-likelihood estimators for $\mu$ and $\Sigma$ with an iterative procedure, using the EM (expectation-maximisation) algorithm \cite{EM}. The algorithm is detailed in \cite[Chapter 5.3]{em_normal_fit}
@@ -190,11 +191,11 @@ The conditional expectations are easily derived using the Schur complement \cite
 
 We implemented this step as well to get a complete imputation procedure divided in two functions that implement the estimation and imputation steps separately. The code is available in package SIMVN \cite{SIMVN_github}.
 
-In all that comes next, unless specified otherwise this imputation method is the one we use, with identical imputation.
-
+In all that comes next, unless specified otherwise this imputation method is the one we use.
 		\subsection{Comparison on simulated data}
-Now that we have an implementation that separates estimation and imputation, we use it to compare the three imputation procedures on simulated data (cf Appendix \ref{simulation}, with $\rho=0.5, p=4, \sigma=1$) and the abalone data (cf Appendix \ref{abalone}) with various sample sizes and adding 30\% missing data MCAR. The results are in Figure \ref{fig.grouped_separate}.
+		\todo{Update result graphs}
+Now that we have an implementation that separates estimation and imputation, we use it to compare the three imputation procedures on simulated data (cf Appendix \ref{simulation}, with $\rho=0.5, p=4, \sigma=1$) and the abalone data (cf Appendix \ref{abalone}) with various sample sizes and adding 30\% MCAR missing data. The results are in Figure \ref{fig.grouped_separate}.
 
 \input{Graphs/fig_grouped_separate}
 	
-We see that indeed grouped imputation seems to always have lower error than identical imputation, while separate imputation has higher error. However, when $n$ is not too small, all three are quite close together. Separate imputation seems to be further off than the other two, and sometimes has very high error. As a result, if no implementation exists for a given method to perform identical imputation, trying it out with grouped imputation would be a good first step to get an idea of how it can perform.
+We see that indeed GI seems to always have lower error than SI, while II has higher error. However, when $n$ is not too small, the relative difference between GI and SI is small. II seems to be further off than the other two, and sometimes has high error. As a results, GI appears to be a good proxy for SI performance: it can be used a a quick check to compare the performances of a range of imputation methods, in order to choose one method to reimplement for the final SI imputation.
