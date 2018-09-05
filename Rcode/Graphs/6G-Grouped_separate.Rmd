@@ -1,4 +1,7 @@
 ```{r setup, include=FALSE}
+library(missForest)
+library(missMDA)
+
 aux.folder = '../auxiliary/'
 source(paste(aux.folder,'MVN_imputation.R',sep=''), chdir = T)
 source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
@@ -76,6 +79,18 @@ oneRun = function(args){
   datasets$correct = list(train=imp.mvnorm.estim(imp.train, X.train), test=imp.mvnorm.estim(imp.train, X.test))
   datasets$full = list(train=X_f[spl$inTrain,], test=X_f[-spl$inTrain,])
   
+  X.missForest = missForest(rbind(X.train, X.test))$ximp
+  datasets$MF.grouped = list(train=X.missForest[1:nrow(X.train),], test=X.missForest[-(1:nrow(X.train)),])
+  X.train.MF = missForest(X.train)$ximp
+  X.test.MF = missForest(X.test)$ximp
+  datasets$MF.separate = list(train=X.train.MF, test=X.test.MF)
+  
+  X.PCA = imputePCA(rbind(X.train,X.test))$completeObs
+  datasets$PCA.grouped = list(train=X.PCA[1:nrow(X.train),], test=X.PCA[-(1:nrow(X.train)),])
+  X.train.PCA = imputePCA(X.train)$completeObs
+  X.test.PCA = imputePCA(X.test)$completeObs
+  datasets$PCA.separate = list(train=X.train.PCA, test=X.test.PCA)
+  
   regressors.fit = lapply(datasets,
                           function(x) {(predictor$train)(x$train, y.train)})
   print('t4.5')
@@ -96,7 +111,7 @@ X.gen = X.basic.MVN
 y.gen = y.regression
 predictor = reg.lin
 errFun = function(y.pred,y.test){mean((y.pred-y.test)^2)}
-argsL = list(n=seq(200,1000,50),
+argsL = list(n=seq(200,1000,100),
             rho=c(0.5),
             sigma_reg = 1,
             train_prop=0.5,
@@ -105,34 +120,34 @@ argsL = list(n=seq(200,1000,50),
 )
 
 
-S = 100
+S = 10
 res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 ```
 
 ```{r}
-res.1 %>% rename('Grouped'=grouped, 'Separate'=separate, 'Identical'=correct, 'Full data'=full) %>%
-  gather('method','error',c(Grouped, Separate, Identical,'Full data')) %>%
+res.1 %>% rename('Grouped'=grouped, 'Independent'=separate, 'Separate'=correct, 'Full data'=full) %>%
+  gather('method','error',c(Grouped, Separate, Identical,'Full data', MF.grouped, MF.separate, PCA.grouped, PCA.separate)) %>%
   ggplot() + aes(x=n*train_prop, y=error, color=method) + geom_line() +
   themer(angle=F) +
-  scale_color_manual(values=c('black','red','forestgreen','darkblue'), name = "Imputation") +
+ # scale_color_manual(values=c('black','red','forestgreen','darkblue'), name = "Imputation") +
   xlab(expression(n[A])) + ylab('Validation MSE')
 ```
 
 ```{r}
 X.gen = X.abalone
 y.gen = y.abalone 
-argsL = list(n=seq(200,1000,25),
+argsL = list(n=seq(200,1000,100),
             train_prop=0.5,
             miss_prop = c(0.3)
 )
 
 
-S = 100
+S = 10
 res.3 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
 ```
 
 ```{r}
-res.3 %>% rename('Grouped'=grouped, 'Separate'=separate, 'Identical'=correct, 'Full data'=full) %>%
+res.3 %>% rename('Grouped'=grouped, 'Independent'=separate, 'Separate'=correct, 'Full data'=full) %>%
   gather('method','error',c(Grouped, Separate, Identical,'Full data')) %>%
   ggplot() + aes(x=n*train_prop, y=error, color=method) + geom_line() +
   themer(angle=F) +
