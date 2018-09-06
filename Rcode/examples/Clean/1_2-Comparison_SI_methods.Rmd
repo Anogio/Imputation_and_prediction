@@ -61,7 +61,7 @@ oneRun = function(args){
   predictions = lapply(names(datasets), function(x){(predictor$predict)(regressors.fit[[x]], as.matrix(datasets[[x]]$test))})
   names(predictions) = names(datasets)
   errors = lapply(predictions, function(x){errFun(x,y.test)})
-  return(errors)
+  return(c(errors, list(beta=regressors.fit$MVN$coefficients)))
 }
 ```
 
@@ -118,3 +118,14 @@ res %>% gather('method', 'error') %>%
   ggplot() + aes(x=reorder(method,error,median), y=error) + geom_boxplot()
 #stop("WARNING! J'utilise SD.SMUR et FC.SMUR qui ont plein de données manquantes -> mieux pour allCols")
 ```
+
+```{r}
+r= matrix(res$beta, ncol=11, byrow=T)
+colnames(r) = c('Intercept', useCols.pred)
+beta_exp = colMeans(r)
+
+typical_size = c(1, 1, 30, 50, 10, 15, 100,1000, 1000, 50, 100)
+contrib = beta_exp * typical_size
+contrib/mean(contrib)
+```
+
