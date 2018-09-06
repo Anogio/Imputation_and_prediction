@@ -3,9 +3,9 @@
 Our final step is to see how well prediction with imputation works to predict hemorrhagic shock. For that, we proceed to cross-validation (cf Chapter \ref{validation}) to get an idea of the performance we can achieve this way. We compare it to several references to see whether this is an improvement over other methods of prediction.
 	\section{Methodology}
 		\subsection{Prediction pipeline}
-To evaluate our method we perform imputation and prediction on the data, by training on a training set $X_A, y_A$ and validating on $X_V, y_V$. In order to get an idea of the average performance, we repeat this for multiple $X_A, X_V$ splits.
+To evaluate our method we perform imputation and prediction on the data, by training on a training set $X_A, y_A$ and validating on $X_V, y_V$. In order to get an idea of the average performance, we repeat this for multiple $X_A, X_V$ splits. As in Chapter \ref{validation} we need to choose two things: an imputation model $g(\cdot, \alpha)$ and a complete-data prediction model $f(\cdot, \beta)$.
 
-An interest of imputation is that once missing data is imputed, any full-data method can be used for prediction. To illustrate this, after imputation we perform prediction using three different methods: logistic regression \cite{hosmer2013logreg}, Support Vector Machine (SVM) \cite{hearst1998SVM} and random forest (RF) \cite{svetnik2003RF}. 
+For the choice of function $g$, we have argued in Chapter \ref{validation} that we can use grouped imputation (GI) to compare different existing implementations. We perform such a comparison in \ref{choice.imp}, for a variety of possible $f$ models: logistic regression \cite{hosmer2013logreg}, Support Vector Machine (SVM) \cite{hearst1998SVM} and random forest (RF) \cite{svetnik2003RF}. 
 
 		\subsection{Evaluating the prediction}
 \paragraph{Metric}
@@ -21,7 +21,7 @@ with $c_1 + c_2 = 1$.
 
 To evaluate our predicted probability, we take the best value of this loss for any choice of threshold: this gives us a measure of the separation power of those predictions. The choice of costs is not obvious, which is why in this chapter we show the results for multiple possible values.
 
-\paragraph{Comparison}
+\paragraph{Benchmarks}
 In order to have a reference performance for HS prediction, we compare the value of the loss with the loss obtained from several other predictions:
 \begin{itemize}
 \item \emph{Doctor's prediction:} The decision to initiate a MT procedure is recorded in the Traumabase. It determines whether the doctor considered the patient to be at risk of HS.
@@ -33,7 +33,8 @@ In order to have a reference performance for HS prediction, we compare the value
 This gives us some points of comparison for predictive performance.
 
 		\subsection{Choice of imputation method}
-There are many methods of imputation we can choose from (cf Chapter \ref{imputation}) to impute missing values in. In order to compare them, we proceed to grouped imputation (as described in Chapter \ref{validation}) with each of them, and then perform a prediction on each imputed dataset. The resulting validation errors are presented in figure \ref{fig.imp_method}.
+		\label{choice.imp}
+There are many methods of imputation we can choose from (cf Chapter \ref{imputation}) to impute missing values in. In order to compare them, we proceed to grouped imputation (as described in Chapter \ref{validation}) with each of them, and then perform a prediction on each imputed dataset. The resulting validation errors are presented in Fig.\ \ref{fig.imp_method}.
 
 We used the following imputation methods (c.f.\ Chapter \ref{imputation}):
 \begin{itemize}
@@ -41,14 +42,14 @@ We used the following imputation methods (c.f.\ Chapter \ref{imputation}):
 \item \emph{Normal expectation:} impute by approximating the data as multivariate normal and taking conditional expectations (c.f.\ Chapter \ref{validation})
 \item \emph{PCA imputation:} impute through a low-rank approximation of the data
 \emph{FCS with adapted methods:} FCS with a normal regression model for all variables except the Sex (logistic regression) and GCS (proportional odds model for ordered variables).
-\item \emph{MissForest:} a FCS method that uses random forests as the univariate predictor
+\item \emph{MissForest:} a FCS method that uses random forests \cite{svetnik2003RF} as the univariate predictor
 \end{itemize}
 
-Note that the Sex is binary and the GCS is ordered discrete, so we cannot in theory impute them with the PCA or normal imputation. However, de Sex has no missing data and the GCS has only a handful (0.4\%) so we proceed with the imputation by treating them as numerical variables.
+Note that the Sex is binary and the GCS is ordered discrete, so we cannot in theory impute them with the PCA or normal imputation, as they only handle numerical data. However, the Sex has no missing data and the GCS has only a handful (0.4\%) so we proceed with the imputation by treating them as numerical variables (it has been shown \cite{bernaards2007robustness} that this can achieve satisfactory results).
 
 \input{Graphs/fig_imp_method}
 
-It is striking that the difference between imputation methods is very small: even though there are differences in the mean performance, these differences are manor compared to the variation of the performance for different CV splits. Even imputation by the mean, which is supposedly very inaccurate, is on par with other methods in terms of performance. We were not able to determine the reason for this: the relatively low proportion of missing data does not seem to be in cause as the same trend shows if we artificially add missing values.
+It is striking that the difference between imputation methods is very small: even though there are differences in the mean performance, these differences are minor compared to the variation of the performance for different CV splits. Even imputation by the mean, which is supposedly very inaccurate, is on par with other methods in terms of performance. We were not able to determine the reason for this: the relatively low proportion of missing data does not seem to be in cause as the same trend shows if we artificially add missing values.
 
 In what follows, the results are presented for normal imputation.
 
