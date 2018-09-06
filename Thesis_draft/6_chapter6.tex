@@ -25,16 +25,16 @@ To evaluate our predicted probability, we take the best value of this loss for a
 In order to have a reference performance for HS prediction, we compare the value of the loss with the loss obtained from several other predictions:
 \begin{itemize}
 \item \emph{Doctor's prediction:} The decision to initiate a MT procedure is recorded in the Traumabase. It determines whether the doctor considered the patient to be at risk of HS.
-\item \emph{ABC (Assessment of Blood Consumption)\cite{nunez2009ABC} score:} this gravity score is the only one that was designed with prehospital prediction in mind. It is a very simple score that only uses a few measurements.
+\item \emph{ABC (Assessment of Blood Consumption)\cite{nunez2009ABC} score:} this gravity score is the only one that was designed with prehospital prediction in mind. It is a very simple score that only uses a few measurements. It does,though, use the FAST echography results, which is an examination usually performed when the patient arrives at the trauma center. As such, the score is not exactly prehospital but can be computed very early once the patient is hospitalized.
 \item \emph{TASH (Trauma Associated Severe Hemorrhage)\cite{yucel2006tash}) score:} this score was also designed for hemorrhage detection, but at a later stage: it uses some values that are only available after laboratory tests (e.g.\ base excess) or radiography (presence of a fracture).
-\item \emph{SAEM Logistic regression:} this a method for logistic regression without imputation of the training dataset, developed by Jiang \cite{jiangsaem} to address the specific issue of HS prediction on the Traumabase. If we take the notations from Chapter \ref{validation}, the idea is that $\alpha$ the imputation parameter and $\beta$ the regression parameter are learned jointly rather than one after the other. 
+\item \emph{SAEM Logistic regression:} this a method for logistic regression without imputation of the training dataset, developed by Jiang \cite{jiangsaem} to address the specific issue of HS prediction on the Traumabase. Contrarily to the models we evaluate, it is a joint model i.e. it can be used in the case when the Analyst and Imputer are not distinct. The hypotheses on the data are the same as those that those of normal imputation followed by linear regression (same $f$ and $g$ models). The difference, if we take the notations from Chapter \ref{validation}, is that $\alpha$ the imputation parameter and $\beta$ the regression parameter are optimized jointly rather than one after the other. 
 \end{itemize}
 
-This gives us some points of comparison for predictive performance.
+This gives us some points of comparison for predictive performance. Both scores work based on a point system, where points are added when a certain criterion is met, and the sum of the points is used as an indicator of gravity (like the predicted probability for our models). Since there is missing data, when a criterion cannot be verified it is counted as unactivated (no points added to the gravity score).
 
 		\subsection{Choice of imputation method}
 		\label{choice.imp}
-There are many methods of imputation we can choose from (cf Chapter \ref{imputation}) to impute missing values in. In order to compare them, we proceed to grouped imputation (as described in Chapter \ref{validation}) with each of them, and then perform a prediction on each imputed dataset. The resulting validation errors are presented in Fig.\ \ref{fig.imp_method}.
+There are many methods of imputation we can choose from (cf Chapter \ref{imputation}) to impute missing values in. In order to compare them, we proceed to grouped imputation (as described in Chapter \ref{validation}) with each of them, and then perform a prediction on each imputed dataset. The resulting validation errors are presented in Fig.\ \ref{fig.imp_method} (using the previously described loss with $\frac{c_1}{c_2}=5$).
 
 We used the following imputation methods (c.f.\ Chapter \ref{imputation}):
 \begin{itemize}
@@ -51,10 +51,10 @@ Note that the Sex is binary and the GCS is ordered discrete, so we cannot in the
 
 It is striking that the difference between imputation methods is very small: even though there are differences in the mean performance, these differences are minor compared to the variation of the performance for different CV splits. Even imputation by the mean, which is supposedly very inaccurate, is on par with other methods in terms of performance. We were not able to determine the reason for this: the relatively low proportion of missing data does not seem to be in cause as the same trend shows if we artificially add missing values.
 
-In what follows, the results are presented for normal imputation.
+We chose to use normal imputation. Thanks to the MIMVN implementation designed in Chapter \ref{validation}, we can perform Separate Imputation on the data in order to mimic exactly the real-world situation during CV.
 
 	\section{Results}
-We performed predictions on the Traumabase data as described above, for 16 different CV splits. Figure \ref{fig.final_pred} shows the average loss of each prediction (ours and the reference values) for different values of $\frac{c_1}{c_2}$. 
+We performed predictions on the Traumabase data as described above, for 16 different CV splits and the same choices of prediction models as before (logistic regression, RF, SVM). Figure \ref{fig.final_pred} shows the average loss of the predictions for different values of $\frac{c_1}{c_2}$, i.e.\ different possible costs for false negatives. 
 
 \input{Graphs/fig_final_pred}
 
@@ -64,12 +64,11 @@ First note that there are two possible main trends for the loss depending on the
 \item The loss decreases when $c_1$ increases: this means that the prediction tends to favor overpredicting HS, so it has fewer false negatives but more false positives. This is the case of all our predictions, as well as the TASH score and SAEM prediction.
 \end{itemize}
 
-When two predictions follow the same trend, it is easy to compare them as one is usually above the other regardless of the choice of weights. In particular, the ABC score seems to be strictly better at predicing hemorrhage than doctors, even though it is extremely simple in principle.
+When two predictions follow the same trend, it is easy to compare them as one is above the other regardless of the choice of weights. In particular, the ABC score seems to be better at predicing hemorrhage than doctors, even though it is extremely simple in principle.
 
 Likewise, we see that for the descending trend, the best predictor is without a doubt the SAEM regression, followed by the logistic regression with imputation, the random forest with imputation, the TASH score and the SVM with imputation in that order.
 
 Whether the ABC score should be preferred to other predictors depends on the choice of weights: for the SAEM prediction, the loss is lower than for ABC if $\frac{c_1}{c_2}$ is greater than approximately 3, while for the regression with imputation this happens for a ratio above 4.
 
-All in all, what this shows is that although imputation gives promising results, for a given model there is a tangible advantage to performing a joint prediction rather than separating imputation and prediction. 
-
-Still, imputing is a good first step: thanks to grouped imputation and subsequent prediction, we can evaluate a method's promise using only out-of-the box methods, without having to create a dedicated model. For instance, we can see that it is visibly not worth trying to implement a model for SVM with missing data. If for instance the performance on the imputed data had been better for RF than for logistic regression, it would have given us a strong case for building a missing-data random forest as a next step. Model selection using imputed datasets allows us to single out one method that we can then choose to improve by implementing it to work without imputation. 
+What this also shows is that although imputation gives promising results, the joint SAEM model outperforms it significantly.
+Still, imputing is a good first step: thanks to grouped imputation and subsequent prediction, we have evaluated many methods using only out-of-the box implementations, without having to create a dedicated model. For instance, we can see that it is visibly not worth trying to implement a model for SVM with missing data. Conversely the performance on the imputed data had been better for RF than for logistic regression, it would have given us a strong case for building a missing-data random forest as a next step. Model selection using imputed datasets allows us to single out one method that we can then choose to improve by implementing it to work without imputation. 
