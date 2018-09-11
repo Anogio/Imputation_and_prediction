@@ -1,0 +1,99 @@
+\documentclass[12pt, a4paper]{memoir}
+\usepackage{import}
+
+\usepackage{preamble}
+
+\begin{document}
+\pagenumbering{roman}
+
+\input{frontpage}
+
+\begin{vplace}[0.7]
+\begin{abstract}
+Hemorrhagic shock is a condition that can be life-threatening but that has much higher survival rates if treated early. It is also quite difficult to detect. Because of this, there is a strong case for a tool that predicts it based on prehospital measurement made on trauma patients. 
+
+The Traumabase dataset provides a large history of such measurements, and could be used to learn a model to predict hemorrhagic shock (Chapter \ref{data}). However, the presence of missing data complicates the task. In this work, we specifically explore missing data imputation, which consists in replacing missing values by credible ones in order to use complete-data methods on the dataset (Chapter \ref{imputation}). In a context where the final goal is prediction on new real-world patients, rather than parameter estimation, some questions arise regarding the way imputation should be implemented and used. Focusing on parametric models, we investigate methodologies that allow fast comparisons of imputation models (Chapter \ref{validation}) and discuss grouped imputation, a proxy for actual cross-validation performance. 
+
+The possible presence of missing values for new patients at the time of prediction (in addition to those in the records) means that some dynamics beyond parameter estimation appear. In a simplistic linear regression setting (Chapters \ref{linreg}), we show that parameter estimation and imputation can be optimal simultaneously, but that even in that case some error terms are introduced by missing data and do not tend to zero for large sample sizes.
+
+After investigating the issues linked to imputation in this context, we go back to the Traumabase and estimate its potential for hemorrhagic shock prediction (Chapter \ref{analysis}). We find that prediction is promising when compared with hand-made gravity scores or doctors' assessments, though SAEM, a joint optimization model, outperforms the models that use imputation.
+
+\end{abstract}
+\end{vplace}
+
+\newpage
+\vspace*{\fill}
+{\centering\huge\bfseries Acknowledgements\par}
+\bigskip
+\noindent I would first like to thank Pr.\ Julie Josse and Pr.\ Geoff Nicholls who supervised my work and were always available to talk about the challenges I encountered.
+
+I would also like to thank Pr.\ Jean-Pierre Nadal, Dr.\ Sophie Hamada and Dr.\ Tobias Gauss for their expertise on the Traumabase and their friendliness throughout the project.
+
+Thank you to Morgane for proofreading my work.
+\vspace*{\fill}
+\newpage
+
+%\vspace*{\fill}
+\tableofcontents*
+\vspace*{\fill}
+
+\addtocontents{toc}{\protect\vspace*{\fill}}
+%\chapter*{Introduction}
+\pagenumbering{arabic}
+%\addcontentsline{toc}{chapter}{Introduction}
+
+\chapter{Goal and data}
+\label{data}
+ \import{.}{1_chapter1}
+
+\chapter{Imputation}
+\label{imputation}
+\import{.}{2_chapter2}
+		
+\chapter{Methodology: imputation and the validation split}
+\label{validation}
+\import{.}{3_chapter3}
+		
+\addtocontents{toc}{\protect\vspace*{\fill}}
+\addtocontents{toc}{\protect\newpage} % used to split the toc over two pages		
+\addtocontents{toc}{\protect\vspace*{\fill}}		
+		
+\chapter{Impact of missing data: the case of linear regression}
+\label{linreg}
+\import{.}{4_chapter4} 
+
+\chapter{Imputation and prediction: Empirical findings}
+\label{empirical}
+\import{.}{5_chapter5}
+
+\chapter{Imputing the Traumabase data for prediction}
+\label{analysis}
+\import{.}{6_chapter6}
+
+\chapter*{Conclusion}
+\addcontentsline{toc}{chapter}{Conclusion}
+In this work, we investigated the possibility to predict hemorrhagic shock in trauma patients when performing imputation on both the training data and new observations. We placed ourselves in a context when three successive agents have to handle the data: an Imputer and an Analyst who work on some historical data, and a Practitioner on the field who does not have access to the training data and must diagnose a new patient.
+
+In order to evaluate a wide range of imputation methods, we investigated the possibility to use standard software packages to perform our task. Although in most cases this is impossible to do in full accordance with the principles of CV, we created an implementation that allows it, and used it to compare some alternatives. Grouped Imputation seemed promising as a fast to implement proxy for separate imputation.
+
+We studied a simplified case in order to better understand the specificities of our task and the dynamics of the loss in this case. We found that two apparently separate goals played a large part in a method's performance: parameter estimation on the training data and accurate imputation of the validation data. In this very simple setting, we show that these two objectives are actually compatible: when the imputation is done using the true conditional expectation and the estimation uses a consistent full-data method on the imputed data, then the imputation error is minimal and the parameter estimation remains consistent on the imputed data. 
+
+It also appears that some error terms, introduced by missingness in the validation data, do not disappear asymptotically --- and in our simplified setting, scale linearly with the proportion of missing validation error. This shows the importance of limiting the amount of missing data at the time of a real-world prediction, as one can never completely make up for the additional variance introduced by missing validation values --- \emph{in the case of imputation}. In the case of the Traumabase, this means we should focus on incentivising thorough data collection before prediction, while also investigating whether some covariates tend to have different missingness in the real sattent than in the database --- and try to avoid using predictor variables that have high missingness at the time of prediction.
+
+The final evaluation of imputation on the Traumabase data allowed us to compare multiple imputation and prediction models. While the choice of imputation model was not clear, logistic regression stood out as a better predictor than our other options. The SAEM logistic regression, which is an imputation-less version of the same regression model, gives significantly better results than prediction after imputation, which confirms the intuition that imputation involves a trade-off between ease of implementation and performance. Still, performing imputation allowed us to compare many prediction methods with minimal efforts, which had the potential to guide us in our future choices, and seemed to indicate that SAEM was a sound choice of model.
+
+We observed that SAEM performs better than doctors in our evaluations. Comparatively, whether or not our predictions outperform the ABC score depends on an arbitrary choice of weighting between false positives and false negatives. Such a choice should be made based on a medical consensus and would need further work to establish. All in all, these results very encouraging regarding the possibility to detect hemorrhagic shock very early: using only very basic measurements available early in the prehospital phase, we were able to build models that perform similarly to predictions that are usually made much later in the process (in-hospital doctor's assessment, ABC and TASH scores) --- remember, though, that some amount of human expertise is built into our model given that the total amount of injected expander is used as a predictor, and is mostly a proxy for the first responder's assessment of the patient's condition. 
+
+In the future, it would be worthwhile to quantify formally the gap in predictive performance between joint optimization and imputation followed by prediction with the same hypotheses (for instance, SAEM has the same distribution hypotheses as normal imputation followed by logistic regression: it is only the choice of parameters that differs). In the investigation of HS prediction, an important next step would be to understand what characteristics of the data make it hard to beat mean imputation even though many variables are correlated.
+\begin{appendices}
+\chapter{Simulated normal data}
+\label{simulation}
+\import{.}{Appendix1}
+
+\chapter{Abalone data}
+\label{abalone}
+\import{.}{Appendix2}
+\end{appendices}
+
+\bibliography{medical,stats,methods}
+\end{document}

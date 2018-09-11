@@ -8,7 +8,6 @@ library(sn)
 library(e1071)
 #############################"
 # X generators
-# These functions are used to load or simulate datasets
 
 X.basic.MVN = function(args){
   n. = args$n
@@ -22,7 +21,7 @@ X.basic.MVN = function(args){
   return(X)
 }
 
-# mvtnorm with two groups of variables correlated together
+# mvtnorm with two groups of variables
 X.two.groups.MVN = function(args){
   n. = args$n
   p. = args$p
@@ -42,17 +41,45 @@ X.two.groups.MVN = function(args){
   return(X)
 }
 
+X.random.mvn = function(args){
+  n. = args$n
+  p. = args$p
+  A <- matrix(runif(p.^2)*2-1, ncol=p.)
+  s <- t(A) %*% A
+  return(
+    rmvnorm(n., sigma=s)
+  )
+}
+
+X.skew = function(args){
+  n = args$n
+  p = args$p
+  rho = args$rho
+  alpha = args$alpha
+  A <- matrix(runif(p^2)*2-1, ncol=p)
+  s <- (1-rho)*diag(p) + rho
+
+  return(
+    rmsn(n,Omega=s, alpha=alpha*(1+(1:p)/p), xi=rep(0,p))
+  )
+}
+
 #############################
 # y generators
-# Used to generate/load the response variable
-
 y.regression = function(X, args){
-  # Basic noisy linear combination of X
+  #sigma_reg = args$sigma_reg
+  #beta = runif(ncol(X), 0.5, 1.5)
   beta = rep(1, ncol(X))
+  #beta = beta/sum(beta)
   y = X %*% beta + rnorm(nrow(X), 0, sqrt(args$sigma_reg))
   return(list(X=X, y=y, beta=beta))
 }
 
+y.firstCol = function(X, args){
+  return(list(X=X[,-1], y=X[,1]))
+}
+###########################
+# Abalone Data
 if(exists(aux.folder)){
   old = aux.folder
 }else{
@@ -63,7 +90,6 @@ source(paste(aux.folder,'dataloaders.R',sep=''), chdir = T)
 aux.folder = old
 
 X.load = function(args){
-  # To load a dataset defined in dataloader
   dataset = args$dataset
   n.= args$n
   return(list(n=n., ds=dataset))
@@ -76,13 +102,10 @@ y.load = function(X, args){
     list(X=as.matrix(dat_load$X_numeric), y=dat_load$y)
   )
 }
-###########################
 
-# Loaders for the abalone data
 X.abalone = function(args){args$dataset='abalone'; X.load(args)}
 y.abalone = y.load
 
-# Loaders for the trauma data
 X.trauma = function(args){args$dataset='trauma'; X.load(args)}
 y.trauma = function(X, args){
   data_folder = '../../../Data/'
@@ -94,9 +117,8 @@ y.trauma = function(X, args){
 
 #########################
 # Split
-
-# Split the dataset for cross_validation
 train_test_split = function(X,y, train_prop){
+  #intrain = base::sample(nrow(X), ceiling(train_prop*nrow(X)))
   intrain = createDataPartition(y, p=train_prop, list=FALSE)
   return(list(
     X.train = X[intrain,],
@@ -109,10 +131,6 @@ train_test_split = function(X,y, train_prop){
 
 #########################
 # Prediction
-# Package predictors in a standard way to change them easily in future code
-
-###
-# Linear regression
 pred.lin.train = function(X.train, y.train, weights=NULL){
   dat = data.frame(y=y.train, X=I(X.train))
   return(
@@ -126,8 +144,6 @@ pred.lin.predict = function(model, X.test){
 
 reg.lin = list(train=pred.lin.train, predict=pred.lin.predict)
 
-###
-# Logistic regression
 pred.logit.train = function(X.train, y.train, weights=NULL){
   dat_train = data.frame(y=y.train, X=I(X.train))
   return(
@@ -141,8 +157,6 @@ pred.logit.predict = function(model, X.test){
 
 reg.logit = list(train=pred.logit.train, predict=pred.logit.predict)
 
-###
-# RF prediction
 pred.rf.train = function(X.train, y.train){
   fitControl = trainControl(method = "none", classProbs = F)
   fittedM = train(X.train, y.train,
@@ -158,8 +172,7 @@ pred.rf.predict = function(model, X.test){
 }
 reg.rf = list(train=pred.rf.train, predict=pred.rf.predict)
 
-###
-# SVM prediction
+
 pred.svm.train = function(X.train, y.train){
   dat_train = data.frame(y=y.train, X=I(X.train))
   return(
@@ -173,10 +186,9 @@ pred.svm.predict = function(model, X.test){
 
 reg.svm = list(train=pred.svm.train, predict=pred.svm.predict)
 
-################
+######
 # Imputation
 imp.mean.train = function(X){
-  # Imputation by the mean
   return(colMeans(X, na.rm = T))
 }
 imp.mean.estim = function(mu, X){
@@ -189,30 +201,114 @@ imp.mean.estim = function(mu, X){
 
 ################################
 # Evaluation
-# Functions used to run some given code multiple times in parallel,
-# Usually in order to see the variation of the error
+################################
+# Evaluation
+evaluate.one.run = function(X.gen, y.gen, miss.gen, splitter, imputer, regressor){
+  X = X.gen()
+  y.g = y.gen(X)
+  y = y.g$y
+  X = y.g$X
 
-evaluate.S.run.general = function(S, args, evaluator, do.parallel=T, no_cores=4, seed=NULL){
-  # Runs evaluator S times and returns a dataframe of the results
-  # Evaluator should return a named list of scalar values
-  # Variables contained in args are passed on to the evaluator
-  
-  #/!\ For now the seeding system is quite intricate:
-  # We need two different kinds of seed
-  # - rngseed seeds a separate RNG for the norm package functions
-  # - the standard RNG is seeded with set.seed or clusertSetRNGStream
-  # The standard RNG cannot be seeded with set.seed if we then use a parallel function (eg parlapply).
-  # But for some reason, if we just seed using clusterSetRNGStream, then if we repeat the same code S
-  # time we get the same results every time (even though this function is supposed to set a *different* seed
-  # for each core). 
-  # This is why we use the 'seed.run' global variable for a quick fix to this:
-  # the code that calls evaluate.S.run will first declare a global seed.run variable, and also
-  # ensure that the evaluator function uses seed.run to set its own seed.
-  # This is why we increment seed.run at each run: it will be the actual seed of the run,
-  # but this must be implemented inside the evaluator
-  # There is probably a better fix, but this works: results are reproducible and the 
-  # S runs are independent
-  
+  X_f = X
+  #X = miss.gen(X)
+
+  grouped.imp.train = (imputer$train)(X)
+  grouped.imp = (imputer$estim)(grouped.imp.train, X)
+
+  spl = splitter(X,y)
+  rm(X)
+  rm(y)
+  X.train = (miss.gen$train)(spl$X.train)
+  X.test = (miss.gen$test)(spl$X.test)
+  y.train = spl$y.train
+  y.test = spl$y.test
+  datasets = list()
+
+  correct.imp.train = (imputer$train)(X.train)
+  X.train.correct = (imputer$estim)(correct.imp.train, X.train)
+  X.test.correct = (imputer$estim)(correct.imp.train, X.test)
+  datasets$correct = list(train=X.train.correct, test=X.test.correct)
+
+  separate.imp.train = (imputer$train)(X.test)
+  X.train.separate = datasets$correct$train
+  X.test.separate = (imputer$estim)(separate.imp.train, X.test)
+  datasets$separate = list(train=X.train.separate, test=X.test.separate)
+
+  withY.imp.train = (imputer$train)(cbind(X.train, y.train))
+  X.train.withY = (imputer$estim)(withY.imp.train, cbind(X.train, y.train))[,1:ncol(X.train)]
+  withY.imp.train2 = (imputer$train)(X.train.withY) # Refit with the imputed data
+  X.test.withY = (imputer$estim)(withY.imp.train2, X.test)
+  datasets$withY = list(train=X.train.withY, test=X.test.withY)
+
+  mean.imp.train = imp.mean.train(X.train)
+  X.train.mean = imp.mean.estim(mean.imp.train, X.train)
+  X.test.mean = imp.mean.estim(mean.imp.train, X.test)
+  datasets$mean = list(train=X.train.mean, test=X.test.mean)
+
+  #X.train.grouped = (imputer$estim)(grouped.imp.train, X.train)
+  #X.test.grouped = (imputer$estim)(grouped.imp.train, X.test)
+  X.train.grouped = grouped.imp[spl$inTrain,]
+  X.test.grouped = grouped.imp[-spl$inTrain,]
+  datasets$grouped = list(train=X.train.separate, test=X.test.separate)
+
+  datasets$fullData = list(train=X_f[spl$inTrain,], test=X_f[-spl$inTrain,])
+  datasets$fullTrain = list(train=X_f[spl$inTrain,], test=X.test.correct)
+  datasets$fullTest = list(train=X.train.correct, test=X_f[-spl$inTrain,])
+
+  regressors.fit = lapply(datasets,
+                          function(x) {(regressor$train)(x$train, y.train)})
+
+  predictions = lapply(names(datasets), function(x){(regressor$predict)(regressors.fit[[x]], datasets[[x]]$test)})
+  names(predictions) = names(datasets)
+  predictions$trueBeta = as.numeric(X.test.correct %*% matrix(1:ncol(X.train), ncol=1))
+
+
+  predictions_MI = matrix(NA, nrow=length(y.test), ncol=m)
+  pre = prelim.norm(X.test)
+  for(i in 1:m){
+    X.test.MI = imp.norm(pre, correct.imp.train, X.test)
+    predictions_MI[,i] = (regressor$predict)(regressors.fit$correct, X.test.MI)
+  }
+  predictions$MI_testOnly = rowMeans(predictions_MI)
+
+  errors = lapply(predictions, function(x){mean((x-y.test)^2)})
+
+  return(errors)
+}
+
+evaluate.S.run = function(S, X.gen, y.gen, miss.gen, splitter, imputer, regressor, evaluator=evaluate.one.run, do.parallel=T, no_cores=4){
+  MSE.correct = c()
+  MSE.grouped = c()
+  MSE.separate = c()
+
+  f= function(i){
+    rngseed(seed+i)
+    evaluator(X.gen, y.gen, miss.gen, splitter, imputer, regressor)
+  }
+  if(do.parallel){
+    cl <- makeCluster(no_cores, type='FORK')
+    clusterSetRNGStream(cl, seed)
+    z = pblapply(cl=cl, X=1:S, FUN=f)
+    stopCluster(cl)
+  }
+  else{
+    z = pblapply(X=1:S, FUN=f)
+  }
+
+  zz <- lapply(z, `[`, names(z[[1]]))
+  res = apply(do.call(rbind, zz), 2, as.list)
+
+  #for(i in 1:S){
+  #  r = evaluate.one.run(X.gen, y.gen, miss.gen, splitter, imputer, regressor, imp.MI)
+  #  MSE.correct = c(MSE.correct, r$correct)
+  #  MSE.grouped = c(MSE.grouped, r$grouped)
+  #  MSE.separate = c(MSE.separate, r$separate)
+  #}
+  #return(list(correct=MSE.correct, grouped=MSE.grouped,separate=MSE.separate))
+  return(lapply(res, unlist))
+}
+
+evaluate.S.run.general = function(S, args, evaluator=evaluate.one.run, do.parallel=T, no_cores=4, seed=NULL){
   f= function(i){
     if(!is.null(seed)){
       rngseed(seed+i)
@@ -234,7 +330,6 @@ evaluate.S.run.general = function(S, args, evaluator, do.parallel=T, no_cores=4,
     z = pblapply(X=1:S, FUN=f)
   }
 
-  # Manipulations to get from the results to a useful dataframe 
   zz <- lapply(z, `[`, names(z[[1]]))
   res = apply(do.call(rbind, zz), 2, as.list)
 
@@ -242,25 +337,13 @@ evaluate.S.run.general = function(S, args, evaluator, do.parallel=T, no_cores=4,
 }
 
 expand_args = function(argsList){
-  # Gets a list of vectors and creates a list of list where each list is one
-  # Possible combination of the values in the vectors
-  # Example:
-  # expand_args(list(arg_a=c(1,2), arg_b=c(3,4)))
-  # => list(1=list(a=1,b=3), 2=list(a=1,b=4), 3=list(a=2,b=3), 4=list(a=2,b=4))
-  
-  # Used for parameter exploration
   args.df = expand.grid(argsList)
   return(
     split(args.df, seq(nrow(args.df)))
   )
 }
 
-evaluate.S.run.multiArg = function(S, argsList, evaluator, do.parallel=T, stackAll=F, no_cores=4){
-  # For every possible combination in argsList, performs S runs of the evaluator
-  # If stackAll==T, then all of the results are returned without aggregation,
-  # otherwise for each set of parameter the mean is returned
-  # The dataframe of results contains as columns the values returned by the evaluator,
-  # and the arguments
+evaluate.S.run.multiArg = function(S, argsList, evaluator=evaluate.one.run, do.parallel=T, stackAll=F, no_cores=4){
   args.df = expand.grid(argsList)
   argsList = expand_args(argsList)
 

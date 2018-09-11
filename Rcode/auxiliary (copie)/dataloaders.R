@@ -1,34 +1,42 @@
 library(tidyverse)
 library(caret)
 
-# Fuctions for convenient loading, cleaning and standardization of the datasets we use 
-
 #############################
 # Information on each dataset, used for automatic loading
 #\\TODO Put all of this in a separate configuration file
 data_folder = '../../Data/'
 
 files = list(
+  iris = 'iris.csv',
+  titanic = 'titanic.csv',
   trauma = 'hemo_shock.csv',
   trauma_new = 'hemo_shock_new.csv',
   abalone = 'abalone.csv'
 )
 response_type_categorical = list(
+  iris = T,
+  titanic = T,
   trauma = T,
   trauma_new = T,
   abalone = F
 )
 y_columns = list(
+  iris = 5,
+  titanic = 2,
   trauma = 39,
   trauma_new = 19,
   abalone = 9
 )
 cat_columns = list(
+  iris = c(),
+  titanic = c(3, 5, 12),
   trauma = c(2, 6:21, 28:30, 33:35),
   trauma_new = c(2, 6, 13, 16),
   abalone = c(1)
 )
 num_columns = list(
+  iris = 1:4,
+  titanic = c(6:8, 10),
   trauma = c(1, 3:5, 22:27, 31, 32, 36:38),
   trauma_new = c(1, 3:5, 7:12, 14, 15, 17, 18),
   abalone = 2:8
@@ -98,7 +106,7 @@ loader <- function(dataset, max_rows=NULL, seed=NULL){
 }
 
 ################
-# Data cleaners to generate CSV files for the loader
+# Data clearners to generate CSV files for the loader
 
 clean_trauma <- function(){
   traumdata <- read.csv(file=paste(data_folder,'data_trauma.csv', sep=''), header = TRUE,na.strings = c("","NR","IMP","NA","NF"),encoding = "UTF-8")
@@ -141,7 +149,6 @@ clean_trauma <- function(){
 clean_trauma()
 
 ###############
-# For the new database with different columns
 correspondences = list(
   "PASh" = "PAS",
   "PASphmin" = "PAS.min",

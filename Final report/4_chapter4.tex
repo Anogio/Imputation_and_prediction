@@ -1,0 +1,220 @@
+In order to make good decisions for imputation, it is important to understand how it impacts prediction. To gain a better understanding of this issue, we solve a very simple case of cross-validated linear regression with missing data. Although quite restrictive, this situation provides some insights into the way that missing data impacts prediction performance. In particular, we want to get an intuition of what makes this situation different from one of pure parameter estimation (i.e., without a Practitioner), and the implications of missing data in a prediction context.
+
+We first describe the setting and notation. Then (\ref{linreg.analysis}) we derive some results on the behaviour of the loss. We first show that in this case there is a very simple relationship between the amount of missing data and the loss (Prop.\ \ref{prop.linear}). Then we move on to asymptotic results and show that while prediction and parameter estimation can be optimised simultaneously by choosing the right imputation (Prop.\ \ref{prop.consistency}), the imputation uncertainty introduces some new error terms that do not vanish for large $n$ (Prop.\ \ref{prop.error}).
+
+	\section{Problem set-up}
+We place ourselves in a linear regression setup with cross-validation (cf Chapter \ref{validation}). The data is split between a training dataset $X_A, y_A$ and validation dataset $X_V, y_V$. We use the multi-agent framework described in \ref{framework}.
+		\subsection{Notations}
+			\subsubsection{God's data}
+The response variable is a noisy linear combination of the covariates in $X$:
+\begin{equation*}
+\tilde{X}_A = 
+\begin{pmatrix}
+x_{11} & x_{12} \\
+\vdots & \vdots \\
+x_{n1} & x_{n2}
+\end{pmatrix}
+\quad \mathrm{and} \quad
+y_A = X_A \beta + \epsilon_A
+\quad \mathrm{with} \quad
+\epsilon_A \sim \mathcal{N}(0, \sigma^2)
+\end{equation*}
+\begin{equation*}
+\tilde{X_V} = 
+\begin{pmatrix}
+x_{11}^V & x_{12}^V \\
+\vdots & \vdots \\
+x_{n_V1}^V & x_{n_V2}^V
+\end{pmatrix}
+\quad \mathrm{and} \quad
+y_V = X_V \beta + \epsilon_V
+\quad \mathrm{with} \quad
+\epsilon_V \sim \mathcal{N}(0, \sigma^2)
+\end{equation*}
+
+The true data $X$ follows some distribution $X \sim \pi$ where the lines of $X$ are independent and identically distributed (i.i.d). We investigate the simplest case where the Imputer knows $\pi$.
+
+			\subsubsection{Observed data}
+The observed data is God's data with some missing values. Specifically, some observations are missing from the first column of each dataset. We observe the full $y^A$, but the covariate matrices we actually have access to are:
+\begin{equation*}
+X_A = 
+\begin{pmatrix}
+? & x_{12} \\
+\vdots & \vdots \\
+? & x_{k_A2} \\
+x_{(k_A+1)1} & x_{(k_A+1)2}\\
+\vdots & \vdots \\
+x_{n1} & x_{n2}
+\end{pmatrix}
+\end{equation*}
+
+which is sent to the Imputer, and
+
+\begin{equation*}
+X_V = 
+\begin{pmatrix}
+? & x_{12}^V \\
+\vdots & \vdots \\
+? & x_{k_V 2}^V \\
+x_{(k_V+1)1}^V & x_{(k_V+1)2}^V\\
+\vdots & \vdots \\
+x_{n_V 1}^V & x_{n_V 2}^V
+\end{pmatrix}
+\end{equation*}
+
+which is sent to the Practitioner. That is, there are $k_A$ and $k_v$ missing values in the datasets (the mechanism is MCAR).
+
+Note that the datasets have a different status. The training dataset is available to the Imputer then the Analyst at the time of analysis, it is some given historical data. The validation dataset is some future data available only to the Practitioner who will perform a black-box prediction based on the Analyst's and the Imputer's indications. That is why when we take expectations in this chapter, we will condition only on the observed data $X_A$ while we integrate on $X_V, \epsilon_A, \epsilon_V$ and the missing data $X_A^{\text{miss}}, X_V^{\text{miss}}$ which are all unknowns at the time of analysis. 
+
+		\subsection{Imputed data and regression}
+			\subsubsection{Principle}
+The Imputer fits an imputation model $g(\cdot, \alpha)$ and fills in $X_A$ and instructs the Practitioner on how to impute $X_V$. The resulting filled-in datasets are:
+
+\begin{equation*}
+\hat{X}_A = 
+\begin{pmatrix}
+g(x_{12},\hat{\alpha}) & x_{12} \\
+\vdots & \vdots \\
+g(x_{k_A 2},\hat{\alpha}) & x_{k_A 2} \\
+x_{(k_A+1)1} & x_{(k_A+1)2}\\
+\vdots & \vdots \\
+x_{n 1} & x_{n 2}
+\end{pmatrix}
+\quad \mathrm{and} \quad
+\hat{X}_V = 
+\begin{pmatrix}
+g(x_{12}^V,\hat{\alpha}) & x_{12}^V \\
+\vdots & \vdots \\
+g(x_{k_V 2}^V,\hat{\alpha}) & x_{k_V 2}^V \\
+x_{(k_V+1)1}^V & x_{(k_V+1)2}^V\\
+\vdots & \vdots \\
+x_{n_V 1}^V & x_{n_V 2}^V
+\end{pmatrix}
+\end{equation*}
+
+Then, $\hat{X}_A$ is sent by the Imputer to the Analyst. The Analyst only has access to $\hat{X}_A$ and $y_A$. 
+The end goal is to learn an estimator on the training set that minimizes the expected loss on the validation set:
+$$
+L(y_V, \hat{y}_V) = \norm{y_V - \hat{y_V}}^2
+$$
+
+In line with the principles of ERM and CV (cf Chapter \ref{validation}), the Analyst minimizes the equivalent quantity in the training set. Assuming a linear relationship between the covariates and response, the least-squares estimate for $\beta$ is standard \cite{seber2012linear}
+$$
+\hat{\beta}_n = (\hat{X}_A^T \hat{X}_A)^{-1} \hat{X}_A^T y_A 
+$$
+
+$\hat{\beta}$ is then transferred to the Practitioner who can use it to compute a prediction
+$$\hat{y}_V = \hat{X}_V \hat{\beta}_n $$
+
+which will be compared to $y_V$:
+
+$$L(\hat{y}_V, y_V) = \sum\limits_{i=1}^{n_V} (y_V^{(i)} - \hat{y}_V^{(i)})^2$$
+Our end goal is to minimise this metric. 
+
+In what we described above, the actions of the Analyst and the Practitioner are completely determined. On the other hand, we have not specified how the Imputer proceeds to the imputation. We want to investigate the effect of the choice of imputation on the expected loss:
+
+$$R = \mathbb{E}_{\tilde{X}_V, X_A^{miss}, \epsilon_A, \epsilon_V}[(y_V^{(i)} - \hat{y}_V^{(i)})^2 \vert X_A]$$ %\footnote{Even though what we ultimately want is a decision rule for $\phi$ and $\psi$, they are only a function of the observed data $X_A$, $X_V$, which is fixed here. For simplicity of notation, we write $\phi$ and $\psi$ as constant values}
+
+	\section{Analysis}
+	\label{linreg.analysis}
+Now that we chosen a setting, we can study how the expected CV loss behaves in this context where we perform imputation, followed by parameter estimation and prediction.
+
+		\subsection{Expected loss}
+To be able to estimate the expected loss, we break it up into several components. We first denote 
+$$
+\tilde{\beta}_n = (\tilde{X}_A^T \tilde{X}_A)^{-1} \tilde{X}_A^T y_A 
+$$
+
+the estimated parameter we would obtain if the training data were completely observed. We consider the loss for the $i^{\text{th}}$ line of validation data $x_i^V$:
+
+\begin{align*}
+L_i(y_V, \hat{y}_V) &= (y_V - \hat{y_V})^2 &\\
+				&= (\tilde{x}_i^V \beta + \epsilon_V - \hat{x}_i^V \hat{\beta}_n)^2 &\\
+				   &= (\tilde{x}_i^V(\beta - \tilde{\beta}_n) + \tilde{x}_i^V (\tilde{\beta}_n - \hat{\beta}_n) + (\tilde{x}_i^V - \hat{x}_i^V) \hat{\beta}_n + \epsilon_V)^2 & \\
+				   &= (\tilde{x}_i^V (\beta - \tilde{\beta}_n))^2 & (1) \\
+				   & \quad + (\tilde{x}_i^V (\tilde{\beta}_n-\hat{\beta}_n))^2 &(2) \\
+				   & \quad + ((\tilde{x}_i^V - \hat{x}_i^V) \hat{\beta}_n)^2 &(3) \\
+				   & \quad +2 \tilde{x}_i^V (\beta - \tilde{\beta}_n) \tilde{x}_i^V (\tilde{\beta}_n - \hat{\beta}_n) & (4) \\
+				   & \quad +2 \tilde{x}_i^V (\beta - \tilde{\beta}_n) (\tilde{x}_i^V - \hat{x}_i^V )\hat{\beta}_n & (5) \\
+				   & \quad +2 \tilde{x}_i^V (\tilde{\beta}_n - \hat{\beta}_n) (\tilde{x}_i^V - \hat{x}_i^V) \hat{\beta}_n & (6)\\
+				   & + \epsilon_V^2 &\\
+				   & + \epsilon_V C
+\end{align*}
+
+Where $C$ is some term that will not matter (since it will not count in the expectation --- $\epsilon_V$ has zero expectation and is independent of the other terms). We can see that terms $(1), (2)$ and $(4)$ depend only on the imputation of the training values ($\hat{x}^V$ is absent), while terms $(3)$, $(5)$ and $(6)$ are linked to the interaction between the training and validation imputations.
+
+\paragraph{Influence of missing validation values}
+
+Let us define $r_V = \frac{k_V}{n_V}$ the proportion of missing values in the validation dataset and $r_A = \frac{k_A}{n_A}$ . The other lines are fully observed. Then for $r_A$ fixed, the expected value error depends linearly on $r_V$. More precisely,
+
+\begin{proposition}
+\label{prop.linear}
+$$ \mathbb{E}_{\tilde{X_V}, X_A^{miss}, \epsilon_A, \epsilon_V}[\sum\limits_{i=1}^{n_V} L_i \vert X_A] = A + \sigma^2 + Br_V$$
+for some $A,B$ depending only on the training data.
+\end{proposition}
+\begin{proof}
+The expected values of terms $(1),(2),(4)$ are the same for all the lines of the validation set --- in these three terms, the only variable that depends on the validation data is $\tilde{x}_i^V$ and it has the same distribution for all lines because the lines are i.i.d.\ . For terms $(3), (5), (6)$ there are two possibilities: if there is no missing data in the row, these terms are zero ($\tilde{x}_i^V = \hat{x}_i^V$). If a value is missing, they are nonzero but their expectations are the same for all lines with missing data --- because the validation values are i.i.d.\ (and thus exchangeable) and we integrate over them in the expectation. 
+
+Consequently, we can express the expected loss as:
+
+\begin{align}
+\label{eq.loss}
+\mathbb{E}_{\tilde{X_V}, X_A^{miss}, \epsilon_A, \epsilon_V}[\sum\limits_{i=1}^{n_V} L_i] = &\underbrace{\mathbb{E}_{\tilde{X_V}, X_A^{miss}, \epsilon_A, \epsilon_V}[(1) + (2) + (4)\vert X_A]}_{A} + \\ 
+r_V& \underbrace{\mathbb{E}_{\tilde{X_V}, X_A^{miss}, \epsilon_A, \epsilon_V}[(3) + (5) + (6)\vert X_A]}_{B} + \sigma^2
+\end{align}
+
+Thus, for $X_A$ fixed and for a given imputation rule, the expected loss is $A + \sigma^2 + Br_V$ with $A$ and $B$ fixed, and the expected loss depends linearly on the proportion of missing values. 
+\end{proof}
+
+%\begin{proposition}
+%\label{prop.increase}
+%If $\tilde{\beta}$ and $\hat{\beta}$ are consistent, and $\beta_1 \neq 0$, then for $n_A$ large enough the error increases with the proportion of missing validation data.
+%\end{proposition} 
+%\begin{proof}
+%Consistency ensures that $\norm{(\beta-\hat{\beta}}$ and $\norm{(\beta-\tilde{\beta}}$ can be made arbitrarily small by increasing $n$. Using the Cauchy-Schwarz inequality, this implies terms $(5)$ and $(6)$ can be arbitrarily small, and so (using Jensen's inequality) can the norm of their expectaion.
+
+%In addition:
+
+%\begin{align*}
+%\mathbb{E}((3)) &=\mathbb{E}[((\tilde{x}_i^V - \hat{x}_i^V) \hat{\beta}_n)^2] \\ 	
+%			&\ge  \mathbb{E}[((\tilde{x}_i^V - \hat{x}_i^V) \hat{\beta}_n)]^2 \\
+%			&=  (\mathbb{E}[(x_1^V - \hat{x_1^V})\mathbb{E}[\hat{\beta}_{n1}])^2
+%\end{align*}
+
+%Where $(x_1^V - \hat{x_1^V})$ is nonzero if the observation is missing and $\hat{beta}_{n1}$ can be made arbitrarily close to $\beta_1$ by increasing n (so in particular, nonzero). This means that for $n$ large enough, term $(3)$ dominates $B$ and is positive so $B >0$.
+%\end{proof}
+
+\paragraph{Consistency}
+In linear regression without missing data, the estimation of the parameter is consistent\cite{consistency_linreg}, that is in our case $\tilde{\beta}_n$ is a consistent estimate of $\beta$. Moreover, Little \cite{little1992missingX} studied parameter estimation with missing values and showed:
+
+\begin{proposition}
+\label{prop.consistency}
+If the missing data is MCAR and the imputed values are the expected values of the unobserved data conditioned on the observed data ($\hat{x} = \mathbb{E}[x \vert x_{\text{obs}}$), then the least-square estimator $\hat{\beta}_n$ is consistent for $\beta$ (when the proportion $r_A$ is fixed).
+\end{proposition}
+
+When this holds, another result is immediate:
+\begin{proposition}
+\label{prop.error}
+If $\tilde{beta}, \hat{\beta}$ are consistent, then all terms but $(3) + \epsilon_V^2$ in the loss tend to 0 when $n\rightarrow \infty$. 
+\end{proposition}
+
+This is important because it means that there is a new variance term in the error: in addition to the usual regression variance term, there is a term linked to the variance of the missing values that does not vanish asymptotically.
+
+ Additionally, term $(3)$ is zero for lines without missing data, and for lines with missing data its expectation is:
+$$ \mathbb{E}[((\tilde{x}_i^V - \hat{x}_i^V) \hat{\beta}_n)^2] = \mathbb{E}[(\hat{\beta}_n^{(2)})^2] \mathbb{E}[(x_{i2}^V - \hat{x}_{i2}^V)^2] $$
+
+Which is minimized by the choice of imputation $\hat{x}_{i2}^V = \mathbb{E}[x_{i2}^V]$: this is the same choice that we need in Proposition \ref{prop.consistency} to ensure that the estimation is consistent. In this sense, the goal of having a good imputation does not clash with parameter estimation.
+		\subsection{Consequences}
+Two main insights come out of this analysis:
+
+\begin{itemize}
+\item In this example, imputing with the conditional expectation of the missing data is the right choice both for parameter estimation (Prop.\ \ref{prop.consistency}) and for prediction (to minimize term $(3)$): these two goals are compatible here.
+
+\item On the other hand, uncertainty on the true values in the validation dataset adds some terms to the error that do not go away asymptotically (term $(3)$). 
+\end{itemize}
+
+In particular, there is a direct (linear here) repercussion of missing validation data as error, while error terms from missing training data can be decreased arbitrarily with larger samples sizes.
+
+This last point is noteworthy for our purposes, because although training and validation data have the same distribution by hypothesis, in some cases the missingness could be somehow different between those datasets. 
+
+For instance, in the Traumabase it is possible that missing data comes from doctors who fail to record some values in the database, although the data was available when treating the patient. In that case when real-world prediction are made, there may be less missing values than there were when we performed CV and model selection. On the contrary, maybe some values --- such as the patient's age --- were collected late in the process and would have been unavailable for the prehospital diagnostic. Proposition \ref{prop.linear} shows that this matters, and that efforts to reduce the amount of missing data at the time of real-world predictions (e.g.\ incentivising the practitioner to enter more measurements) may have a more direct effect on performance than efforts to reduce missing data in the database (e.g.\ by improving the collection of patient data a posteriori). 

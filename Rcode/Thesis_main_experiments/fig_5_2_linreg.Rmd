@@ -1,0 +1,158 @@
+```{r setup, include=FALSE}
+library(tidyverse)
+library(MLmetrics)
+```
+
+In this file we explore the impact of adding missing values in the training and validation datasets, depending on the sample size. C.f. chapter 5.1 of the dissertation
+
+```{r}
+aux.folder = '../auxiliary/'
+source(paste(aux.folder,'MVN_imputation.R',sep=''), chdir = T)
+source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
+source(paste(aux.folder,'prediction_methods.R',sep=''), chdir = T)
+source(paste(aux.folder,'simulation_methods.R',sep=''), chdir = T)
+data_folder = '../../Data/'
+dataset = 'abalone'
+
+
+seed = ceiling(runif(1,1e3,1e5))
+print(seed)
+seed.run = 124
+
+themer = function(sizeAxis = 10, sizeAxisTitle=13,
+                  sizeLegend=15, sizeStrip = 15, angle=T, boldX=F){
+  if(angle){
+    a=45
+    h=1
+  }
+  else{
+    a=0
+    h=0.5
+  }
+  if(boldX){
+    xface = 'bold'
+  }
+  else{
+    xface=NULL
+  }
+  return(
+    theme(axis.text.y= element_text(size=sizeAxis),
+          axis.text.x=element_text(size=sizeAxis,
+                                   angle=a, hjust=h, face=xface),
+          axis.title = element_text(size=sizeAxisTitle),
+          legend.text=element_text(size=sizeLegend),
+          legend.title=element_text(size=0,
+                                    face='bold'),
+          strip.text.x = element_text(size=sizeStrip,
+                                      face='bold'))
+  )
+}
+``` 
+
+```{r}
+oneRun = function(args){
+  # Get parameters
+  for(name in names(args)){
+    assign(name, args[[name]])
+  }
+  if(exists('seed.run')){
+    set.seed(seed.run)
+    print('seeded')
+    print(seed.run)
+  }
+  # Generate data
+  X = X.gen(args)
+  y.g = y.gen(X,args)
+  
+  y = y.g$y
+  X = y.g$X
+  print(p)
+  X = X[,1:p]
+  X_f = X
+  
+  # Make CV split
+  spl = train_test_split(X, y, train_prop)
+  X.train = spl$X.train
+  X.test = spl$X.test
+  y.train = spl$y.train
+  y.test = spl$y.test
+  
+  # Add missing values
+  X.train = MCAR.noEmptyLines(X.train, miss_prop)
+  X.test = MCAR.noEmptyLines(X.test, miss_prop)
+  X.train_f = X[spl$inTrain,]
+  X.test_f = X[-spl$inTrain,]
+  
+  # Impute the dataset
+  imp.norm = imp.mvnorm.train(X.train)
+  X.train = imp.mvnorm.estim(imp.norm, X.train)
+  X.test = imp.mvnorm.estim(imp.norm, X.test)
+  
+  datasets = list()
+  datasets$full = list(train=X.train_f, test=X.test_f)
+  datasets$fullTrain = list(train=X.train_f, test=X.test)
+  datasets$fullTest = list(train=X.train, test=X.test_f)
+  datasets$miss = list(train=X.train, test=X.test)
+  
+  # Perform the regression in each case
+  regressors.fit = lapply(datasets,
+                      function(x) {(regressor$train)(x$train, y.train)})
+  # Predict
+  predictions = lapply(names(datasets), function(x){(regressor$predict)(regressors.fit[[x]], datasets[[x]]$test)})
+  names(predictions) = names(datasets)
+  
+  # Compute MSE
+  errors = lapply(predictions, function(x){mean((x-y.test)^2)})
+  
+  return(errors)
+}
+```
+
+## Simulated data
+```{r}
+X.gen = X.basic.MVN
+y.gen = y.regression
+regressor = reg.lin
+argsL = list(n=seq(200,1000,50),
+            rho= 0.5,
+            sigma_reg = 1,
+            train_prop=0.7,
+            miss_prop=0.3,
+            p=45
+)
+S = 5
+res.varN.sim = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+
+```
+```{r}
+res.varN.sim %>% transmute('Missing train data'=fullTest, 'Missing validation data'=fullTrain, 'Missing in both'=miss, 'Fully observed data'=full, n=n, p=p, train_prop) %>% #filter(n>300) %>%
+  gather('method', 'error', -c(n,p, train_prop)) %>% filter(p/n<0.2) %>%
+ggplot() + aes(x=n*train_prop, y=error, color=method) + geom_line() + scale_y_log10() + themer(angle=F) +
+  scale_color_manual(values=c('black', 'red','darkblue', 'forestgreen')) +
+  xlab(expression(n[A])) + ylab('Validation MSE')
+```
+
+# Abalone data
+
+```{r}
+X.gen = X.abalone
+y.gen = y.abalone
+regressor = reg.lin
+argsL = list(n=seq(200,2000,50),
+            train_prop=0.7,
+            miss_prop=0.3,
+            p=7
+)
+S = 20
+res.varN.ab = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+
+```
+```{r}
+res.varN.ab %>% transmute('Missing train data'=fullTest, 'Missing validation data'=fullTrain, 'Missing in both'=miss, 'Fully observed data'=full, n=n, p=p, train_prop) %>%
+  gather('method', 'error', -c(n,p, train_prop)) %>% filter(p/n<0.2) %>%
+ggplot() + aes(x=n*train_prop, y=error, color=method) + geom_line() +  themer(angle=F) +#scale_y_log10() +
+  scale_color_manual(values=c('black', 'red','darkblue', 'forestgreen')) +
+  xlab(expression(n[A])) + ylab('Validation MSE')
+```
+
+

@@ -1,10 +1,5 @@
 library(norm)
 
-## Functions to perform normal imputation by the conditional mean,
-# while separating imputation and training.
-# Same code as in the SIMVN package https://github.com/Anogio/SIMVN
-
-
 # Replacement for the prelim.norm function that uses int64 values in order to accomodate up to 64 columns with mising values
 prelim.norm2 = function (x)
 {
@@ -78,8 +73,6 @@ imp.mvnorm.train = function(X, verbose=F){
 }
 
 to_matrix = function(x, horiz){
-  # Helper function to convert to matrix, handling the case where x is a vector
-  # And we want to make sure we keep a specific orientation (horizontal/vertical)
   if(!is.null(dim(x))){
     return(x)
   }
@@ -94,7 +87,6 @@ to_matrix = function(x, horiz){
 }
 
 estimate.1row = function(row, s, m){
-  # Auxiliary function to impute one row of data
   miss_col = is.na(row)
   nmiss = sum(miss_col)
   if(nmiss>0){
@@ -113,11 +105,14 @@ estimate.1row = function(row, s, m){
 }
 
 imp.mvnorm.estim = function(fittedM, X){
-  # Impute the dataset using a previously fitted model
   params = fittedM$params
+  #print(dim(X))
+  #thetahat <- em.norm(pre)
   sigma = params$sigma
   mu = params$mu
   X = t(apply(X, 1, partial(estimate.1row, s=sigma, m=mu)))
+  #print(dim(X))
+  #print('')
   return(X)
 }
 

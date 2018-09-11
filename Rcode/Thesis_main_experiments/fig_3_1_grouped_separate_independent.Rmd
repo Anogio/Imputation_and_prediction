@@ -1,0 +1,155 @@
+Code to generate the graphs for the figures in chapter 3.
+
+We perform the three different ways of imputing (Separate, Grouped, Independent) and compare the validation MSE after imputation and prediction
+
+```{r setup, include=FALSE}
+library(missForest)
+library(missMDA)
+
+aux.folder = '../auxiliary/'
+source(paste(aux.folder,'MVN_imputation.R',sep=''), chdir = T)
+source(paste(aux.folder,'generate_missing.R',sep=''), chdir = T)
+source(paste(aux.folder,'simulation_methods.R',sep=''), chdir = T)
+data_folder = '../../Data/'
+dataset = 'abalone'
+
+seed = ceiling(runif(1,1e3,1e5))
+print(seed)
+seed.run = 123
+
+themer = function(sizeAxis = 10, sizeAxisTitle=13,
+                  sizeLegend=15, sizeStrip = 15, angle=T, boldX=F){
+  if(angle){
+    a=45
+    h=1
+  }
+  else{
+    a=0
+    h=0.5
+  }
+  if(boldX){
+    xface = 'bold'
+  }
+  else{
+    xface=NULL
+  }
+  return(
+    theme(axis.text.y= element_text(size=sizeAxis),
+          axis.text.x=element_text(size=sizeAxis,
+                                   angle=a, hjust=h, face=xface),
+          axis.title = element_text(size=sizeAxisTitle),
+          legend.text=element_text(size=sizeLegend),
+          legend.title=element_text(size=sizeLegend,
+                                    face='bold'),
+          strip.text.x = element_text(size=sizeStrip,
+                                      face='bold'))
+  )
+}
+```
+
+```{r}
+oneRun = function(args){
+
+  for(name in names(args)){
+    assign(name, args[[name]])
+  }
+  
+  # Generate data
+  X = X.gen(args)
+  y.g = y.gen(X,args)
+  
+  y = y.g$y
+  X = y.g$X
+
+  # Make the split
+  spl = train_test_split(X, y, train_prop)
+  X.train = spl$X.train
+  X.test = spl$X.test
+  y.train = spl$y.train
+  y.test = spl$y.test
+
+  X_f = X
+
+  # Add missing values
+  X.train = MCAR.noEmptyLines(X.train, miss_prop)
+  X.test = MCAR.noEmptyLines(X.test, miss_prop)
+  
+  # Perform the different imputations
+  datasets = list()
+  imp.grouped = imp.mvnorm.train(rbind(X.train, X.test))
+  imp.train = imp.mvnorm.train(X.train)
+  imp.test = imp.mvnorm.train(X.test)
+  datasets$grouped = list(train=imp.mvnorm.estim(imp.grouped, X.train), test=imp.mvnorm.estim(imp.grouped, X.test))
+  datasets$separate = list(train=imp.mvnorm.estim(imp.train, X.train), test=imp.mvnorm.estim(imp.test, X.test))
+  datasets$correct = list(train=imp.mvnorm.estim(imp.train, X.train), test=imp.mvnorm.estim(imp.train, X.test))
+  datasets$full = list(train=X_f[spl$inTrain,], test=X_f[-spl$inTrain,])
+  
+  X.missForest = missForest(rbind(X.train, X.test))$ximp
+  datasets$MF.grouped = list(train=X.missForest[1:nrow(X.train),], test=X.missForest[-(1:nrow(X.train)),])
+  X.train.MF = missForest(X.train)$ximp
+  X.test.MF = missForest(X.test)$ximp
+  datasets$MF.independent = list(train=X.train.MF, test=X.test.MF)
+  
+  # Fit models
+  regressors.fit = lapply(datasets,
+                          function(x) {(predictor$train)(x$train, y.train)})
+  # Perform prediction
+  predictions = lapply(names(datasets), function(x){(predictor$predict)(regressors.fit[[x]], datasets[[x]]$test)})
+  names(predictions) = names(datasets)
+  
+  errors = lapply(predictions, function(x){errFun(x,y.test)})
+  return(errors)
+}
+```
+
+## Simulated data
+```{r}
+X.gen = X.basic.MVN
+y.gen = y.regression
+predictor = reg.lin
+errFun = function(y.pred,y.test){mean((y.pred-y.test)^2)}
+argsL = list(n=seq(200,1000,100),
+            rho=c(0.5),
+            sigma_reg = 1,
+            train_prop=0.5,
+            miss_prop = c(0.3),
+            p = 4
+)
+
+
+S = 10
+res.1 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+```
+
+```{r}
+res.1 %>% rename('MVN.Grouped'=grouped, 'MVN.Independent'=separate, 'MVN.Separate'=correct, 'Full data'=full) %>%
+  gather('method','error',c(MVN.Grouped, MVN.Independent, MVN.Separate,'Full data', MF.grouped, MF.independent)) %>%
+  ggplot() + aes(x=n*train_prop, y=error, color=method) + geom_line() +
+  themer(angle=F) +
+ scale_color_manual(values=c('black', 'coral2', 'darkgreen','red',  'forestgreen','darkblue'), name = "Imputation") +
+  xlab(expression(n[A])) + ylab('Validation MSE')
+```
+
+## Abalone data
+
+```{r}
+X.gen = X.abalone
+y.gen = y.abalone 
+argsL = list(n=seq(200,1000,100),
+            train_prop=0.5,
+            miss_prop = c(0.3)
+)
+
+
+S = 30
+res.3 = evaluate.S.run.multiArg(S,argsL, oneRun, do.parallel = T) 
+```
+
+```{r}
+res.3 %>% filter(n>=400) %>% rename('MVN.Grouped'=grouped, 'MVN.Independent'=separate, 'MVN.Separate'=correct, 'Full data'=full) %>%
+  gather('method','error',c(MVN.Grouped, MVN.Independent, MVN.Separate,'Full data', MF.grouped, MF.independent)) %>%
+  ggplot() + aes(x=n*train_prop, y=error, color=method) + geom_line() +
+  themer(angle=F) +
+ scale_color_manual(values=c('black', 'coral2', 'darkgreen','red',  'forestgreen','darkblue'), name = "Imputation") +
+  xlab(expression(n[A])) + ylab('Validation MSE')
+```

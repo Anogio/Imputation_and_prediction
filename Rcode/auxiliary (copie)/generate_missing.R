@@ -1,8 +1,6 @@
-# Functions used to add missing values to a dataset
+
 
 MCAR <- function(X, miss_prop){
-  # Add a proportion of missing data MCAR in the most basic way: each
-  # observation is missing with probability miss_prop
   print(paste('Adding ', miss_prop*100, '% missing observations completely at random.', sep=''))
   n = nrow(X)
   m = ncol(X)
@@ -16,7 +14,7 @@ MCAR <- function(X, miss_prop){
   return(X)
 }
 
-# Add a proportion of missing data but never empty a full line
+# Add a proportion of missing data but never empty a ful line
 MCAR.noEmptyLines <- function(X, miss_prop.){
   n = nrow(X)
   m = ncol(X)
