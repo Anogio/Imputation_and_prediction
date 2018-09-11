@@ -6,14 +6,12 @@ We also perform a methodologic investigation regarding the way that current impu
 
 ## Repository structure
 
-**TL;DR**: most of the useful and well-structured code can be found in Rcode/examples/Clean . This is probably where you want to go.
-### References
-This folder contains some references articles. Some of them describe the imputation methods used in this work, while others provide information on the subject of our main dataset: head trauma and haemorrhagic shock.
-
 ### Data
 This folder contains the datasets used for the comparison. Our main subject of study if a medical dataset collected by the Traumabase organisation (http://www.traumabase.eu/en_US). It is not publicly available, and thus is not included in the repository.
 
 ### Rcode
-This folder contains all of the code written for this project (cf the Readme for this folder)
+This folder contains all of the code written for this project (cf the Readme inside this folder for more information)
 
+### Final report
+This folder contains the latex source for the final project report. The final output is the file Ogier\_A\_final\_report.pdf . There we explain our motivation and research. All of the code used to get the results described is available in the *Rcode* folder.
 
