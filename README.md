@@ -1,4 +1,4 @@
-# MI_comparison
+# Investigating missing data imputation for Hemorrhagic Shock Prediction
 
 This project explores the links between missing data imputation and prediction, chiefly through the study of the Traumabase dataset for haemorrhagic shock prediction. The goal of this work is to investigate the way that missing data impacts prediction performance, and how various imputation methods perform at mitigating this impact.
 
